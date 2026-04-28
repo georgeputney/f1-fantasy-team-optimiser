@@ -8,3 +8,16 @@ __pycache__/
 dist/
 build/
 .eggs/
+
+# data
+data/raw/
+!data/raw/fantasy_prices/
+data/interim/
+data/processed/
+data/artifacts/
+
+# virtual env
+.venv/
+
+# IDE
+.vscode/
