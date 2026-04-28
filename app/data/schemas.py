@@ -30,6 +30,31 @@ events = pa.DataFrameSchema(
 )
 
 
+# driver-level qualifying outcomes, one row per driver per race
+# primary key: race_id + driver_id
+# q2_time and q3_time are null for drivers eliminated in q1/q2 respectively
+quali_results = pa.DataFrameSchema(
+    {
+        "race_id": pa.Column(str, 
+            checks=pa.Check.str_matches(r"^\d{4}_\d{1,2}$")
+        ),
+        "driver_id": pa.Column(str),
+        "constructor_id": pa.Column(str),
+        "quali_position": pa.Column(float, 
+            checks=[
+                pa.Check.greater_than_or_equal_to(0), 
+                pa.Check.less_than_or_equal_to(22),
+            ],
+            nullable=True,
+        ),
+        "q1_time": pa.Column(float, nullable=True),
+        "q2_time": pa.Column(float, nullable=True),
+        "q3_time": pa.Column(float, nullable=True),
+    },
+    strict=True,
+)
+
+
 # driver-level race outcomes, one row per driver per race
 # primary key: race_id + driver_id
 # source of truth for driver-constructor relationships per race
@@ -60,31 +85,7 @@ race_results = pa.DataFrameSchema(
         "points": pa.Column(float),
         "positions_gained": pa.Column(float, nullable=True),
         "fastest_lap_flag": pa.Column(bool),
-    },
-    strict=True,
-)
-
-
-# driver-level qualifying outcomes, one row per driver per race
-# primary key: race_id + driver_id
-# q2_time and q3_time are null for drivers eliminated in q1/q2 respectively
-quali_results = pa.DataFrameSchema(
-    {
-        "race_id": pa.Column(str, 
-            checks=pa.Check.str_matches(r"^\d{4}_\d{1,2}$")
-        ),
-        "driver_id": pa.Column(str),
-        "constructor_id": pa.Column(str),
-        "quali_position": pa.Column(float, 
-            checks=[
-                pa.Check.greater_than_or_equal_to(0), 
-                pa.Check.less_than_or_equal_to(22),
-            ],
-            nullable=True,
-        ),
-        "q1_time": pa.Column(float, nullable=True),
-        "q2_time": pa.Column(float, nullable=True),
-        "q3_time": pa.Column(float, nullable=True),
+        "dotd_flag": pa.Column(bool),
     },
     strict=True,
 )

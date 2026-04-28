@@ -20,6 +20,7 @@ INTERIM_RACES_DIR       = INTERIM_DIR / "races"
 INTERIM_QUALI_DIR       = INTERIM_DIR / "quali"
 
 PROCESSED_DIR           = DATA_DIR / "processed"    # feature store, model-ready datasets
+PROCESSED_TARGETS_DIR   = PROCESSED_DIR / "targets"
 
 ARTIFACTS_DIR           = DATA_DIR / "artifacts"    # trained model files
 

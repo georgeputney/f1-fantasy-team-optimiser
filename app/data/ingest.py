@@ -27,21 +27,6 @@ def get_event_metadata(season, round_num):
     return results
 
 
-# fetch race results for a single round from FastF1 and write to data/raw/races/
-# returns the raw DataFrame
-def get_race_results(season, round_num):
-    session = fastf1.get_session(season, round_num, 'R')
-    session.load(telemetry=False, weather=False, messages=False)
-
-    results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "GridPosition", "Position", "Status", "Points"]].copy()
-    results["race_id"] = f"{season}_{round_num}"
-
-    RAW_RACES_DIR.mkdir(parents=True, exist_ok=True)
-    results.to_parquet(RAW_RACES_DIR / f"{season}_{round_num}.parquet")
-
-    return results
-
-
 # fetch qualifying results for a single round from FastF1 and write to data/raw/quali/
 # returns the raw DataFrame
 def get_qualifying_results(season, round_num):
@@ -53,5 +38,20 @@ def get_qualifying_results(season, round_num):
 
     RAW_QUALI_DIR.mkdir(parents=True, exist_ok=True)
     results.to_parquet(RAW_QUALI_DIR / f"{season}_{round_num}.parquet")
+
+    return results
+
+
+# fetch race results for a single round from FastF1 and write to data/raw/races/
+# returns the raw DataFrame
+def get_race_results(season, round_num):
+    session = fastf1.get_session(season, round_num, 'R')
+    session.load(telemetry=False, weather=False, messages=False)
+
+    results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "GridPosition", "Position", "Status", "Points"]].copy()
+    results["race_id"] = f"{season}_{round_num}"
+
+    RAW_RACES_DIR.mkdir(parents=True, exist_ok=True)
+    results.to_parquet(RAW_RACES_DIR / f"{season}_{round_num}.parquet")
 
     return results

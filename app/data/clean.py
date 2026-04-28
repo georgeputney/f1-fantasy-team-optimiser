@@ -62,6 +62,7 @@ def clean_race_results(season, round_num):
     results["dsq_flag"] = results["status"].eq("disqualified")    
     results["positions_gained"] = results["grid_position"] - results["finish_position"]
     results["fastest_lap_flag"] = False     # TODO: derive from lap data once laps are ingested
+    results["dotd_flag"] = False            # TODO: derive probability from historic data
 
     results = results.drop(columns={
         "DriverId",
