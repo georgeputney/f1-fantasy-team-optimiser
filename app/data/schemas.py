@@ -6,7 +6,7 @@ import pandera.pandas as pa
 # event-level metadata, one row per race weekend
 # primary key: race_id 
 # all other tables join here for circuit and event context
-races = pa.DataFrameSchema(
+events = pa.DataFrameSchema(
     {
         "race_id": pa.Column(str, 
             checks=pa.Check.str_matches(r"^\d{4}_\d{1,2}$"),
@@ -20,7 +20,7 @@ races = pa.DataFrameSchema(
         ),
         "round": pa.Column(int),
         "event_name": pa.Column(str),
-        "circuit_name": pa.Column(str),
+        "location": pa.Column(str),
         "country": pa.Column(str),
         "event_date": pa.Column(pa.DateTime),
         "is_street_circuit": pa.Column(bool),
@@ -40,14 +40,14 @@ race_results = pa.DataFrameSchema(
         ),
         "driver_id": pa.Column(str),
         "constructor_id": pa.Column(str),
-        "grid_position": pa.Column(int, 
+        "grid_position": pa.Column(float, 
             checks=[
                 pa.Check.greater_than_or_equal_to(0), 
                 pa.Check.less_than_or_equal_to(22),
             ],
             nullable=True,
         ),
-        "finish_position": pa.Column(int, 
+        "finish_position": pa.Column(float, 
             checks=[
                 pa.Check.greater_than_or_equal_to(1), 
                 pa.Check.less_than_or_equal_to(22),
@@ -57,7 +57,7 @@ race_results = pa.DataFrameSchema(
         "status": pa.Column(str),
         "dnf_flag": pa.Column(bool),
         "points": pa.Column(float),
-        "positions_gained": pa.Column(int, nullable=True),
+        "positions_gained": pa.Column(float, nullable=True),
         "fastest_lap_flag": pa.Column(bool),
     },
     strict=True,
@@ -74,7 +74,7 @@ quali_results = pa.DataFrameSchema(
         ),
         "driver_id": pa.Column(str),
         "constructor_id": pa.Column(str),
-        "quali_position": pa.Column(int, 
+        "quali_position": pa.Column(float, 
             checks=[
                 pa.Check.greater_than_or_equal_to(0), 
                 pa.Check.less_than_or_equal_to(22),

@@ -15,7 +15,7 @@ fastf1.Cache.enable_cache(FASTF1_CACHE_DIR)
 # fetch event metadata for a single round from FastF1 and write to data/raw/events/
 # returns the raw DataFrame
 # circuit name, is_sprint, and is_street_circuit are derived in clean.py
-def get_race_metadata(season, round_num):
+def get_event_metadata(season, round_num):
     event = fastf1.get_event(season, round_num)
 
     results = pd.DataFrame([event[["RoundNumber", "Country", "Location", "EventName", "EventDate", "EventFormat"]]])
@@ -33,7 +33,7 @@ def get_race_results(season, round_num):
     session = fastf1.get_session(season, round_num, 'R')
     session.load(telemetry=False, weather=False, messages=False)
 
-    results = session.results[["DriverId", "TeamId", "GridPosition", "Position", "Status", "Points"]].copy()
+    results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "GridPosition", "Position", "Status", "Points"]].copy()
     results["race_id"] = f"{season}_{round_num}"
 
     RAW_RACES_DIR.mkdir(parents=True, exist_ok=True)
@@ -48,7 +48,7 @@ def get_qualifying_results(season, round_num):
     session = fastf1.get_session(season, round_num, 'Q')
     session.load(telemetry=False, weather=False, messages=False)
 
-    results = session.results[["DriverId", "TeamId", "Position", "Q1", "Q2", "Q3"]].copy()
+    results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "Position", "Q1", "Q2", "Q3"]].copy()
     results["race_id"] = f"{season}_{round_num}"
 
     RAW_QUALI_DIR.mkdir(parents=True, exist_ok=True)

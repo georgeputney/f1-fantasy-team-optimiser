@@ -6,14 +6,21 @@ from pathlib import Path
 # paths
 ROOT_DIR                = Path(__file__).resolve().parent.parent
 DATA_DIR                = ROOT_DIR / "data"
+
 RAW_DIR                 = DATA_DIR / "raw"          # fastf1 downloads, fantasy_prices.csv
-FASTF1_CACHE_DIR        = RAW_DIR / "fastf1_cache"
 RAW_EVENTS_DIR          = RAW_DIR / "events"
 RAW_RACES_DIR           = RAW_DIR / "races"
 RAW_QUALI_DIR           = RAW_DIR / "quali"
+FASTF1_CACHE_DIR        = RAW_DIR / "fastf1_cache"
 FANTASY_PRICES_DIR      = RAW_DIR / "fantasy_prices"
+
 INTERIM_DIR             = DATA_DIR / "interim"      # cleaned tables, before feature engineering
+INTERIM_EVENTS_DIR      = INTERIM_DIR / "events"
+INTERIM_RACES_DIR       = INTERIM_DIR / "races"
+INTERIM_QUALI_DIR       = INTERIM_DIR / "quali"
+
 PROCESSED_DIR           = DATA_DIR / "processed"    # feature store, model-ready datasets
+
 ARTIFACTS_DIR           = DATA_DIR / "artifacts"    # trained model files
 
 
