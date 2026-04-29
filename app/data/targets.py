@@ -14,6 +14,8 @@ def compute_qualifying_targets(season, round_num):
     drivers_score = results.apply(lambda row: scoring_rules.score_driver_qualifying(row["quali_position"], row["q1_time"]), axis=1)
     driver_targets = pd.DataFrame({
         "race_id": results["race_id"],
+        "season": season,
+        "round": round_num,
         "asset_id": results["driver_id"],
         "asset_type": "driver",
         "actual_fantasy_points": drivers_score
@@ -29,6 +31,8 @@ def compute_qualifying_targets(season, round_num):
     constructors_score = constructor_groups.apply(lambda row: scoring_rules.score_constructor_qualifying(row["quali_position"], row["q1_time"], row["q2_time"], row["q3_time"]), axis=1)
     constructor_targets = pd.DataFrame({
         "race_id": constructor_groups["race_id"],
+        "season": season,
+        "round": round_num,
         "asset_id": constructor_groups["constructor_id"],
         "asset_type": "constructor",
         "actual_fantasy_points": constructors_score
@@ -44,6 +48,8 @@ def compute_race_targets(season, round_num):
     drivers_score = results.apply(lambda row: scoring_rules.score_driver_race(row["finish_position"], row["positions_gained"], row["dnf_flag"], row["dsq_flag"], row["fastest_lap_flag"], row["dotd_flag"]), axis=1)
     driver_targets = pd.DataFrame({
         "race_id": results["race_id"],
+        "season": season,
+        "round": round_num,
         "asset_id": results["driver_id"],
         "asset_type": "driver",
         "actual_fantasy_points": drivers_score
@@ -60,6 +66,8 @@ def compute_race_targets(season, round_num):
     constructors_score = constructor_groups.apply(lambda row: scoring_rules.score_constructor_race(row["finish_position"], row["positions_gained"], row["dnf_flag"], row["dsq_flag"], row["fastest_lap_flag"]), axis=1)
     constructor_targets = pd.DataFrame({
         "race_id": constructor_groups["race_id"],
+        "season": season,
+        "round": round_num,
         "asset_id": constructor_groups["constructor_id"],
         "asset_type": "constructor",
         "actual_fantasy_points": constructors_score
@@ -76,7 +84,7 @@ def compute_targets(season, round_num):
     race_targets = compute_race_targets(season, round_num)
 
     targets = pd.concat([quali_targets, race_targets]).reset_index(drop=True) 
-    targets = targets.groupby(["race_id", "asset_id", "asset_type"], as_index=False)["actual_fantasy_points"].sum()
+    targets = targets.groupby(["race_id", "season", "round", "asset_id", "asset_type"], as_index=False)["actual_fantasy_points"].sum()
 
     schemas.fantasy_targets.validate(targets)
 

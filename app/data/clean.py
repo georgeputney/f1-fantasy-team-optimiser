@@ -28,9 +28,9 @@ def clean_events(season, round_num):
     "EventDate": "event_date",
     })
 
+    events["season"] = season
     events["is_sprint"] = events["EventFormat"].isin(["sprint", "sprint_qualifying", "sprint_shootout"])
     events["is_street_circuit"] = events["location"].isin(STREET_CIRCUITS)
-    events["season"] = season
 
     events = events.drop(columns=["EventFormat"])
     
@@ -40,42 +40,6 @@ def clean_events(season, round_num):
     events.to_parquet(INTERIM_EVENTS_DIR / f"{season}_{round_num}.parquet")
 
     return events
-
-
-# read raw race results from data/raw/races/, normalise driver and constructor IDs,
-# derive dnf_flag, positions_gained, and fastest_lap_flag, validate against schema,
-# write to data/interim/races/
-def clean_race_results(season, round_num):
-    results = pd.read_parquet(RAW_RACES_DIR / f"{season}_{round_num}.parquet")
-    
-    results = results.rename(columns={
-    "TeamId": "constructor_id",
-    "GridPosition": "grid_position",
-    "Position": "finish_position",
-    "Status": "status",
-    "Points": "points",
-    })
-
-    results["driver_id"] = results["FirstName"].str.lower() + "_" + results["LastName"].str.lower()
-    results["status"] = results["status"].str.lower()
-    results["dnf_flag"] = ~(results["status"].str.startswith("+") | results["status"].eq("finished") | results["status"].eq("disqualified"))
-    results["dsq_flag"] = results["status"].eq("disqualified")    
-    results["positions_gained"] = results["grid_position"] - results["finish_position"]
-    results["fastest_lap_flag"] = False     # TODO: derive from lap data once laps are ingested
-    results["dotd_flag"] = False            # TODO: derive probability from historic data
-
-    results = results.drop(columns={
-        "DriverId",
-        "FirstName",
-        "LastName",
-    })
-
-    schemas.race_results.validate(results)
-
-    INTERIM_RACES_DIR.mkdir(parents=True, exist_ok=True)
-    results.to_parquet(INTERIM_RACES_DIR / f"{season}_{round_num}.parquet")
-
-    return results
 
 
 # read raw qualifying results from data/raw/quali/, normalise driver and constructor IDs,
@@ -95,6 +59,8 @@ def clean_qualifying_results(season, round_num):
     "Q3": "q3_time",
     })
 
+    results["season"] = season
+    results["round"] = round_num
     results["driver_id"] = results["FirstName"].str.lower() + "_" + results["LastName"].str.lower()
 
     results = results.drop(columns={
@@ -107,5 +73,43 @@ def clean_qualifying_results(season, round_num):
 
     INTERIM_QUALI_DIR.mkdir(parents=True, exist_ok=True)
     results.to_parquet(INTERIM_QUALI_DIR / f"{season}_{round_num}.parquet")
+
+    return results
+
+
+# read raw race results from data/raw/races/, normalise driver and constructor IDs,
+# derive dnf_flag, positions_gained, and fastest_lap_flag, validate against schema,
+# write to data/interim/races/
+def clean_race_results(season, round_num):
+    results = pd.read_parquet(RAW_RACES_DIR / f"{season}_{round_num}.parquet")
+    
+    results = results.rename(columns={
+    "TeamId": "constructor_id",
+    "GridPosition": "grid_position",
+    "Position": "finish_position",
+    "Status": "status",
+    "Points": "points",
+    })
+
+    results["season"] = season
+    results["round"] = round_num
+    results["driver_id"] = results["FirstName"].str.lower() + "_" + results["LastName"].str.lower()
+    results["status"] = results["status"].str.lower()
+    results["dnf_flag"] = ~(results["status"].str.startswith("+") | results["status"].eq("finished") | results["status"].eq("disqualified"))
+    results["dsq_flag"] = results["status"].eq("disqualified")    
+    results["positions_gained"] = results["grid_position"] - results["finish_position"]
+    results["fastest_lap_flag"] = False     # TODO: derive from lap data once laps are ingested
+    results["dotd_flag"] = False            # TODO: derive probability from historic data
+
+    results = results.drop(columns={
+        "DriverId",
+        "FirstName",
+        "LastName",
+    })
+
+    schemas.race_results.validate(results)
+
+    INTERIM_RACES_DIR.mkdir(parents=True, exist_ok=True)
+    results.to_parquet(INTERIM_RACES_DIR / f"{season}_{round_num}.parquet")
 
     return results

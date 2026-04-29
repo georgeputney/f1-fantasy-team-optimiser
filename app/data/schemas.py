@@ -38,6 +38,8 @@ quali_results = pa.DataFrameSchema(
         "race_id": pa.Column(str, 
             checks=pa.Check.str_matches(r"^\d{4}_\d{1,2}$")
         ),
+        "season": pa.Column(int),
+        "round": pa.Column(int),
         "driver_id": pa.Column(str),
         "constructor_id": pa.Column(str),
         "quali_position": pa.Column(float, 
@@ -63,6 +65,8 @@ race_results = pa.DataFrameSchema(
         "race_id": pa.Column(str, 
             checks=pa.Check.str_matches(r"^\d{4}_\d{1,2}$")
         ),
+        "season": pa.Column(int),
+        "round": pa.Column(int),
         "driver_id": pa.Column(str),
         "constructor_id": pa.Column(str),
         "grid_position": pa.Column(float, 
@@ -115,6 +119,8 @@ fantasy_targets = pa.DataFrameSchema(
         "race_id": pa.Column(str, 
             checks=pa.Check.str_matches(r"^\d{4}_\d{1,2}$")
         ),
+        "season": pa.Column(int),
+        "round": pa.Column(int),
         "asset_id": pa.Column(str),
         "asset_type": pa.Column(str, pa.Check.isin(["driver", "constructor"])),
         "actual_fantasy_points": pa.Column(float),
