@@ -61,7 +61,8 @@ def clean_qualifying_results(season, round_num):
 
     results["season"] = season
     results["round"] = round_num
-    results["driver_id"] = results["FirstName"].str.lower() + "_" + results["LastName"].str.lower()
+    # replace spaces to handle multi-part names
+    results["driver_id"] = results["FirstName"].str.lower().str.replace(" ", "_") + "_" + results["LastName"].str.lower().str.replace(" ", "_")
 
     results = results.drop(columns={
         "DriverId",
@@ -93,7 +94,8 @@ def clean_race_results(season, round_num):
 
     results["season"] = season
     results["round"] = round_num
-    results["driver_id"] = results["FirstName"].str.lower() + "_" + results["LastName"].str.lower()
+    # replace spaces to handle multi-part names
+    results["driver_id"] = results["FirstName"].str.lower().str.replace(" ", "_") + "_" + results["LastName"].str.lower().str.replace(" ", "_")    
     results["status"] = results["status"].str.lower()
     results["dnf_flag"] = ~(results["status"].str.startswith("+") | results["status"].eq("finished") | results["status"].eq("disqualified"))
     results["dsq_flag"] = results["status"].eq("disqualified")    

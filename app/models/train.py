@@ -25,7 +25,7 @@ def load_data(config):
     driver_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_DRIVER_FEATURES_DIR.glob("*.parquet"))])
     race_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_RACES_DIR.glob("*.parquet"))])
 
-    df = driver_features.merge(
+    df = driver_features.merge( # TODO V2: replace grid_position with Model 1 predicted quali position
         race_results[["race_id", "driver_id", "finish_position", "grid_position"]].rename(columns={"grid_position": "quali_position"}),
         on=["race_id", "driver_id"],
         how="left"

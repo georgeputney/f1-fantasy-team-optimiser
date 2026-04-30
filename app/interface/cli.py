@@ -8,9 +8,13 @@ import pandas as pd
 from app.data.ingest import get_event_metadata, get_race_results, get_qualifying_results
 from app.data.clean import clean_events, clean_race_results, clean_qualifying_results
 from app.data.targets import compute_targets
+
 from app.features.build_driver_features import build_driver_features
-from app.models.train import main as train_main
+
 from app.models.configs import FINISH_POSITION_MODEL
+from app.models.train import main as train_main
+from app.models.predict import load_model, predict as run_predict
+from app.models.compose import compose_drivers, compose_constructor
 
 from app.config import ALL_SEASONS, INTERIM_EVENTS_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, PROCESSED_TARGETS_DIR
 
@@ -53,7 +57,7 @@ def clean_data(seasons: list[int] = typer.Option(ALL_SEASONS)):
             clean_qualifying_results(season, round_num)
 
 
-# 
+# compute actual fantasy points from cleaned results and write to data/processed/targets/
 @app.command()
 def build_targets(seasons: list[int] = typer.Option(ALL_SEASONS)):
     for season in seasons:
@@ -68,7 +72,7 @@ def build_targets(seasons: list[int] = typer.Option(ALL_SEASONS)):
             compute_targets(season, round_num)
 
 
-#
+# build driver and constructor features for the given seasons and write to data/processed/driver_features/
 @app.command()
 def build_features(seasons: list[int] = typer.Option(ALL_SEASONS)):
 
@@ -95,6 +99,23 @@ def train_model():
     typer.echo(f"Training model...")
 
     train_main(FINISH_POSITION_MODEL)
+
+
+# load the trained model, predict finish positions, and print expected fantasy points for drivers and constructors
+@app.command()
+def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)):
+    model = load_model(FINISH_POSITION_MODEL)
+    predictions = run_predict(model, FINISH_POSITION_MODEL, season, round)
+    
+    driver_points = compose_drivers(predictions)
+    constructor_points = compose_constructor(driver_points)
+
+    typer.echo(f"Predicting season {season}, round {round:02d}...")
+    
+    typer.echo("\nDrivers:")
+    typer.echo(driver_points[["driver_id", "predicted_finish_position", "expected_fantasy_points"]].to_string())
+    typer.echo("\nConstructors:")
+    typer.echo(constructor_points.to_string())
 
 
 if __name__ == "__main__": app()
