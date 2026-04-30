@@ -9,6 +9,9 @@ from app.data.ingest import get_event_metadata, get_race_results, get_qualifying
 from app.data.clean import clean_events, clean_race_results, clean_qualifying_results
 from app.data.targets import compute_targets
 from app.features.build_driver_features import build_driver_features
+from app.models.train import main as train_main
+from app.models.configs import FINISH_POSITION_MODEL
+
 from app.config import ALL_SEASONS, INTERIM_EVENTS_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, PROCESSED_TARGETS_DIR
 
 logging.getLogger("fastf1").setLevel(logging.WARNING)
@@ -84,6 +87,14 @@ def build_features(seasons: list[int] = typer.Option(ALL_SEASONS)):
             typer.echo(f"Building features for season {season}, round {round_num}...")
 
             build_driver_features(race_results, quali_results, fantasy_targets, events, season, round_num)
+
+
+# train the race finish position model
+@app.command()
+def train_model():
+    typer.echo(f"Training model...")
+
+    train_main(FINISH_POSITION_MODEL)
 
 
 if __name__ == "__main__": app()

@@ -90,6 +90,10 @@ def season_points_to_date(race_results, driver_id, season, round_num):
 
 
 # round number within the season
+def season(season):
+    return {"season": season}
+
+# round number within the season
 def round_number(round_num):
     return {"round_number": round_num}
 
@@ -114,6 +118,7 @@ def build_driver_features(race_results, quali_results, fantasy_targets, events, 
         features.update(circuit_rolling_quali_pos(quali_results, events, driver_id, season, round_num))
         features.update(circuit_rolling_finish_pos(race_results, events, driver_id, season, round_num))
         features.update(season_points_to_date(race_results, driver_id, season, round_num))
+        features["season"] = season
         features.update(round_number(round_num))
         features.update(is_street_circuit(events, season, round_num))
 
