@@ -61,7 +61,7 @@ def constructor_form_trend(fantasy_targets, asset_id, season, round_num):
 # builds constructor feature rows for all constructors in a given race
 # returns a DataFrame, does not write to parquet (yet)
 def build_constructor_features(race_results, quali_results, fantasy_targets, events, season, round_num):
-    race_id = f"{season}_{round_num}"
+    race_id = f"{season}_{round_num:02d}"
     constructors = race_results[race_results["race_id"] == race_id]["constructor_id"].unique()
     
     rows = []

@@ -19,10 +19,10 @@ def get_event_metadata(season, round_num):
     event = fastf1.get_event(season, round_num)
 
     results = pd.DataFrame([event[["RoundNumber", "Country", "Location", "EventName", "EventDate", "EventFormat"]]])
-    results["race_id"] = f"{season}_{round_num}"
+    results["race_id"] = f"{season}_{round_num:02d}"
 
     RAW_EVENTS_DIR.mkdir(parents=True, exist_ok=True)
-    results.to_parquet(RAW_EVENTS_DIR / f"{season}_{round_num}.parquet")
+    results.to_parquet(RAW_EVENTS_DIR / f"{season}_{round_num:02d}.parquet")
 
     return results
 
@@ -34,10 +34,10 @@ def get_qualifying_results(season, round_num):
     session.load(telemetry=False, weather=False, messages=False)
 
     results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "Position", "Q1", "Q2", "Q3"]].copy()
-    results["race_id"] = f"{season}_{round_num}"
+    results["race_id"] = f"{season}_{round_num:02d}"
 
     RAW_QUALI_DIR.mkdir(parents=True, exist_ok=True)
-    results.to_parquet(RAW_QUALI_DIR / f"{season}_{round_num}.parquet")
+    results.to_parquet(RAW_QUALI_DIR / f"{season}_{round_num:02d}.parquet")
 
     return results
 
@@ -49,9 +49,9 @@ def get_race_results(season, round_num):
     session.load(telemetry=False, weather=False, messages=False)
 
     results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "GridPosition", "Position", "Status", "Points"]].copy()
-    results["race_id"] = f"{season}_{round_num}"
+    results["race_id"] = f"{season}_{round_num:02d}"
 
     RAW_RACES_DIR.mkdir(parents=True, exist_ok=True)
-    results.to_parquet(RAW_RACES_DIR / f"{season}_{round_num}.parquet")
+    results.to_parquet(RAW_RACES_DIR / f"{season}_{round_num:02d}.parquet")
 
     return results

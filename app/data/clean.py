@@ -18,7 +18,7 @@ STREET_CIRCUITS = {
 # derive is_sprint and is_street_circuit, validate against schema,  
 # write to data/interim/events/
 def clean_events(season, round_num):
-    events = pd.read_parquet(RAW_EVENTS_DIR / f"{season}_{round_num}.parquet")
+    events = pd.read_parquet(RAW_EVENTS_DIR / f"{season}_{round_num:02d}.parquet")
 
     events = events.rename(columns={
     "RoundNumber": "round",
@@ -37,7 +37,7 @@ def clean_events(season, round_num):
     schemas.events.validate(events)
 
     INTERIM_EVENTS_DIR.mkdir(parents=True, exist_ok=True)
-    events.to_parquet(INTERIM_EVENTS_DIR / f"{season}_{round_num}.parquet")
+    events.to_parquet(INTERIM_EVENTS_DIR / f"{season}_{round_num:02d}.parquet")
 
     return events
 
@@ -46,7 +46,7 @@ def clean_events(season, round_num):
 # convert Q1/Q2/Q3 lap times to seconds, validate against schema, 
 # write to data/interim/quali/
 def clean_qualifying_results(season, round_num):
-    results = pd.read_parquet(RAW_QUALI_DIR / f"{season}_{round_num}.parquet")
+    results = pd.read_parquet(RAW_QUALI_DIR / f"{season}_{round_num:02d}.parquet")
 
     for col in ["Q1", "Q2", "Q3"]:
         results[col] = results[col].dt.total_seconds()
@@ -72,7 +72,7 @@ def clean_qualifying_results(season, round_num):
     schemas.quali_results.validate(results)
 
     INTERIM_QUALI_DIR.mkdir(parents=True, exist_ok=True)
-    results.to_parquet(INTERIM_QUALI_DIR / f"{season}_{round_num}.parquet")
+    results.to_parquet(INTERIM_QUALI_DIR / f"{season}_{round_num:02d}.parquet")
 
     return results
 
@@ -81,7 +81,7 @@ def clean_qualifying_results(season, round_num):
 # derive dnf_flag, positions_gained, and fastest_lap_flag, validate against schema,
 # write to data/interim/races/
 def clean_race_results(season, round_num):
-    results = pd.read_parquet(RAW_RACES_DIR / f"{season}_{round_num}.parquet")
+    results = pd.read_parquet(RAW_RACES_DIR / f"{season}_{round_num:02d}.parquet")
     
     results = results.rename(columns={
     "TeamId": "constructor_id",
@@ -110,6 +110,6 @@ def clean_race_results(season, round_num):
     schemas.race_results.validate(results)
 
     INTERIM_RACES_DIR.mkdir(parents=True, exist_ok=True)
-    results.to_parquet(INTERIM_RACES_DIR / f"{season}_{round_num}.parquet")
+    results.to_parquet(INTERIM_RACES_DIR / f"{season}_{round_num:02d}.parquet")
 
     return results

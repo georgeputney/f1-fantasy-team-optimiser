@@ -54,7 +54,7 @@ def rolling_dnf_rate(race_results, driver_id, season, round_num):
 # average qualifying position at this circuit over the last 3 and 5 visits
 def circuit_rolling_quali_pos(quali_results, events, driver_id, season, round_num):
     prior_quali = _get_prior_results(quali_results, driver_id, season, round_num)
-    location = events[events["race_id"] == f"{season}_{round_num}"]["location"].iloc[0]
+    location = events[events["race_id"] == f"{season}_{round_num:02d}"]["location"].iloc[0]
 
     prior_quali = prior_quali.merge(events[["race_id", "location"]], on="race_id")
     prior_quali = prior_quali[prior_quali["location"] == location]
@@ -69,7 +69,7 @@ def circuit_rolling_quali_pos(quali_results, events, driver_id, season, round_nu
 # average finish position at this circuit over the last 3 and 5 visits
 def circuit_rolling_finish_pos(race_results, events, driver_id, season, round_num):
     prior_races = _get_prior_results(race_results, driver_id, season, round_num)
-    location = events[events["race_id"] == f"{season}_{round_num}"]["location"].iloc[0]
+    location = events[events["race_id"] == f"{season}_{round_num:02d}"]["location"].iloc[0]
 
     prior_races = prior_races.merge(events[["race_id", "location"]], on="race_id")
     prior_races = prior_races[prior_races["location"] == location]
@@ -100,12 +100,12 @@ def round_number(round_num):
 
 # whether the current race is held on a street circuit
 def is_street_circuit(events, season, round_num):
-    return {"is_street_circuit": events[events["race_id"] == f"{season}_{round_num}"]["is_street_circuit"].iloc[0]}
+    return {"is_street_circuit": events[events["race_id"] == f"{season}_{round_num:02d}"]["is_street_circuit"].iloc[0]}
 
 
 # builds the full driver feature row for a single race, joins constructor context, validates, and writes to parquet
 def build_driver_features(race_results, quali_results, fantasy_targets, events, season, round_num):
-    race_id = f"{season}_{round_num}"
+    race_id = f"{season}_{round_num:02d}"
     drivers = race_results[race_results["race_id"] == race_id]["driver_id"].unique()
     
     rows = []
@@ -139,7 +139,7 @@ def build_driver_features(race_results, quali_results, fantasy_targets, events, 
     schemas.driver_features.validate(features_df)
 
     PROCESSED_DRIVER_FEATURES_DIR.mkdir(parents=True, exist_ok=True)
-    features_df.to_parquet(PROCESSED_DRIVER_FEATURES_DIR / f"{season}_{round_num}.parquet")
+    features_df.to_parquet(PROCESSED_DRIVER_FEATURES_DIR / f"{season}_{round_num:02d}.parquet")
     
     return features_df
 

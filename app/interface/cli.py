@@ -29,7 +29,7 @@ def ingest_data(seasons: list[int] = typer.Option(ALL_SEASONS)):
         
         for round_num in schedule["RoundNumber"]:
 
-            typer.echo(f"Ingesting season {season}, round {round_num}...")
+            typer.echo(f"Ingesting season {season}, round {round_num:02d}...")
 
             get_event_metadata(season, round_num)
             get_race_results(season, round_num)
@@ -46,7 +46,7 @@ def clean_data(seasons: list[int] = typer.Option(ALL_SEASONS)):
         
         for round_num in schedule["RoundNumber"]:
 
-            typer.echo(f"Cleaning season {season}, round {round_num}...")
+            typer.echo(f"Cleaning season {season}, round {round_num:02d}...")
 
             clean_events(season, round_num)
             clean_race_results(season, round_num)
@@ -63,7 +63,7 @@ def build_targets(seasons: list[int] = typer.Option(ALL_SEASONS)):
         
         for round_num in schedule["RoundNumber"]:
 
-            typer.echo(f"Building targets for season {season}, round {round_num}...")
+            typer.echo(f"Building targets for season {season}, round {round_num:02d}...")
 
             compute_targets(season, round_num)
 
@@ -84,7 +84,7 @@ def build_features(seasons: list[int] = typer.Option(ALL_SEASONS)):
 
         for round_num in schedule["RoundNumber"]:
 
-            typer.echo(f"Building features for season {season}, round {round_num}...")
+            typer.echo(f"Building features for season {season}, round {round_num:02d}...")
 
             build_driver_features(race_results, quali_results, fantasy_targets, events, season, round_num)
 

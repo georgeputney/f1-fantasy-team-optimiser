@@ -9,7 +9,7 @@ from app.config import INTERIM_RACES_DIR, INTERIM_QUALI_DIR, PROCESSED_TARGETS_D
 
 # returns fantasy points for all drivers and constructors for a single qualifying session
 def compute_qualifying_targets(season, round_num):
-    results = pd.read_parquet(INTERIM_QUALI_DIR / f"{season}_{round_num}.parquet")
+    results = pd.read_parquet(INTERIM_QUALI_DIR / f"{season}_{round_num:02d}.parquet")
 
     drivers_score = results.apply(lambda row: scoring_rules.score_driver_qualifying(row["quali_position"], row["q1_time"]), axis=1)
     driver_targets = pd.DataFrame({
@@ -43,7 +43,7 @@ def compute_qualifying_targets(season, round_num):
     
 # returns fantasy points for all drivers and constructors for a single race session
 def compute_race_targets(season, round_num):
-    results = pd.read_parquet(INTERIM_RACES_DIR / f"{season}_{round_num}.parquet")
+    results = pd.read_parquet(INTERIM_RACES_DIR / f"{season}_{round_num:02d}.parquet")
 
     drivers_score = results.apply(lambda row: scoring_rules.score_driver_race(row["finish_position"], row["positions_gained"], row["dnf_flag"], row["dsq_flag"], row["fastest_lap_flag"], row["dotd_flag"]), axis=1)
     driver_targets = pd.DataFrame({
@@ -89,6 +89,6 @@ def compute_targets(season, round_num):
     schemas.fantasy_targets.validate(targets)
 
     PROCESSED_TARGETS_DIR.mkdir(parents=True, exist_ok=True)
-    targets.to_parquet(PROCESSED_TARGETS_DIR / f"{season}_{round_num}.parquet")
+    targets.to_parquet(PROCESSED_TARGETS_DIR / f"{season}_{round_num:02d}.parquet")
 
     return targets
