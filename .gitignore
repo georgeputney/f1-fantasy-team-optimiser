@@ -16,6 +16,9 @@ data/interim/
 data/processed/
 data/artifacts/
 
+# visualisations
+reports/
+
 # virtual env
 .venv/
 

@@ -30,72 +30,72 @@ app = typer.Typer(no_args_is_help=True)
 
 # fetch raw race, qualifying, and event metadata from FastF1 for the given seasons and write to data/raw/
 @app.command()
-def ingest_data(seasons: list[int] = typer.Option(ALL_SEASONS)):
-    for season in seasons:
+def ingest_data(season: list[int] = typer.Option(ALL_SEASONS)):
+    for s in season:
 
-        schedule = fastf1.get_event_schedule(season)
+        schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
-        
+
         for round_num in schedule["RoundNumber"]:
 
-            typer.echo(f"Ingesting season {season}, round {round_num:02d}...")
+            typer.echo(f"Ingesting season {s}, round {round_num:02d}...")
 
-            get_event_metadata(season, round_num)
-            get_race_results(season, round_num)
-            get_qualifying_results(season, round_num)
+            get_event_metadata(s, round_num)
+            get_race_results(s, round_num)
+            get_qualifying_results(s, round_num)
 
 
 # clean raw parquet files for the given seasons and write validated tables to data/interim/
 @app.command()
-def clean_data(seasons: list[int] = typer.Option(ALL_SEASONS)):
-    for season in seasons:
+def clean_data(season: list[int] = typer.Option(ALL_SEASONS)):
+    for s in season:
 
-        schedule = fastf1.get_event_schedule(season)
+        schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
-        
+
         for round_num in schedule["RoundNumber"]:
 
-            typer.echo(f"Cleaning season {season}, round {round_num:02d}...")
+            typer.echo(f"Cleaning season {s}, round {round_num:02d}...")
 
-            clean_events(season, round_num)
-            clean_race_results(season, round_num)
-            clean_qualifying_results(season, round_num)
+            clean_events(s, round_num)
+            clean_race_results(s, round_num)
+            clean_qualifying_results(s, round_num)
 
 
 # compute actual fantasy points from cleaned results and write to data/processed/targets/
 @app.command()
-def build_targets(seasons: list[int] = typer.Option(ALL_SEASONS)):
-    for season in seasons:
+def build_targets(season: list[int] = typer.Option(ALL_SEASONS)):
+    for s in season:
 
-        schedule = fastf1.get_event_schedule(season)
+        schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
-        
+
         for round_num in schedule["RoundNumber"]:
 
-            typer.echo(f"Building targets for season {season}, round {round_num:02d}...")
+            typer.echo(f"Building targets for season {s}, round {round_num:02d}...")
 
-            compute_targets(season, round_num)
+            compute_targets(s, round_num)
 
 
 # build driver and constructor features for the given seasons and write to data/processed/driver_features/
 @app.command()
-def build_features(seasons: list[int] = typer.Option(ALL_SEASONS)):
+def build_features(season: list[int] = typer.Option(ALL_SEASONS)):
 
     race_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_RACES_DIR.glob("*.parquet"))])
     quali_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_QUALI_DIR.glob("*.parquet"))])
     events = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_EVENTS_DIR.glob("*.parquet"))])
     fantasy_targets = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_TARGETS_DIR.glob("*.parquet"))])
 
-    for season in seasons:
+    for s in season:
 
-        schedule = fastf1.get_event_schedule(season)
+        schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
 
         for round_num in schedule["RoundNumber"]:
 
-            typer.echo(f"Building features for season {season}, round {round_num:02d}...")
+            typer.echo(f"Building features for season {s}, round {round_num:02d}...")
 
-            build_driver_features(race_results, quali_results, fantasy_targets, events, season, round_num)
+            build_driver_features(race_results, quali_results, fantasy_targets, events, s, round_num)
 
 
 # train the race finish position model
@@ -170,46 +170,46 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 
 # runs walk-forward backtest comparing model, oracle, and random strategies over historical seasons, prints per-round results and saves a cumulative points plot
 @app.command()
-def backtest(seasons: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP)):
+def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP)):
     model = load_model(FINISH_POSITION_MODEL)
     results = []
 
-    for season in seasons:
-        schedule = fastf1.get_event_schedule(season)
+    for s in season:
+        schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0]
 
         for round_num in schedule["RoundNumber"]:
-            prices_path = FANTASY_PRICES_DIR / f"{season}_{round_num:02d}.csv"
-            features_path = PROCESSED_DRIVER_FEATURES_DIR / f"{season}_{round_num:02d}.parquet"
-            targets_path = PROCESSED_TARGETS_DIR / f"{season}_{round_num:02d}.parquet"
+            prices_path = FANTASY_PRICES_DIR / f"{s}_{round_num:02d}.csv"
+            features_path = PROCESSED_DRIVER_FEATURES_DIR / f"{s}_{round_num:02d}.parquet"
+            targets_path = PROCESSED_TARGETS_DIR / f"{s}_{round_num:02d}.parquet"
 
             if not (prices_path.exists() and features_path.exists() and targets_path.exists()):
                 continue
 
-            typer.echo(f"Backtesting season {season}, round {round_num:02d}...")
+            typer.echo(f"Backtesting season {s}, round {round_num:02d}...")
 
             prices = pd.read_csv(prices_path)
-            predictions = run_predict(model, FINISH_POSITION_MODEL, season, round_num)
+            predictions = run_predict(model, FINISH_POSITION_MODEL, s, round_num)
 
             driver_points = compose_drivers(predictions)
             constructor_points = compose_constructor(driver_points)
 
             model_team = optimiser(driver_points, constructor_points, prices, budget)
-            model_points = get_actual_team_points(model_team, season, round_num)
+            model_points = get_actual_team_points(model_team, s, round_num)
 
-            oracle_team = oracle_baseline(season, round_num, prices, budget)
-            oracle_points = get_actual_team_points(oracle_team, season, round_num)
+            oracle_team = oracle_baseline(s, round_num, prices, budget)
+            oracle_points = get_actual_team_points(oracle_team, s, round_num)
 
-            random_points = random_baseline(season, round_num, prices, budget)
+            random_points = random_baseline(s, round_num, prices, budget)
 
-            results.append({"season": season, "round": round_num, "model": model_points, "oracle": oracle_points, "random": random_points})
+            results.append({"season": s, "round": round_num, "model": model_points, "oracle": oracle_points, "random": random_points})
 
     df = pd.DataFrame(results)
 
     typer.echo(f"\n{'Round':<8} {'Model':>8} {'Oracle':>8} {'Random':>8}")
     for _, row in df.iterrows():
         typer.echo(f"  {int(row['round']):<6} {row['model']:>8.1f} {row['oracle']:>8.1f} {row['random']:>8.1f}")
-        
+
     typer.echo(f"\n{'Total':<8} {df['model'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['random'].sum():>8.1f}")
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -219,7 +219,7 @@ def backtest(seasons: list[int] = typer.Option(VAL_SEASONS), budget: float = typ
     plt.xlabel("Round")
     plt.ylabel("Cumulative points")
     plt.tight_layout()
-    plt.savefig(REPORTS_DIR / f"backtest_{'_'.join(str(s) for s in seasons)}.png")
+    plt.savefig(REPORTS_DIR / f"backtest_{'_'.join(str(s) for s in season)}.png")
 
     typer.echo(f"\nPlot saved to reports/")
 
