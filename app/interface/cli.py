@@ -16,7 +16,7 @@ from app.models.train import main as train_main
 from app.models.predict import load_model, predict as run_predict
 from app.models.compose import compose_drivers, compose_constructor
 
-from app.optimiser.team_optimiser import optimiser
+from app.optimiser import optimiser
 
 from app.config import ALL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, INTERIM_EVENTS_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, PROCESSED_TARGETS_DIR
 
@@ -123,6 +123,8 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
 # load predictions, compose expected points, and select the optimal team under budget constraints
 @app.command()
 def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP)):
+    typer.echo(f"Optimising team for season {season}, round {round:02d}, budget {budget}...")
+
     prices = pd.read_csv(FANTASY_PRICES_DIR / f"{season}_{round:02d}.csv")
     
     model = load_model(FINISH_POSITION_MODEL)
@@ -133,14 +135,13 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
     
     team = optimiser(driver_points, constructor_points, prices, budget)
 
-    typer.echo(f"Optimising team for season {season}, round {round:02d}, budget {budget}...")
-
     driver_points = driver_points.set_index("driver_id")["expected_fantasy_points"]
     constructor_points = constructor_points.set_index("constructor_id")["expected_fantasy_points"]
     driver_prices = prices.set_index("asset_id")["price"]
 
-    typer.echo("\nDrivers:")
     total = 0.0
+
+    typer.echo("\nDrivers:")
     for d in team["drivers"]:
         points = driver_points[d] * (2 if d == team["doubled_driver"] else 1)
         price = driver_prices[d]
