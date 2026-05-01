@@ -13,6 +13,16 @@ STREET_CIRCUITS = {
     "Las Vegas", "Miami", "Sochi",
 }
 
+DRIVER_ID_NORMALISATION = {
+    "kimi_antonelli": "andrea_kimi_antonelli",
+}
+
+CONSTRUCTOR_ID_NORMALISATION = {
+    "alfa": "alfa_romeo",       # Alfa Romeo (2023 and prior)
+    "rb": "racing_bulls",       # RB rebranded to Racing Bulls (2025)
+    "sauber": "kick_sauber",    # Sauber rebranded to Kick Sauber (2024-2025)
+}
+
 
 # read raw event metadata from data/raw/events/, rename columns, 
 # derive is_sprint and is_street_circuit, validate against schema,  
@@ -63,6 +73,8 @@ def clean_qualifying_results(season, round_num):
     results["round"] = round_num
     # replace spaces to handle multi-part names
     results["driver_id"] = results["FirstName"].str.lower().str.replace(" ", "_") + "_" + results["LastName"].str.lower().str.replace(" ", "_")
+    results["driver_id"] = results["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    results["constructor_id"] = results["constructor_id"].replace(CONSTRUCTOR_ID_NORMALISATION)
 
     results = results.drop(columns={
         "DriverId",
@@ -95,7 +107,10 @@ def clean_race_results(season, round_num):
     results["season"] = season
     results["round"] = round_num
     # replace spaces to handle multi-part names
-    results["driver_id"] = results["FirstName"].str.lower().str.replace(" ", "_") + "_" + results["LastName"].str.lower().str.replace(" ", "_")    
+    results["driver_id"] = results["FirstName"].str.lower().str.replace(" ", "_") + "_" + results["LastName"].str.lower().str.replace(" ", "_")
+    results["driver_id"] = results["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    results["constructor_id"] = results["constructor_id"].replace(CONSTRUCTOR_ID_NORMALISATION)
+
     results["status"] = results["status"].str.lower()
     results["dnf_flag"] = ~(results["status"].str.startswith("+") | results["status"].eq("finished") | results["status"].eq("disqualified"))
     results["dsq_flag"] = results["status"].eq("disqualified")    

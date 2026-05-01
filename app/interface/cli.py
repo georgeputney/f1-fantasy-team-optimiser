@@ -16,7 +16,9 @@ from app.models.train import main as train_main
 from app.models.predict import load_model, predict as run_predict
 from app.models.compose import compose_drivers, compose_constructor
 
-from app.config import ALL_SEASONS, INTERIM_EVENTS_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, PROCESSED_TARGETS_DIR
+from app.optimiser.team_optimiser import optimiser
+
+from app.config import ALL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, INTERIM_EVENTS_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, PROCESSED_TARGETS_DIR
 
 logging.getLogger("fastf1").setLevel(logging.WARNING)
 
@@ -116,6 +118,27 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
     typer.echo(driver_points[["driver_id", "predicted_finish_position", "expected_fantasy_points"]].to_string())
     typer.echo("\nConstructors:")
     typer.echo(constructor_points.to_string())
+
+
+# load predictions, compose expected points, and select the optimal team under budget constraints
+@app.command()
+def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP)):
+    prices = pd.read_csv(FANTASY_PRICES_DIR / f"{season}_{round:02d}.csv")
+    
+    model = load_model(FINISH_POSITION_MODEL)
+    predictions = run_predict(model, FINISH_POSITION_MODEL, season, round)
+
+    driver_points = compose_drivers(predictions)
+    constructor_points = compose_constructor(driver_points)
+    
+    team = optimiser(driver_points, constructor_points, prices, budget)
+
+    typer.echo(f"Optimising team for season {season}, round {round:02d}, budget {budget}...")
+    
+    typer.echo(f"\nDrivers: {team['drivers']}")
+    typer.echo(f"Constructors: {team['constructors']}")
+    typer.echo(f"Doubled: {team['doubled_driver']}")
+
 
 
 if __name__ == "__main__": app()
