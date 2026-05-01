@@ -134,11 +134,34 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
     team = optimiser(driver_points, constructor_points, prices, budget)
 
     typer.echo(f"Optimising team for season {season}, round {round:02d}, budget {budget}...")
-    
-    typer.echo(f"\nDrivers: {team['drivers']}")
-    typer.echo(f"Constructors: {team['constructors']}")
-    typer.echo(f"Doubled: {team['doubled_driver']}")
 
+    driver_points = driver_points.set_index("driver_id")["expected_fantasy_points"]
+    constructor_points = constructor_points.set_index("constructor_id")["expected_fantasy_points"]
+    driver_prices = prices.set_index("asset_id")["price"]
+
+    typer.echo("\nDrivers:")
+    total = 0.0
+    for d in team["drivers"]:
+        points = driver_points[d] * (2 if d == team["doubled_driver"] else 1)
+        price = driver_prices[d]
+
+        doubled_marker = " [x2]" if d == team["doubled_driver"] else ""
+
+        typer.echo(f"  {d:<30} {points:>6.1f} points    £{price:.1f}M{doubled_marker}")
+        total += points
+
+    typer.echo("\nConstructors:")
+    for c in team["constructors"]:
+        points = constructor_points[c]
+        price = driver_prices[c]
+
+        typer.echo(f"  {c:<30} {points:>6.1f} points    £{price:.1f}M")
+        total += points
+
+    total_price = sum(driver_prices[d] for d in team["drivers"]) + sum(driver_prices[c] for c in team["constructors"])
+
+    typer.echo(f"\nTotal projected points: {total:.1f}")
+    typer.echo(f"Total cost: £{total_price:.1f}M / £{budget:.1f}M")
 
 
 if __name__ == "__main__": app()
