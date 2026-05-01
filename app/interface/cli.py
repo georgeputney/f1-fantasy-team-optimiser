@@ -12,7 +12,7 @@ from app.data.targets import compute_targets
 
 from app.features.build_driver_features import build_driver_features
 
-from app.models.configs import FINISH_POSITION_MODEL
+from app.models.configs import FINISH_POSITION_MODEL, QUALI_POSITION_MODEL
 from app.models.train import main as train_main
 from app.models.predict import load_model, predict as run_predict
 from app.models.compose import compose_drivers, compose_constructor
@@ -101,8 +101,10 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS)):
 # train the race finish position model
 @app.command()
 def train_model():
-    typer.echo(f"Training model...")
+    typer.echo(f"Training quali position model...")
+    train_main(QUALI_POSITION_MODEL)
 
+    typer.echo(f"\nTraining finsih position model...")
     train_main(FINISH_POSITION_MODEL)
 
 

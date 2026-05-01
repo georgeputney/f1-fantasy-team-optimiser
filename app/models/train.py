@@ -8,7 +8,7 @@ from pathlib import Path
 from xgboost import XGBRegressor, XGBClassifier
 
 from app.config import (
-    PROCESSED_DRIVER_FEATURES_DIR, INTERIM_RACES_DIR, ARTIFACTS_DIR,
+    PROCESSED_DRIVER_FEATURES_DIR, INTERIM_RACES_DIR, INTERIM_QUALI_DIR, ARTIFACTS_DIR,
     TRAIN_SEASONS, VAL_SEASONS, TEST_SEASONS
 )
 from app.models.evaluation import evaluate
@@ -24,9 +24,14 @@ MODEL_CLASSES = {
 def load_data(config):
     driver_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_DRIVER_FEATURES_DIR.glob("*.parquet"))])
     race_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_RACES_DIR.glob("*.parquet"))])
+    quali_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_QUALI_DIR.glob("*.parquet"))])
 
-    df = driver_features.merge( # TODO V2: replace grid_position with Model 1 predicted quali position
-        race_results[["race_id", "driver_id", "finish_position", "grid_position"]].rename(columns={"grid_position": "quali_position"}),
+    df = driver_features.merge( 
+        race_results[["race_id", "driver_id", "finish_position", "dnf_flag"]],
+        on=["race_id", "driver_id"],
+        how="left"
+    ).merge(
+        quali_results[["race_id", "driver_id", "quali_position"]],
         on=["race_id", "driver_id"],
         how="left"
     )
@@ -74,5 +79,6 @@ def main(config):
     model = train(config, X_train, y_train, X_val, y_val)
     save(model, config)
 
-    evaluate(model, X_val, y_val, "val")
-    evaluate(model, X_test, y_test, "test")
+    evaluate(model, X_val, y_val, "val", config["eval_metrics"])
+    evaluate(model, X_test, y_test, "test", config["eval_metrics"])
+
