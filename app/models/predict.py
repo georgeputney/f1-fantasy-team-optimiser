@@ -1,11 +1,13 @@
-"""Loads a trained model and generates finish position predictions for a given race."""
+"""Loads trained models and generates predictions for a given race.
+
+Runs the quali position model first, then feeds predicted_quali_position
+into the finish position model as a feature — always chained, no fallback.
+"""
 
 import joblib
 import pandas as pd
 
-from app.models.configs import FINISH_POSITION_MODEL
-
-from app.config import PROCESSED_DRIVER_FEATURES_DIR, ARTIFACTS_DIR, INTERIM_RACES_DIR
+from app.config import PROCESSED_DRIVER_FEATURES_DIR, ARTIFACTS_DIR
 
 
 # loads a trained model artifact from data/artifacts/
@@ -13,24 +15,24 @@ def load_model(config):
     return joblib.load(ARTIFACTS_DIR / f"{config['name']}.joblib")
 
 
-# loads driver features for a given race and returns predicted finish positions per driver
-def predict(model, config, season, round_num):
+# loads driver features for a given race, runs the quali model, then the finish model,
+# and returns a DataFrame with predicted_quali_position and predicted_finish_position per driver
+def predict(quali_model, quali_config, finish_model, finish_config, season, round_num):
     features = pd.read_parquet(PROCESSED_DRIVER_FEATURES_DIR / f"{season}_{round_num:02d}.parquet")
-    
-    race_results = pd.read_parquet(INTERIM_RACES_DIR / f"{season}_{round_num:02d}.parquet")
-    features = features.merge( # TODO V2: replace grid_position with Model 1 predicted quali position once Model 1 is built
-        race_results[["driver_id", "grid_position"]].rename(columns={"grid_position": "quali_position"}),
-        on="driver_id",
-        how="left"
-    )
 
-    X = features[config["features"]]
-    predictions = model.predict(X)
+    # step 1: predict qualifying position (no quali input by design)
+    X_quali = features[quali_config["features"]]
+    quali_preds = quali_model.predict(X_quali)
+    features["quali_position"] = pd.Series(quali_preds).rank().astype(int).values
 
-    predictions = pd.Series(predictions).rank().astype(int).values  # convert to integer ranks 1-20
-        
+    # step 2: predict finish position using predicted quali position as a feature
+    X_finish = features[finish_config["features"]]
+    finish_preds = finish_model.predict(X_finish)
+    features["predicted_finish_position"] = pd.Series(finish_preds).rank().astype(int).values
+
     return pd.DataFrame({
         "driver_id": features["driver_id"],
         "constructor_id": features["constructor_id"],
-        "predicted_finish_position": predictions,
+        "predicted_quali_position": features["quali_position"],
+        "predicted_finish_position": features["predicted_finish_position"],
     }).sort_values("predicted_finish_position").reset_index(drop=True)

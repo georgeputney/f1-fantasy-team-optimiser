@@ -16,14 +16,14 @@ FASTEST_LAP_PROB = 0.05  # 1 in 20 drivers
 DOTD_PRIOR = 0.05        # 1 in 20 drivers
 
 
-# computes expected fantasy points per driver from predicted finish positions
+# computes expected fantasy points per driver from predicted quali and finish positions
 def compose_drivers(predictions):
+    quali_position = predictions["predicted_quali_position"].astype(int)
     finish_position = predictions["predicted_finish_position"].astype(int)
-    quali_position = finish_position  # TODO V2: replace with Model 1 predicted quali position
 
-    quali_points = finish_position.map(lambda p: DRIVER_QUALI_POSITION_POINTS.get(p, 0))
+    quali_points = quali_position.map(lambda p: DRIVER_QUALI_POSITION_POINTS.get(p, 0))
     finish_points = finish_position.map(lambda p: DRIVER_RACE_POSITION_POINTS.get(p, 0))
-    positions_gained = quali_position - finish_position  # 0 for MVP
+    positions_gained = quali_position - finish_position
 
     predictions["expected_fantasy_points"] = (
         quali_points

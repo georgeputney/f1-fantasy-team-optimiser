@@ -1,6 +1,6 @@
 """Model config definitions for each prediction target — features, hyperparameters, and evaluation settings."""
 
-# XGBoost regressor predicting race finish position (1-20) - quali_position feature uses actual grid position at training time
+# XGBoost regressor predicting race finish position (1-20) - quali_position feature uses actual qualifying position at training time
 FINISH_POSITION_MODEL = {
     "name": "finish_position",
     "target": "finish_position",
@@ -25,7 +25,7 @@ FINISH_POSITION_MODEL = {
         "constructor_rolling_dnf_rate_last_5",
         "constructor_rolling_quali_pos_last_3",
         "constructor_form_trend_last_5",
-        "quali_position", # TODO V2: replace with Model 1 predicted quali position
+        "quali_position", # supplied as predicted_quali_position from the quali model at inference time
     ],
     "hyperparams": {
         "n_estimators": 100,

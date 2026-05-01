@@ -105,14 +105,18 @@ def train_model():
     train_main(QUALI_POSITION_MODEL)
 
     typer.echo(f"\nTraining finsih position model...")
-    train_main(FINISH_POSITION_MODEL)
+
+    quali_model = load_model(QUALI_POSITION_MODEL)
+    train_main(FINISH_POSITION_MODEL, quali_model, QUALI_POSITION_MODEL)
 
 
 # load the trained model, predict finish positions, and print expected fantasy points for drivers and constructors
 @app.command()
 def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)):
-    model = load_model(FINISH_POSITION_MODEL)
-    predictions = run_predict(model, FINISH_POSITION_MODEL, season, round)
+    quali_model = load_model(QUALI_POSITION_MODEL)
+    finish_model = load_model(FINISH_POSITION_MODEL)
+
+    predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
     
     driver_points = compose_drivers(predictions)
     constructor_points = compose_constructor(driver_points)
@@ -132,8 +136,10 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 
     prices = pd.read_csv(FANTASY_PRICES_DIR / f"{season}_{round:02d}.csv")
     
-    model = load_model(FINISH_POSITION_MODEL)
-    predictions = run_predict(model, FINISH_POSITION_MODEL, season, round)
+    quali_model = load_model(QUALI_POSITION_MODEL)
+    finish_model = load_model(FINISH_POSITION_MODEL)
+
+    predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
 
     driver_points = compose_drivers(predictions)
     constructor_points = compose_constructor(driver_points)
@@ -173,7 +179,8 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 # runs walk-forward backtest comparing model, oracle, and random strategies over historical seasons, prints per-round results and saves a cumulative points plot
 @app.command()
 def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP)):
-    model = load_model(FINISH_POSITION_MODEL)
+    quali_model = load_model(QUALI_POSITION_MODEL)
+    finish_model = load_model(FINISH_POSITION_MODEL)
     results = []
 
     for s in season:
@@ -191,7 +198,7 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             typer.echo(f"Backtesting season {s}, round {round_num:02d}...")
 
             prices = pd.read_csv(prices_path)
-            predictions = run_predict(model, FINISH_POSITION_MODEL, s, round_num)
+            predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, s, round_num)
 
             driver_points = compose_drivers(predictions)
             constructor_points = compose_constructor(driver_points)
