@@ -4,6 +4,7 @@ import logging
 import typer
 import fastf1
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from app.data.ingest import get_event_metadata, get_race_results, get_qualifying_results
 from app.data.clean import clean_events, clean_race_results, clean_qualifying_results
@@ -18,7 +19,9 @@ from app.models.compose import compose_drivers, compose_constructor
 
 from app.optimiser import optimiser
 
-from app.config import ALL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, INTERIM_EVENTS_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, PROCESSED_TARGETS_DIR
+from app.backtest import get_actual_team_points, oracle_baseline, random_baseline
+
+from app.config import ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, INTERIM_EVENTS_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, PROCESSED_TARGETS_DIR, PROCESSED_DRIVER_FEATURES_DIR, REPORTS_DIR
 
 logging.getLogger("fastf1").setLevel(logging.WARNING)
 
@@ -163,6 +166,63 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 
     typer.echo(f"\nTotal projected points: {total:.1f}")
     typer.echo(f"Total cost: £{total_price:.1f}M / £{budget:.1f}M")
+
+
+# runs walk-forward backtest comparing model, oracle, and random strategies over historical seasons, prints per-round results and saves a cumulative points plot
+@app.command()
+def backtest(seasons: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP)):
+    model = load_model(FINISH_POSITION_MODEL)
+    results = []
+
+    for season in seasons:
+        schedule = fastf1.get_event_schedule(season)
+        schedule = schedule[schedule["RoundNumber"] > 0]
+
+        for round_num in schedule["RoundNumber"]:
+            prices_path = FANTASY_PRICES_DIR / f"{season}_{round_num:02d}.csv"
+            features_path = PROCESSED_DRIVER_FEATURES_DIR / f"{season}_{round_num:02d}.parquet"
+            targets_path = PROCESSED_TARGETS_DIR / f"{season}_{round_num:02d}.parquet"
+
+            if not (prices_path.exists() and features_path.exists() and targets_path.exists()):
+                continue
+
+            typer.echo(f"Backtesting season {season}, round {round_num:02d}...")
+
+            prices = pd.read_csv(prices_path)
+            predictions = run_predict(model, FINISH_POSITION_MODEL, season, round_num)
+
+            driver_points = compose_drivers(predictions)
+            constructor_points = compose_constructor(driver_points)
+
+            model_team = optimiser(driver_points, constructor_points, prices, budget)
+            model_points = get_actual_team_points(model_team, season, round_num)
+
+            oracle_team = oracle_baseline(season, round_num, prices, budget)
+            oracle_points = get_actual_team_points(oracle_team, season, round_num)
+
+            random_points = random_baseline(season, round_num, prices, budget)
+
+            results.append({"season": season, "round": round_num, "model": model_points, "oracle": oracle_points, "random": random_points})
+
+    df = pd.DataFrame(results)
+
+    typer.echo(f"\n{'Round':<8} {'Model':>8} {'Oracle':>8} {'Random':>8}")
+    for _, row in df.iterrows():
+        typer.echo(f"  {int(row['round']):<6} {row['model']:>8.1f} {row['oracle']:>8.1f} {row['random']:>8.1f}")
+        
+    typer.echo(f"\n{'Total':<8} {df['model'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['random'].sum():>8.1f}")
+
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    df[["model", "oracle", "random"]].cumsum().plot(title="Cumulative fantasy points by strategy")
+
+    plt.xlabel("Round")
+    plt.ylabel("Cumulative points")
+    plt.tight_layout()
+    plt.savefig(REPORTS_DIR / f"backtest_{'_'.join(str(s) for s in seasons)}.png")
+
+    typer.echo(f"\nPlot saved to reports/")
+
 
 
 if __name__ == "__main__": app()

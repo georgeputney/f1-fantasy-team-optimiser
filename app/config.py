@@ -25,7 +25,7 @@ PROCESSED_DRIVER_FEATURES_DIR       = PROCESSED_DIR / "driver_features"
 PROCESSED_CONSTRUCTOR_FEATURES_DIR  = PROCESSED_DIR / "constructor_features"
 
 ARTIFACTS_DIR                       = DATA_DIR / "artifacts"    # trained model files
-
+REPORTS_DIR                         = ROOT_DIR / "reports"      # backtest plots and output tables
 
 # season splits (time-aware, no leakage)
 TRAIN_SEASONS                       = [2018, 2019, 2020, 2021, 2022, 2023]  # earliest data with stable telemetry

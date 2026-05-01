@@ -107,7 +107,10 @@ def is_street_circuit(events, season, round_num):
 def build_driver_features(race_results, quali_results, fantasy_targets, events, season, round_num):
     race_id = f"{season}_{round_num:02d}"
     drivers = race_results[race_results["race_id"] == race_id]["driver_id"].unique()
-    
+
+    quali_results_round = quali_results[quali_results["race_id"] == race_id] # exclude drivers with no qualifying row (DNS) - they have no valid features for this round
+    drivers = [d for d in drivers if d in quali_results_round["driver_id"].values]
+
     rows = []
     for driver_id in drivers:
         features = {"race_id": race_id, "driver_id": driver_id}

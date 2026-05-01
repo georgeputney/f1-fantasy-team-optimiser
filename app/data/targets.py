@@ -21,7 +21,8 @@ def compute_qualifying_targets(season, round_num):
         "actual_fantasy_points": drivers_score
     })
 
-    constructor_groups = results.groupby(["race_id", "constructor_id"]).agg(
+    results_with_constructor = results[results["constructor_id"] != "nan"]  # exclude DNS drivers with no valid constructor
+    constructor_groups = results_with_constructor.groupby(["race_id", "constructor_id"]).agg(
         quali_position=("quali_position", list),
         q1_time=("q1_time", list),
         q2_time=("q2_time", list),
