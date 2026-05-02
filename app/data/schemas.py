@@ -132,15 +132,12 @@ fantasy_targets = pa.DataFrameSchema(
 # engineered features per driver per race, one row per driver per race
 # primary key: race_id + driver_id + prediction_stage
 # strict=False - feature columns are not enumerated here, validated by the feature store
-driver_features = pa.DataFrameSchema(
+features = pa.DataFrameSchema(
     {
         "race_id": pa.Column(str, 
             checks=pa.Check.str_matches(r"^\d{4}_\d{1,2}$")
         ),
         "driver_id": pa.Column(str),
-        "prediction_stage": pa.Column(str,
-            pa.Check.isin(["pre_quali", "post_quali", "training"])                          
-        ),
     },
     strict=False,
 )

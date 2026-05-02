@@ -8,7 +8,7 @@ from pathlib import Path
 from xgboost import XGBRegressor, XGBClassifier
 
 from app.config import (
-    PROCESSED_DRIVER_FEATURES_DIR, INTERIM_RACES_DIR, INTERIM_QUALI_DIR, ARTIFACTS_DIR,
+    PROCESSED_HISTORIC_FEATURES_DIR, INTERIM_RACES_DIR, INTERIM_QUALI_DIR, ARTIFACTS_DIR,
     TRAIN_SEASONS, VAL_SEASONS, TEST_SEASONS
 )
 from app.models.evaluation import evaluate
@@ -24,11 +24,12 @@ MODEL_CLASSES = {
 # if quali_model and quali_config are provided, replaces actual quali_position with model predictions
 # so the finish model trains on the same noisy input it will see at inference time
 def load_data(config, quali_model=None, quali_config=None):
-    driver_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_DRIVER_FEATURES_DIR.glob("*.parquet"))])
+    historic_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_HISTORIC_FEATURES_DIR.glob("*.parquet"))])
+    
     race_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_RACES_DIR.glob("*.parquet"))])
     quali_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_QUALI_DIR.glob("*.parquet"))])
 
-    df = driver_features.merge(
+    df = historic_features.merge(
         race_results[["race_id", "driver_id", "finish_position", "dnf_flag"]],
         on=["race_id", "driver_id"],
         how="left"

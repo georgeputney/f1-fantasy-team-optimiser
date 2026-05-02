@@ -10,7 +10,7 @@ from app.data.ingest import get_event_metadata, get_race_results, get_qualifying
 from app.data.clean import clean_events, clean_race_results, clean_qualifying_results
 from app.data.targets import compute_targets
 
-from app.features.build_driver_features import build_driver_features
+from app.features.build_historic_features import build_historic_features
 
 from app.models.configs import FINISH_POSITION_MODEL, QUALI_POSITION_MODEL
 from app.models.train import main as train_main
@@ -21,7 +21,7 @@ from app.optimiser import optimiser
 
 from app.backtest import get_actual_team_points, oracle_baseline, random_baseline
 
-from app.config import ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, INTERIM_EVENTS_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, PROCESSED_TARGETS_DIR, PROCESSED_DRIVER_FEATURES_DIR, REPORTS_DIR
+from app.config import ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, INTERIM_EVENTS_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, PROCESSED_TARGETS_DIR, PROCESSED_HISTORIC_FEATURES_DIR, REPORTS_DIR
 
 logging.getLogger("fastf1").setLevel(logging.WARNING)
 
@@ -86,7 +86,7 @@ def build_targets(season: list[int] = typer.Option(ALL_SEASONS)):
             compute_targets(s, round_num)
 
 
-# build driver and constructor features for the given seasons and write to data/processed/driver_features/
+# build driver and constructor features for the given seasons and write to data/processed/
 @app.command()
 def build_features(season: list[int] = typer.Option(ALL_SEASONS)):
 
@@ -104,7 +104,7 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS)):
 
             typer.echo(f"Building features for season {s}, round {round_num:02d}...")
 
-            build_driver_features(race_results, quali_results, fantasy_targets, events, s, round_num)
+            build_historic_features(race_results, quali_results, fantasy_targets, events, s, round_num)
 
 
 # train the race finish position model
@@ -198,7 +198,7 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
 
         for round_num in schedule["RoundNumber"]:
             prices_path = FANTASY_PRICES_DIR / f"{s}_{round_num:02d}.csv"
-            features_path = PROCESSED_DRIVER_FEATURES_DIR / f"{s}_{round_num:02d}.parquet"
+            features_path = PROCESSED_HISTORIC_FEATURES_DIR / f"{s}_{round_num:02d}.parquet"
             targets_path = PROCESSED_TARGETS_DIR / f"{s}_{round_num:02d}.parquet"
 
             if not (prices_path.exists() and features_path.exists() and targets_path.exists()):
