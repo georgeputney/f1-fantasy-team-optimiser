@@ -3,7 +3,7 @@
 import pandas as pd
 
 from app.data.scoring_rules import (
-    DRIVER_QUALI_POSITION_POINTS, DRIVER_RACE_POSITION_POINTS,
+    CONSTRUCTOR_QUALI_BONUS, DRIVER_QUALI_POSITION_POINTS, DRIVER_RACE_POSITION_POINTS,
     FASTEST_LAP_POINTS, DOTD_POINTS, RACE_PENALTY, 
     POSITION_GAINED_POINTS, OVERTAKE_MADE_POINTS
 )
@@ -36,15 +36,28 @@ def compose_drivers(predictions):
 
     return predictions.sort_values("expected_fantasy_points", ascending=False).reset_index(drop=True)
 
-
-# computes expected fantasy points per constructor by summing both drivers' expected points
+     
+# computes expected fantasy points per constructor by summing both drivers' expected points plus Q2/Q3 quali bonus
 def compose_constructor(predictions):
-    # TODO V2: add constructor quali bonus based on Q2/Q3 advancement
-    return ( 
-        predictions.groupby("constructor_id")["expected_fantasy_points"]
-        .sum()
-        .reset_index()
+    q2_cutoff = (len(predictions) + 10) // 2  # top half of non-Q3 drivers advanced to Q2
+    
+    predictions = predictions.copy()
+
+    predictions["_q2"] = (predictions["predicted_quali_position"] <= q2_cutoff).astype(int)
+    predictions["_q3"] = (predictions["predicted_quali_position"] <= 10).astype(int)
+
+    constructor_points = predictions.groupby("constructor_id").agg(
+        expected_fantasy_points=("expected_fantasy_points", "sum"),
+        _q2=("_q2", "sum"),
+        _q3=("_q3", "sum"),
+    ).reset_index()
+
+    constructor_points["expected_fantasy_points"] += constructor_points.apply(
+        lambda row: CONSTRUCTOR_QUALI_BONUS.get((int(row["_q2"]), int(row["_q3"])), 0), axis=1
+    )
+
+    return (
+        constructor_points[["constructor_id", "expected_fantasy_points"]]
         .sort_values("expected_fantasy_points", ascending=False)
         .reset_index(drop=True)
     )
-     
