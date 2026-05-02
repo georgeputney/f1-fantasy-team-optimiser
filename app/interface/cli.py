@@ -6,7 +6,7 @@ import fastf1
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from app.data.ingest import get_event_metadata, get_race_results, get_qualifying_results
+from app.data.ingest import get_event_metadata, get_race_results, get_qualifying_results, get_practice_results
 from app.data.clean import clean_events, clean_race_results, clean_qualifying_results
 from app.data.targets import compute_targets
 
@@ -28,13 +28,16 @@ logging.getLogger("fastf1").setLevel(logging.WARNING)
 app = typer.Typer(no_args_is_help=True)
 
 
-# fetch raw race, qualifying, and event metadata from FastF1 for the given seasons and write to data/raw/
+# fetch raw race, qualifying, practice, and event metadata from FastF1 for the given seasons and rounds and write to data/raw/
 @app.command()
-def ingest_data(season: list[int] = typer.Option(ALL_SEASONS)):
+def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] = typer.Option(None)):
     for s in season:
 
         schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
+
+        if round:
+            schedule = schedule[schedule["RoundNumber"].isin(round)]
 
         for round_num in schedule["RoundNumber"]:
 
@@ -43,6 +46,12 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS)):
             get_event_metadata(s, round_num)
             get_race_results(s, round_num)
             get_qualifying_results(s, round_num)
+
+            for session_name in ["FP2", "FP3"]:
+                try:
+                    get_practice_results(s, round_num, session_name)
+                except Exception:
+                    pass  # sprint weekends don't have FP2/FP3
 
 
 # clean raw parquet files for the given seasons and write validated tables to data/interim/
