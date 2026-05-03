@@ -11,6 +11,7 @@ from app.data.clean import clean_events, clean_race_results, clean_qualifying_re
 from app.data.targets import compute_targets
 
 from app.features.build_historic_features import build_historic_features
+from app.features.build_practice_features import build_practice_features
 
 from app.models.configs import FINISH_POSITION_MODEL, QUALI_POSITION_MODEL
 from app.models.train import main as train_main
@@ -21,7 +22,12 @@ from app.optimiser import optimiser
 
 from app.backtest import get_actual_team_points, oracle_baseline, random_baseline
 
-from app.config import ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, INTERIM_EVENTS_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, PROCESSED_TARGETS_DIR, PROCESSED_HISTORIC_FEATURES_DIR, REPORTS_DIR
+from app.config import (
+    ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, 
+    INTERIM_EVENTS_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, 
+    PROCESSED_TARGETS_DIR, PROCESSED_HISTORIC_FEATURES_DIR, 
+    REPORTS_DIR,
+)
 
 logging.getLogger("fastf1").setLevel(logging.WARNING)
 
@@ -83,11 +89,14 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
 
 # compute actual fantasy points from cleaned results and write to data/processed/targets/
 @app.command()
-def build_targets(season: list[int] = typer.Option(ALL_SEASONS)):
+def build_targets(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] = typer.Option(None)):
     for s in season:
 
         schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
+
+        if round:
+            schedule = schedule[schedule["RoundNumber"].isin(round)]
 
         for round_num in schedule["RoundNumber"]:
 
@@ -96,9 +105,9 @@ def build_targets(season: list[int] = typer.Option(ALL_SEASONS)):
             compute_targets(s, round_num)
 
 
-# build driver and constructor features for the given seasons and write to data/processed/
+# build historic rolling features and practice session features for the given seasons and write to data/processed/
 @app.command()
-def build_features(season: list[int] = typer.Option(ALL_SEASONS)):
+def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] = typer.Option(None)):
 
     race_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_RACES_DIR.glob("*.parquet"))])
     quali_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_QUALI_DIR.glob("*.parquet"))])
@@ -110,11 +119,18 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS)):
         schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
 
+        if round:
+            schedule = schedule[schedule["RoundNumber"].isin(round)]
+
         for round_num in schedule["RoundNumber"]:
 
             typer.echo(f"Building features for season {s}, round {round_num:02d}...")
 
             build_historic_features(race_results, quali_results, fantasy_targets, events, s, round_num)
+
+            if (INTERIM_FP2_DIR / f"{s}_{round_num:02d}.parquet").exists() and (INTERIM_FP3_DIR / f"{s}_{round_num:02d}.parquet").exists():
+                build_practice_features(s, round_num)
+
 
 
 # train the race finish position model
