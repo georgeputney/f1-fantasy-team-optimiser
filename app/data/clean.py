@@ -10,7 +10,7 @@ from app.config import (
 
 RAW_PRACTICE_DIRS = {"FP2": RAW_FP2_DIR, "FP3": RAW_FP3_DIR}
 INTERIM_PRACTICE_DIRS = {"FP2": INTERIM_FP2_DIR, "FP3": INTERIM_FP3_DIR}
-
+PRACTICE_SCHEMAS = {"FP2": schemas.fp2_results, "FP3": schemas.fp3_results}
 
 STREET_CIRCUITS = {
     "Monaco", "Baku", "Singapore", "Jeddah", "Melbourne",
@@ -56,17 +56,15 @@ def clean_events(season, round_num):
     return events
 
 
-# read raw practice lap data, normalise driver IDs via driver_code lookup from cleaned quali results,
+# read raw practice lap data (FP2/FP3), derive driver_id and constructor_id from name/team,
 # convert lap and sector times to seconds, validate against schema, write to data/interim/fp{n}/
 def clean_practice_results(season, round_num, session_name):
     laps = pd.read_parquet(RAW_PRACTICE_DIRS[session_name] / f"{season}_{round_num:02d}.parquet")
 
-    # build driver_code -> driver_id mapping from cleaned quali results
-    cleaned_quali = pd.read_parquet(INTERIM_QUALI_DIR / f"{season}_{round_num:02d}.parquet")
-    driver_map = cleaned_quali.set_index("driver_code")["driver_id"]
-
-    laps["driver_id"] = laps["Driver"].map(driver_map)
-    laps = laps.drop(columns=["Driver"])
+    laps["driver_id"] = laps["FirstName"].str.lower().str.replace(" ", "_") + "_" + laps["LastName"].str.lower().str.replace(" ", "_")
+    laps["driver_id"] = laps["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    laps["constructor_id"] = laps["TeamId"].replace(CONSTRUCTOR_ID_NORMALISATION)
+    laps = laps.drop(columns=["FirstName", "LastName", "TeamId"])
 
     for col in ["LapTime", "Sector1Time", "Sector2Time", "Sector3Time"]:
         if col in laps.columns:
@@ -86,7 +84,7 @@ def clean_practice_results(season, round_num, session_name):
     laps["season"] = season
     laps["round"] = round_num
 
-    schemas.practice_results.validate(laps)
+    PRACTICE_SCHEMAS[session_name].validate(laps)
 
     out_dir = INTERIM_PRACTICE_DIRS[session_name]
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -105,7 +103,6 @@ def clean_qualifying_results(season, round_num):
         results[col] = results[col].dt.total_seconds()
     
     results = results.rename(columns={
-        "Abbreviation": "driver_code",
         "TeamId": "constructor_id",
         "Position": "quali_position",
         "Q1": "q1_time",

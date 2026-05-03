@@ -12,7 +12,7 @@ from app.config import FASTF1_CACHE_DIR, RAW_EVENTS_DIR, RAW_RACES_DIR, RAW_QUAL
 fastf1.Cache.enable_cache(FASTF1_CACHE_DIR)
 
 FP2_COLUMNS = ["Driver", "LapTime", "Compound", "LapNumber"]
-FP3_COLUMNS = ["Driver", "LapTime", "Sector1Time", "Sector2Time", "Sector3Time"]
+FP3_COLUMNS = ["Driver", "LapTime", "Sector1Time", "Sector2Time", "Sector3Time", "IsPersonalBest"]
 
 PRACTICE_DIRS = {"FP2": RAW_FP2_DIR, "FP3": RAW_FP3_DIR}
 PRACTICE_COLUMNS = {"FP2": FP2_COLUMNS, "FP3": FP3_COLUMNS}
@@ -42,8 +42,13 @@ def get_practice_results(season, round_num, session_name):
 
     laps = session.laps[PRACTICE_COLUMNS[session_name]].copy()
 
+    driver_info = session.results[["Abbreviation", "FirstName", "LastName", "TeamId"]]
+    laps = laps.merge(driver_info, left_on="Driver", right_on="Abbreviation")  # join driver name/team onto laps via 3-letter code
+
+    laps = laps.drop(columns=["Driver", "Abbreviation"])
+
     if PRACTICE_BEST_LAP_ONLY[session_name]:
-        laps = laps[session.laps["IsPersonalBest"] == True]
+        laps = laps[laps["IsPersonalBest"] == True]
 
     laps["race_id"] = f"{season}_{round_num:02d}"
 
@@ -61,7 +66,7 @@ def get_qualifying_results(season, round_num):
     session = fastf1.get_session(season, round_num, 'Q')
     session.load(telemetry=False, weather=False, messages=False)
 
-    results = session.results[["DriverId", "Abbreviation", "FirstName", "LastName", "TeamId", "Position", "Q1", "Q2", "Q3"]].copy()
+    results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "Position", "Q1", "Q2", "Q3"]].copy()
     results["race_id"] = f"{season}_{round_num:02d}"
 
     RAW_QUALI_DIR.mkdir(parents=True, exist_ok=True)

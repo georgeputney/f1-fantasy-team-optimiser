@@ -30,19 +30,31 @@ events = pa.DataFrameSchema(
 )
 
 
-# validates cleaned practice lap data (FP2/FP3) - sector times are nullable as FP2 does not include them
-practice_results = pa.DataFrameSchema(
-    {
-        "race_id": pa.Column(str),
-        "season": pa.Column(int),
-        "round": pa.Column(int),
-        "driver_id": pa.Column(str),
-        "lap_time": pa.Column(float, nullable=True),
-        "compound": pa.Column(str, nullable=True),
-        "lap_number": pa.Column(float, nullable=True),  # float because FastF1 may return NaN
-        "is_personal_best": pa.Column(bool, nullable=True),
-    }
-)
+# validates cleaned FP2 lap data - all laps, no sector times
+fp2_results = pa.DataFrameSchema({
+    "race_id": pa.Column(str),
+    "season": pa.Column(int),
+    "round": pa.Column(int),
+    "driver_id": pa.Column(str),
+    "constructor_id": pa.Column(str),
+    "lap_time": pa.Column(float, nullable=True),
+    "compound": pa.Column(str, nullable=True),
+    "lap_number": pa.Column(float, nullable=True),  # float because FastF1 may return NaN
+})
+
+# validates cleaned FP3 lap data - best lap only per driver, includes sector times
+fp3_results = pa.DataFrameSchema({
+    "race_id": pa.Column(str),
+    "season": pa.Column(int),
+    "round": pa.Column(int),
+    "driver_id": pa.Column(str),
+    "constructor_id": pa.Column(str),
+    "lap_time": pa.Column(float, nullable=True),
+    "sector1_time": pa.Column(float, nullable=True),
+    "sector2_time": pa.Column(float, nullable=True),
+    "sector3_time": pa.Column(float, nullable=True),
+    "is_personal_best": pa.Column(bool, nullable=True),
+})
 
 
 # driver-level qualifying outcomes, one row per driver per race
@@ -56,7 +68,6 @@ quali_results = pa.DataFrameSchema(
         "season": pa.Column(int),
         "round": pa.Column(int),
         "driver_id": pa.Column(str),
-        "driver_code": pa.Column(str),
         "constructor_id": pa.Column(str),
         "quali_position": pa.Column(float, 
             checks=[

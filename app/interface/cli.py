@@ -56,12 +56,15 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
 
 # clean raw parquet files for the given seasons and write validated tables to data/interim/
 @app.command()
-def clean_data(season: list[int] = typer.Option(ALL_SEASONS)):
+def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] = typer.Option(None)):
     for s in season:
 
         schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
 
+        if round:
+            schedule = schedule[schedule["RoundNumber"].isin(round)]
+            
         for round_num in schedule["RoundNumber"]:
 
             typer.echo(f"Cleaning season {s}, round {round_num:02d}...")
