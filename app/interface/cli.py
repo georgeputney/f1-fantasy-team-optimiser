@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from app.data.ingest import get_event_metadata, get_race_results, get_qualifying_results, get_practice_results
-from app.data.clean import clean_events, clean_race_results, clean_qualifying_results
+from app.data.clean import clean_events, clean_race_results, clean_qualifying_results, clean_practice_results
 from app.data.targets import compute_targets
 
 from app.features.build_historic_features import build_historic_features
@@ -69,6 +69,13 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS)):
             clean_events(s, round_num)
             clean_race_results(s, round_num)
             clean_qualifying_results(s, round_num)
+
+            for session_name in ["FP2", "FP3"]:
+                try:
+                    clean_practice_results(s, round_num, session_name)
+                except Exception:
+                    pass  # sprint weekends or rounds without practice data
+
 
 
 # compute actual fantasy points from cleaned results and write to data/processed/targets/

@@ -21,6 +21,9 @@ INTERIM_DIR                         = DATA_DIR / "interim"      # cleaned tables
 INTERIM_EVENTS_DIR                  = INTERIM_DIR / "events"
 INTERIM_RACES_DIR                   = INTERIM_DIR / "races"
 INTERIM_QUALI_DIR                   = INTERIM_DIR / "quali"
+INTERIM_FP3_DIR                         = INTERIM_DIR / "fp3"
+INTERIM_FP2_DIR                         = INTERIM_DIR / "fp2"
+INTERIM_FP1_DIR                         = INTERIM_DIR / "fp1"
 
 PROCESSED_DIR                       = DATA_DIR / "processed"    # feature store, model-ready datasets
 PROCESSED_TARGETS_DIR               = PROCESSED_DIR / "targets"

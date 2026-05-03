@@ -19,6 +19,21 @@ PRACTICE_COLUMNS = {"FP2": FP2_COLUMNS, "FP3": FP3_COLUMNS}
 PRACTICE_BEST_LAP_ONLY = {"FP2": False, "FP3": True}
 
 
+# fetch event metadata for a single round from FastF1 and write to data/raw/events/
+# returns the raw DataFrame
+# circuit name, is_sprint, and is_street_circuit are derived in clean.py
+def get_event_metadata(season, round_num):
+    event = fastf1.get_event(season, round_num)
+
+    results = pd.DataFrame([event[["RoundNumber", "Country", "Location", "EventName", "EventDate", "EventFormat"]]])
+    results["race_id"] = f"{season}_{round_num:02d}"
+
+    RAW_EVENTS_DIR.mkdir(parents=True, exist_ok=True)
+    results.to_parquet(RAW_EVENTS_DIR / f"{season}_{round_num:02d}.parquet")
+
+    return results
+
+
 # fetch practice lap data for a single session (FP2/FP3) from FastF1 and write to data/raw/fp{n}/.
 # raises if the session doesn't exist (e.g. sprint weekends) - callers should handle this.
 def get_practice_results(season, round_num, session_name):
@@ -40,28 +55,13 @@ def get_practice_results(season, round_num, session_name):
     return laps
 
 
-# fetch event metadata for a single round from FastF1 and write to data/raw/events/
-# returns the raw DataFrame
-# circuit name, is_sprint, and is_street_circuit are derived in clean.py
-def get_event_metadata(season, round_num):
-    event = fastf1.get_event(season, round_num)
-
-    results = pd.DataFrame([event[["RoundNumber", "Country", "Location", "EventName", "EventDate", "EventFormat"]]])
-    results["race_id"] = f"{season}_{round_num:02d}"
-
-    RAW_EVENTS_DIR.mkdir(parents=True, exist_ok=True)
-    results.to_parquet(RAW_EVENTS_DIR / f"{season}_{round_num:02d}.parquet")
-
-    return results
-
-
 # fetch qualifying results for a single round from FastF1 and write to data/raw/quali/
 # returns the raw DataFrame
 def get_qualifying_results(season, round_num):
     session = fastf1.get_session(season, round_num, 'Q')
     session.load(telemetry=False, weather=False, messages=False)
 
-    results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "Position", "Q1", "Q2", "Q3"]].copy()
+    results = session.results[["DriverId", "Abbreviation", "FirstName", "LastName", "TeamId", "Position", "Q1", "Q2", "Q3"]].copy()
     results["race_id"] = f"{season}_{round_num:02d}"
 
     RAW_QUALI_DIR.mkdir(parents=True, exist_ok=True)
