@@ -11,6 +11,9 @@ RAW_DIR                             = DATA_DIR / "raw"          # fastf1 downloa
 RAW_EVENTS_DIR                      = RAW_DIR / "events"
 RAW_RACES_DIR                       = RAW_DIR / "races"
 RAW_QUALI_DIR                       = RAW_DIR / "quali"
+RAW_FP3_DIR                         = RAW_DIR / "fp3"
+RAW_FP2_DIR                         = RAW_DIR / "fp2"
+RAW_FP1_DIR                         = RAW_DIR / "fp1"
 FASTF1_CACHE_DIR                    = RAW_DIR / "fastf1_cache"
 FANTASY_PRICES_DIR                  = RAW_DIR / "fantasy_prices"
 
@@ -18,11 +21,14 @@ INTERIM_DIR                         = DATA_DIR / "interim"      # cleaned tables
 INTERIM_EVENTS_DIR                  = INTERIM_DIR / "events"
 INTERIM_RACES_DIR                   = INTERIM_DIR / "races"
 INTERIM_QUALI_DIR                   = INTERIM_DIR / "quali"
+INTERIM_FP3_DIR                         = INTERIM_DIR / "fp3"
+INTERIM_FP2_DIR                         = INTERIM_DIR / "fp2"
+INTERIM_FP1_DIR                         = INTERIM_DIR / "fp1"
 
 PROCESSED_DIR                       = DATA_DIR / "processed"    # feature store, model-ready datasets
 PROCESSED_TARGETS_DIR               = PROCESSED_DIR / "targets"
-PROCESSED_DRIVER_FEATURES_DIR       = PROCESSED_DIR / "driver_features"
-PROCESSED_CONSTRUCTOR_FEATURES_DIR  = PROCESSED_DIR / "constructor_features"
+PROCESSED_HISTORIC_FEATURES_DIR     = PROCESSED_DIR / "historic_features"
+PROCESSED_PRACTICE_FEATURES_DIR     = PROCESSED_DIR / "practice_features"
 
 ARTIFACTS_DIR                       = DATA_DIR / "artifacts"    # trained model files
 REPORTS_DIR                         = ROOT_DIR / "reports"      # backtest plots and output tables

@@ -30,6 +30,33 @@ events = pa.DataFrameSchema(
 )
 
 
+# validates cleaned FP2 lap data - all laps, no sector times
+fp2_results = pa.DataFrameSchema({
+    "race_id": pa.Column(str),
+    "season": pa.Column(int),
+    "round": pa.Column(int),
+    "driver_id": pa.Column(str),
+    "constructor_id": pa.Column(str),
+    "lap_time": pa.Column(float, nullable=True),
+    "compound": pa.Column(str, nullable=True),
+    "lap_number": pa.Column(float, nullable=True),  # float because FastF1 may return NaN
+})
+
+# validates cleaned FP3 lap data - best lap only per driver, includes sector times
+fp3_results = pa.DataFrameSchema({
+    "race_id": pa.Column(str),
+    "season": pa.Column(int),
+    "round": pa.Column(int),
+    "driver_id": pa.Column(str),
+    "constructor_id": pa.Column(str),
+    "lap_time": pa.Column(float, nullable=True),
+    "sector1_time": pa.Column(float, nullable=True),
+    "sector2_time": pa.Column(float, nullable=True),
+    "sector3_time": pa.Column(float, nullable=True),
+    "is_personal_best": pa.Column(bool, nullable=True),
+})
+
+
 # driver-level qualifying outcomes, one row per driver per race
 # primary key: race_id + driver_id
 # q2_time and q3_time are null for drivers eliminated in q1/q2 respectively
@@ -132,15 +159,12 @@ fantasy_targets = pa.DataFrameSchema(
 # engineered features per driver per race, one row per driver per race
 # primary key: race_id + driver_id + prediction_stage
 # strict=False - feature columns are not enumerated here, validated by the feature store
-driver_features = pa.DataFrameSchema(
+features = pa.DataFrameSchema(
     {
         "race_id": pa.Column(str, 
             checks=pa.Check.str_matches(r"^\d{4}_\d{1,2}$")
         ),
         "driver_id": pa.Column(str),
-        "prediction_stage": pa.Column(str,
-            pa.Check.isin(["pre_quali", "post_quali", "training"])                          
-        ),
     },
     strict=False,
 )

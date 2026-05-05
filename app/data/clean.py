@@ -4,9 +4,13 @@ import pandas as pd
 import app.data.schemas as schemas
 
 from app.config import (
-    RAW_RACES_DIR, RAW_QUALI_DIR, RAW_EVENTS_DIR,
-    INTERIM_RACES_DIR, INTERIM_QUALI_DIR, INTERIM_EVENTS_DIR,
+    RAW_RACES_DIR, RAW_QUALI_DIR, RAW_EVENTS_DIR, RAW_FP3_DIR, RAW_FP2_DIR,
+    INTERIM_RACES_DIR, INTERIM_QUALI_DIR, INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR
 )
+
+RAW_PRACTICE_DIRS = {"FP2": RAW_FP2_DIR, "FP3": RAW_FP3_DIR}
+INTERIM_PRACTICE_DIRS = {"FP2": INTERIM_FP2_DIR, "FP3": INTERIM_FP3_DIR}
+PRACTICE_SCHEMAS = {"FP2": schemas.fp2_results, "FP3": schemas.fp3_results}
 
 STREET_CIRCUITS = {
     "Monaco", "Baku", "Singapore", "Jeddah", "Melbourne",
@@ -52,6 +56,43 @@ def clean_events(season, round_num):
     return events
 
 
+# read raw practice lap data (FP2/FP3), derive driver_id and constructor_id from name/team,
+# convert lap and sector times to seconds, validate against schema, write to data/interim/fp{n}/
+def clean_practice_results(season, round_num, session_name):
+    laps = pd.read_parquet(RAW_PRACTICE_DIRS[session_name] / f"{season}_{round_num:02d}.parquet")
+
+    laps["driver_id"] = laps["FirstName"].str.lower().str.replace(" ", "_") + "_" + laps["LastName"].str.lower().str.replace(" ", "_")
+    laps["driver_id"] = laps["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    laps["constructor_id"] = laps["TeamId"].replace(CONSTRUCTOR_ID_NORMALISATION)
+    laps = laps.drop(columns=["FirstName", "LastName", "TeamId"])
+
+    for col in ["LapTime", "Sector1Time", "Sector2Time", "Sector3Time"]:
+        if col in laps.columns:
+            laps[col] = laps[col].dt.total_seconds()
+
+    laps = laps.rename(columns={
+        "LapTime": "lap_time",
+        "Sector1Time": "sector1_time",
+        "Sector2Time": "sector2_time",
+        "Sector3Time": "sector3_time",
+        "Compound": "compound",
+        "LapNumber": "lap_number",
+        "IsPersonalBest": "is_personal_best",
+    })
+
+    laps["race_id"] = f"{season}_{round_num:02d}"
+    laps["season"] = season
+    laps["round"] = round_num
+
+    PRACTICE_SCHEMAS[session_name].validate(laps)
+
+    out_dir = INTERIM_PRACTICE_DIRS[session_name]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    laps.to_parquet(out_dir / f"{season}_{round_num:02d}.parquet")
+
+    return laps
+
+
 # read raw qualifying results from data/raw/quali/, normalise driver and constructor IDs,
 # convert Q1/Q2/Q3 lap times to seconds, validate against schema, 
 # write to data/interim/quali/
@@ -62,11 +103,11 @@ def clean_qualifying_results(season, round_num):
         results[col] = results[col].dt.total_seconds()
     
     results = results.rename(columns={
-    "TeamId": "constructor_id",
-    "Position": "quali_position",
-    "Q1": "q1_time",
-    "Q2": "q2_time", 
-    "Q3": "q3_time",
+        "TeamId": "constructor_id",
+        "Position": "quali_position",
+        "Q1": "q1_time",
+        "Q2": "q2_time", 
+        "Q3": "q3_time",
     })
 
     results["season"] = season
@@ -97,11 +138,11 @@ def clean_race_results(season, round_num):
     results = pd.read_parquet(RAW_RACES_DIR / f"{season}_{round_num:02d}.parquet")
     
     results = results.rename(columns={
-    "TeamId": "constructor_id",
-    "GridPosition": "grid_position",
-    "Position": "finish_position",
-    "Status": "status",
-    "Points": "points",
+        "TeamId": "constructor_id",
+        "GridPosition": "grid_position",
+        "Position": "finish_position",
+        "Status": "status",
+        "Points": "points",
     })
 
     results["season"] = season
