@@ -9,7 +9,7 @@ from xgboost import XGBRegressor, XGBClassifier
 
 from app.config import (
     PROCESSED_HISTORIC_FEATURES_DIR, INTERIM_RACES_DIR, INTERIM_QUALI_DIR, ARTIFACTS_DIR,
-    TRAIN_SEASONS, VAL_SEASONS, TEST_SEASONS
+    TRAIN_SEASONS, VAL_SEASONS, TEST_SEASONS, PROCESSED_PRACTICE_FEATURES_DIR
 )
 from app.models.evaluation import evaluate
 
@@ -20,12 +20,13 @@ MODEL_CLASSES = {
 }
 
 
-# loads driver features, joins finish and qualifying position, and returns train/val/test splits
+# loads historic & practice features, joins finish and qualifying position, and returns train/val/test splits
 # if quali_model and quali_config are provided, replaces actual quali_position with model predictions
 # so the finish model trains on the same noisy input it will see at inference time
 def load_data(config, quali_model=None, quali_config=None):
     historic_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_HISTORIC_FEATURES_DIR.glob("*.parquet"))])
-    
+    practice_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_PRACTICE_FEATURES_DIR.glob("*.parquet"))])
+
     race_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_RACES_DIR.glob("*.parquet"))])
     quali_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_QUALI_DIR.glob("*.parquet"))])
 
@@ -37,6 +38,10 @@ def load_data(config, quali_model=None, quali_config=None):
         quali_results[["race_id", "driver_id", "quali_position"]],
         on=["race_id", "driver_id"],
         how="left"
+    ).merge(
+        practice_features,
+        on=["race_id", "driver_id"],
+        how="left"
     )
 
     if quali_model is not None:
@@ -44,7 +49,7 @@ def load_data(config, quali_model=None, quali_config=None):
         X_quali = df[quali_config["features"]]
         raw_preds = quali_model.predict(X_quali)
         # rank within each race so predictions are valid positions (1-N) not raw regressor outputs
-        df["quali_position"] = (
+        df["predicted_quali_position"] = (
             df.assign(_pred=raw_preds)
             .groupby("race_id")["_pred"]
             .rank(method="first")

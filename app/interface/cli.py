@@ -139,7 +139,7 @@ def train_model():
     typer.echo(f"Training quali position model...")
     train_main(QUALI_POSITION_MODEL)
 
-    typer.echo(f"\nTraining finsih position model...")
+    typer.echo(f"\nTraining finish position model...")
 
     quali_model = load_model(QUALI_POSITION_MODEL)
     train_main(FINISH_POSITION_MODEL, quali_model, QUALI_POSITION_MODEL)
