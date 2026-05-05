@@ -12,8 +12,11 @@ def rolling_quali_position(quali_results, driver_id, season, round_num):
     prior_quali = _get_prior_results(quali_results, driver_id, season, round_num)
     prior_quali = prior_quali.sort_values(["season", "round"])
 
-    last_3 = prior_quali.tail(3)["quali_position"].mean()
-    last_5 = prior_quali.tail(5)["quali_position"].mean()
+    last_3_series = prior_quali.tail(3)["quali_position"]
+    last_5_series = prior_quali.tail(5)["quali_position"]
+
+    last_3 = last_3_series.ewm(span=3).mean().iloc[-1] if len(last_3_series) > 0 else float("nan")
+    last_5 = last_5_series.ewm(span=5).mean().iloc[-1] if len(last_5_series) > 0 else float("nan")
 
     return {"rolling_quali_pos_last_3": last_3, "rolling_quali_pos_last_5": last_5}
 
@@ -23,8 +26,11 @@ def rolling_finish_position(race_results, driver_id, season, round_num):
     prior_races = _get_prior_results(race_results, driver_id, season, round_num)
     prior_races = prior_races.sort_values(["season", "round"])
 
-    last_3 = prior_races.tail(3)["finish_position"].mean()
-    last_5 = prior_races.tail(5)["finish_position"].mean()
+    last_3_series = prior_races.tail(3)["finish_position"]
+    last_5_series = prior_races.tail(5)["finish_position"]
+
+    last_3 = last_3_series.ewm(span=3).mean().iloc[-1] if len(last_3_series) > 0 else float("nan")
+    last_5 = last_5_series.ewm(span=5).mean().iloc[-1] if len(last_5_series) > 0 else float("nan")
 
     return {"rolling_finish_pos_last_3": last_3, "rolling_finish_pos_last_5": last_5}
 
@@ -36,8 +42,11 @@ def rolling_fantasy_points(fantasy_targets, asset_id, season, round_num):
     prior_points = _get_prior_results(fantasy_targets, asset_id, season, round_num, "asset_id")
     prior_points = prior_points.sort_values(["season", "round"])
 
-    last_3 = prior_points.tail(3)["actual_fantasy_points"].mean()
-    last_5 = prior_points.tail(5)["actual_fantasy_points"].mean()
+    last_3_series = prior_points.tail(3)["actual_fantasy_points"]
+    last_5_series = prior_points.tail(5)["actual_fantasy_points"]
+    
+    last_3 = last_3_series.ewm(span=3).mean().iloc[-1] if len(last_3_series) > 0 else float("nan")
+    last_5 = last_5_series.ewm(span=5).mean().iloc[-1] if len(last_5_series) > 0 else float("nan")
 
     return {"rolling_fantasy_points_last_3": last_3, "rolling_fantasy_points_last_5": last_5}
 
@@ -95,8 +104,11 @@ def constructor_rolling_fantasy_points(fantasy_targets, asset_id, season, round_
     prior_points = _get_prior_results(fantasy_targets, asset_id, season, round_num, "asset_id")
     prior_points = prior_points.sort_values(["season", "round"])
 
-    last_3 = prior_points.tail(3)["actual_fantasy_points"].mean()
-    last_5 = prior_points.tail(5)["actual_fantasy_points"].mean()
+    last_3_series = prior_points.tail(3)["actual_fantasy_points"]
+    last_5_series = prior_points.tail(5)["actual_fantasy_points"]
+    
+    last_3 = last_3_series.ewm(span=3).mean().iloc[-1] if len(last_3_series) > 0 else float("nan")
+    last_5 = last_5_series.ewm(span=5).mean().iloc[-1] if len(last_5_series) > 0 else float("nan")
 
     return {"constructor_rolling_fantasy_points_last_3": last_3, "constructor_rolling_fantasy_points_last_5": last_5}
 
@@ -118,7 +130,7 @@ def constructor_rolling_quali_position(quali_results, constructor_id, season, ro
 
     last_3 = prior_quali.groupby(["season", "round", "race_id"])["quali_position"].mean().tail(3)
 
-    return {"constructor_rolling_quali_pos_last_3": last_3.mean()}
+    return {"constructor_rolling_quali_pos_last_3": last_3.ewm(span=3).mean().iloc[-1] if len(last_3) > 0 else float("nan")}
 
 
 # linear slope of constructor fantasy points over the last 5 races - positive means improving form

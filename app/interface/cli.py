@@ -1,6 +1,7 @@
 """CLI entry points for the F1 fantasy optimiser pipeline."""
 
 import logging
+import time
 import typer
 import fastf1
 import pandas as pd
@@ -50,12 +51,16 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
             typer.echo(f"Ingesting season {s}, round {round_num:02d}...")
 
             get_event_metadata(s, round_num)
+            time.sleep(1) 
             get_race_results(s, round_num)
+            time.sleep(1) 
             get_qualifying_results(s, round_num)
+            time.sleep(1) 
 
             for session_name in ["FP2", "FP3"]:
                 try:
                     get_practice_results(s, round_num, session_name)
+                    time.sleep(1) 
                 except Exception:
                     pass  # sprint weekends don't have FP2/FP3
 
