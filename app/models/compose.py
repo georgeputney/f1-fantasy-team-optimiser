@@ -11,7 +11,6 @@ from app.data.scoring_rules import (
 
 # MVP stubs - replace with model outputs in V2
 OVERTAKE_PROB = 0  # TODO V2: replace with predicted overtakes once overtake data is available
-DNF_PROB = 0.1           # flat prior, roughly historical average
 FASTEST_LAP_PROB = 0.05  # 1 in 20 drivers
 DOTD_PRIOR = 0.05        # 1 in 20 drivers
 
@@ -20,6 +19,7 @@ DOTD_PRIOR = 0.05        # 1 in 20 drivers
 def compose_drivers(predictions):
     quali_position = predictions["predicted_quali_position"].astype(int)
     finish_position = predictions["predicted_finish_position"].astype(int)
+    dnf_prob = predictions["dnf_prob"]
 
     quali_points = quali_position.map(lambda p: DRIVER_QUALI_POSITION_POINTS.get(p, 0))
     finish_points = finish_position.map(lambda p: DRIVER_RACE_POSITION_POINTS.get(p, 0))
@@ -27,9 +27,9 @@ def compose_drivers(predictions):
 
     predictions["expected_fantasy_points"] = (
         quali_points
-        + (1 - DNF_PROB) * (finish_points + positions_gained * POSITION_GAINED_POINTS) # weighted by P(finish)
+        + (1 - dnf_prob) * (finish_points + positions_gained * POSITION_GAINED_POINTS) # weighted by P(finish)
         + OVERTAKE_PROB * OVERTAKE_MADE_POINTS
-        + DNF_PROB * RACE_PENALTY
+        + dnf_prob * RACE_PENALTY
         + FASTEST_LAP_PROB * FASTEST_LAP_POINTS
         + DOTD_PRIOR * DOTD_POINTS
     )

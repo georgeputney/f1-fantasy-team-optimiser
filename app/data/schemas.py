@@ -113,6 +113,8 @@ race_results = pa.DataFrameSchema(
         "status": pa.Column(str),
         "dnf_flag": pa.Column(bool),
         "dsq_flag": pa.Column(bool),
+        "crash_dnf_flag": pa.Column(bool),
+        "mechanical_dnf_flag": pa.Column(bool),
         "points": pa.Column(float),
         "positions_gained": pa.Column(float, nullable=True),
         "fastest_lap_flag": pa.Column(bool),

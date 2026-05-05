@@ -91,7 +91,6 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
                     pass  # sprint weekends or rounds without practice data
 
 
-
 # compute actual fantasy points from cleaned results and write to data/processed/targets/
 @app.command()
 def build_targets(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] = typer.Option(None)):
@@ -135,7 +134,6 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
 
             if (INTERIM_FP2_DIR / f"{s}_{round_num:02d}.parquet").exists() and (INTERIM_FP3_DIR / f"{s}_{round_num:02d}.parquet").exists():
                 build_practice_features(s, round_num)
-
 
 
 # train the race finish position model

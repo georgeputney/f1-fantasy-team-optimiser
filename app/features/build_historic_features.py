@@ -42,12 +42,12 @@ def rolling_fantasy_points(fantasy_targets, asset_id, season, round_num):
     return {"rolling_fantasy_points_last_3": last_3, "rolling_fantasy_points_last_5": last_5}
 
 
-# fraction of races ending in DNF over the last 5 races
-def rolling_dnf_rate(race_results, driver_id, season, round_num):
+# fraction of races ending in a crash DNF over the last 5 races
+def rolling_crash_dnf_rate(race_results, driver_id, season, round_num):
     prior_races = _get_prior_results(race_results, driver_id, season, round_num)
     prior_races = prior_races.sort_values(["season", "round"])
-
-    return {"rolling_dnf_rate_last_5": prior_races.tail(5)["dnf_flag"].mean()}
+    
+    return {"rolling_crash_dnf_rate_last_5": prior_races.tail(5)["crash_dnf_flag"].mean()}
 
 
 # average qualifying position at this circuit over the last 3 and 5 visits
@@ -101,14 +101,15 @@ def constructor_rolling_fantasy_points(fantasy_targets, asset_id, season, round_
     return {"constructor_rolling_fantasy_points_last_3": last_3, "constructor_rolling_fantasy_points_last_5": last_5}
 
 
-# fraction of races where at least one driver DNF'd, averaged over the last 5 races
-def constructor_rolling_dnf_rate(race_results, constructor_id, season, round_num):
+# fraction of race-driver entries ending in a mechanical DNF over the last 5 races
+def constructor_rolling_mechanical_dnf_rate(race_results, constructor_id, season, round_num):
     prior_races = _get_prior_results(race_results, constructor_id, season, round_num, "constructor_id")
     prior_races = prior_races.sort_values(["season", "round"])
+    
+    last_5_races = prior_races.groupby(["season", "round", "race_id"])["mechanical_dnf_flag"].mean().tail(5)
+    
+    return {"constructor_rolling_mechanical_dnf_rate_last_5": last_5_races.mean()}
 
-    last_5_races = prior_races.groupby(["season", "round", "race_id"])["dnf_flag"].mean().tail(5)
-
-    return {"constructor_rolling_dnf_rate_last_5": last_5_races.mean()}
 
 
 # average qualifying position across both drivers over the last 3 races
@@ -166,7 +167,7 @@ def build_historic_features(race_results, quali_results, fantasy_targets, events
         features.update(rolling_quali_position(quali_results, driver_id, season, round_num))
         features.update(rolling_finish_position(race_results, driver_id, season, round_num))
         features.update(rolling_fantasy_points(fantasy_targets, driver_id, season, round_num))
-        features.update(rolling_dnf_rate(race_results, driver_id, season, round_num))
+        features.update(rolling_crash_dnf_rate(race_results, driver_id, season, round_num))
         features.update(circuit_rolling_quali_pos(quali_results, events, driver_id, season, round_num))
         features.update(circuit_rolling_finish_pos(race_results, events, driver_id, season, round_num))
         features.update(season_points_to_date(race_results, driver_id, season, round_num))
@@ -188,7 +189,7 @@ def build_historic_features(race_results, quali_results, fantasy_targets, events
     for constructor_id in features_df["constructor_id"].unique():
         c = {"race_id": race_id, "constructor_id": constructor_id}
         c.update(constructor_rolling_fantasy_points(fantasy_targets, constructor_id, season, round_num))
-        c.update(constructor_rolling_dnf_rate(race_results, constructor_id, season, round_num))
+        c.update(constructor_rolling_mechanical_dnf_rate(race_results, constructor_id, season, round_num))
         c.update(constructor_rolling_quali_position(quali_results, constructor_id, season, round_num))
         c.update(constructor_form_trend(fantasy_targets, constructor_id, season, round_num))
         constructor_rows.append(c)
