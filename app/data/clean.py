@@ -153,7 +153,12 @@ def clean_race_results(season, round_num):
     results["constructor_id"] = results["constructor_id"].replace(CONSTRUCTOR_ID_NORMALISATION)
 
     results["status"] = results["status"].str.lower()
-    results["dnf_flag"] = ~(results["status"].str.startswith("+") | results["status"].eq("finished") | results["status"].eq("disqualified"))
+    results["dnf_flag"] = ~(
+        results["status"].str.startswith("+") | 
+        results["status"].eq("finished") | 
+        results["status"].eq("disqualified") |
+        results["status"].eq("lapped")
+    )
     results["dsq_flag"] = results["status"].eq("disqualified")
     results["crash_dnf_flag"] = results["status"].str.contains("accident|collision|damage|spun off", na=False)
     results["mechanical_dnf_flag"] = results["dnf_flag"] & ~results["crash_dnf_flag"]
