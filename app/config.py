@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT_DIR                            = Path(__file__).resolve().parent.parent
 DATA_DIR                            = ROOT_DIR / "data"
 
-RAW_DIR                             = DATA_DIR / "raw"          # fastf1 downloads, fantasy_prices.csv
+RAW_DIR                             = DATA_DIR / "raw"          # fastf1 API downloads
 RAW_EVENTS_DIR                      = RAW_DIR / "events"
 RAW_RACES_DIR                       = RAW_DIR / "races"
 RAW_QUALI_DIR                       = RAW_DIR / "quali"
@@ -15,7 +15,10 @@ RAW_FP3_DIR                         = RAW_DIR / "fp3"
 RAW_FP2_DIR                         = RAW_DIR / "fp2"
 RAW_FP1_DIR                         = RAW_DIR / "fp1"
 FASTF1_CACHE_DIR                    = RAW_DIR / "fastf1_cache"
-FANTASY_PRICES_DIR                  = RAW_DIR / "fantasy_prices"
+
+MANUAL_DIR                          = DATA_DIR / "manual"       # manually maintained inputs
+FANTASY_PRICES_DIR                  = MANUAL_DIR / "fantasy_prices"
+DNF_PATCH_FILE                      = MANUAL_DIR / "dnf_classification_patch.csv"  # crash overrides for 2023+ (FastF1 returns generic "Retired")
 
 INTERIM_DIR                         = DATA_DIR / "interim"      # cleaned tables, before feature engineering
 INTERIM_EVENTS_DIR                  = INTERIM_DIR / "events"

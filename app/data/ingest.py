@@ -48,7 +48,7 @@ def get_practice_results(season, round_num, session_name):
     laps = laps.drop(columns=["Driver", "Abbreviation"])
 
     if PRACTICE_BEST_LAP_ONLY[session_name]:
-        laps = laps[laps["IsPersonalBest"] == True]
+        laps = laps[laps["IsPersonalBest"] == True].copy()
 
     laps["race_id"] = f"{season}_{round_num:02d}"
 

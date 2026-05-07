@@ -1,0 +1,107 @@
+# DNF classification patch - 2023+ seasons
+# FastF1 returns generic "Retired" for all DNFs in 2023+, breaking the crash/mechanical split.
+# This file overrides crash_dnf_flag for entries confirmed as accidents or collisions.
+# Only crash entries are listed - all other DNFs default to mechanical via clean.py.
+#
+# Sources: Wikipedia race result tables.
+# Update after each race weekend where a driver retires due to crash/collision/accident.
+
+race_id,driver_id,dnf_type
+# --- 2023 ---
+2023_03,alexander_albon,crash
+2023_03,charles_leclerc,crash
+2023_03,esteban_ocon,crash
+2023_03,kevin_magnussen,crash
+2023_03,logan_sargeant,crash
+2023_03,nyck_de_vries,crash
+2023_03,pierre_gasly,crash
+2023_04,nyck_de_vries,crash
+2023_06,kevin_magnussen,crash
+2023_06,lance_stroll,crash
+2023_10,pierre_gasly,crash
+2023_11,esteban_ocon,crash
+2023_11,logan_sargeant,crash
+2023_11,pierre_gasly,crash
+2023_12,carlos_sainz,crash
+2023_12,oscar_piastri,crash
+2023_15,george_russell,crash
+2023_15,yuki_tsunoda,crash
+2023_16,alexander_albon,crash
+2023_16,logan_sargeant,crash
+2023_16,sergio_perez,crash
+2023_16,valtteri_bottas,crash
+2023_17,lewis_hamilton,crash
+2023_18,esteban_ocon,crash
+2023_18,oscar_piastri,crash
+2023_19,fernando_alonso,crash
+2023_20,alexander_albon,crash
+2023_20,kevin_magnussen,crash
+2023_21,lando_norris,crash
+
+# --- 2024 ---
+2024_02,lance_stroll,crash
+2024_03,george_russell,crash
+2024_04,alexander_albon,crash
+2024_04,daniel_ricciardo,crash
+2024_05,daniel_ricciardo,crash
+2024_05,yuki_tsunoda,crash
+2024_06,logan_sargeant,crash
+2024_08,esteban_ocon,crash
+2024_08,kevin_magnussen,crash
+2024_08,nico_hulkenberg,crash
+2024_08,sergio_perez,crash
+2024_09,alexander_albon,crash
+2024_09,carlos_sainz,crash
+2024_09,logan_sargeant,crash
+2024_09,sergio_perez,crash
+2024_16,yuki_tsunoda,crash
+2024_17,carlos_sainz,crash
+2024_17,sergio_perez,crash
+2024_17,yuki_tsunoda,crash
+2024_20,alexander_albon,crash
+2024_20,yuki_tsunoda,crash
+2024_21,carlos_sainz,crash
+2024_21,franco_colapinto,crash
+2024_23,franco_colapinto,crash
+2024_23,lance_stroll,crash
+
+# --- 2025 ---
+2025_01,carlos_sainz,crash
+2025_01,fernando_alonso,crash
+2025_01,gabriel_bortoleto,crash
+2025_01,isack_hadjar,crash
+2025_01,jack_doohan,crash
+2025_01,liam_lawson,crash
+2025_04,carlos_sainz,crash
+2025_05,pierre_gasly,crash
+2025_05,yuki_tsunoda,crash
+2025_06,jack_doohan,crash
+2025_06,liam_lawson,crash
+2025_08,pierre_gasly,crash
+2025_09,alexander_albon,crash
+2025_10,lando_norris,crash
+2025_11,andrea_kimi_antonelli,crash
+2025_11,max_verstappen,crash
+2025_12,andrea_kimi_antonelli,crash
+2025_12,gabriel_bortoleto,crash
+2025_12,isack_hadjar,crash
+2025_12,liam_lawson,crash
+2025_15,charles_leclerc,crash
+2025_15,lewis_hamilton,crash
+2025_17,oscar_piastri,crash
+2025_19,carlos_sainz,crash
+2025_20,carlos_sainz,crash
+2025_20,liam_lawson,crash
+2025_21,charles_leclerc,crash
+2025_21,gabriel_bortoleto,crash
+2025_21,lewis_hamilton,crash
+2025_22,alexander_albon,crash
+2025_22,gabriel_bortoleto,crash
+2025_22,lance_stroll,crash
+2025_23,nico_hulkenberg,crash
+
+# --- 2026 ---
+2026_01,oscar_piastri,crash
+2026_03,oliver_bearman,crash
+2026_04,pierre_gasly,crash
+2026_04,isack_hadjar,crash

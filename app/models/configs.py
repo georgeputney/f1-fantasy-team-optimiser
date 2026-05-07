@@ -1,4 +1,4 @@
-"""Model config definitions for each prediction target — features, hyperparameters, and evaluation settings."""
+"""Model config definitions for each prediction target - features, hyperparameters, and evaluation settings."""
 
 # XGBoost regressor predicting race finish position (1-20) - quali_position feature uses actual qualifying position at training time
 FINISH_POSITION_MODEL = {
