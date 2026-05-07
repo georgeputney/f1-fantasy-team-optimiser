@@ -4,8 +4,7 @@ import pandas as pd
 
 from app.data.scoring_rules import (
     CONSTRUCTOR_QUALI_BONUS, DRIVER_QUALI_POSITION_POINTS, DRIVER_RACE_POSITION_POINTS,
-    FASTEST_LAP_POINTS, DOTD_POINTS, RACE_PENALTY, 
-    POSITION_GAINED_POINTS, OVERTAKE_MADE_POINTS
+    FASTEST_LAP_POINTS, DOTD_POINTS, RACE_PENALTY, POSITION_GAINED_POINTS, OVERTAKE_MADE_POINTS
 )
 
 
@@ -15,21 +14,29 @@ FASTEST_LAP_PROB = 0.05  # 1 in 20 drivers
 DOTD_PRIOR = 0.05        # 1 in 20 drivers
 
 
-# computes expected fantasy points per driver from predicted quali and finish positions
-def compose_drivers(predictions):
+# computes expected fantasy points per driver from predicted quali and finish positions.
+# optionally accepts a dnf_prob series for exploration - when provided, race points are weighted by P(finish)
+# and a DNF penalty is applied. production code omits dnf_prob (no compose-level DNF adjustment).
+def compose_drivers(predictions, dnf_prob=None):
     quali_position = predictions["predicted_quali_position"].astype(int)
     finish_position = predictions["predicted_finish_position"].astype(int)
-    dnf_prob = predictions["dnf_prob"]
 
     quali_points = quali_position.map(lambda p: DRIVER_QUALI_POSITION_POINTS.get(p, 0))
     finish_points = finish_position.map(lambda p: DRIVER_RACE_POSITION_POINTS.get(p, 0))
     positions_gained = quali_position - finish_position
 
+    if dnf_prob is not None:
+        race_component = (
+            (1 - dnf_prob) * (finish_points + positions_gained * POSITION_GAINED_POINTS)
+            + dnf_prob * RACE_PENALTY
+        )
+    else:
+        race_component = finish_points + positions_gained * POSITION_GAINED_POINTS
+
     predictions["expected_fantasy_points"] = (
         quali_points
-        + (1 - dnf_prob) * (finish_points + positions_gained * POSITION_GAINED_POINTS) # weighted by P(finish)
+        + race_component
         + OVERTAKE_PROB * OVERTAKE_MADE_POINTS
-        + dnf_prob * RACE_PENALTY
         + FASTEST_LAP_PROB * FASTEST_LAP_POINTS
         + DOTD_PRIOR * DOTD_POINTS
     )

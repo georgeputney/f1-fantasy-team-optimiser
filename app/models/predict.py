@@ -1,9 +1,7 @@
 """Loads trained models and generates predictions for a given race.
 
 Runs the quali position model first, then feeds predicted_quali_position
-into the finish position model as a feature — always chained, no fallback.
-DNF probability is computed separately as driver crash rate + constructor
-mechanical rate, and passed through for use in expected points composition.
+into the finish position model as a feature - always chained, no fallback.
 """
 
 import joblib
@@ -18,8 +16,7 @@ def load_model(config):
 
 
 # loads historic & practice features for a given race, runs the quali model, then the finish model,
-# computes per-driver DNF probability from crash and mechanical rates,
-# and returns a DataFrame with predicted positions and dnf_prob per driver
+# and returns a DataFrame with predicted positions per driver
 def predict(quali_model, quali_config, finish_model, finish_config, season, round_num):
     historic_features = pd.read_parquet(PROCESSED_HISTORIC_FEATURES_DIR / f"{season}_{round_num:02d}.parquet")
 
@@ -44,16 +41,10 @@ def predict(quali_model, quali_config, finish_model, finish_config, season, roun
     finish_preds = finish_model.predict(X_finish)
     features["predicted_finish_position"] = pd.Series(finish_preds).rank().astype(int).values
 
-    # step 3: compute per-driver DNF probability — driver crash rate + constructor mechanical rate (independent signals)
-    driver_crash = features["rolling_crash_dnf_rate_last_5"].fillna(features["rolling_crash_dnf_rate_last_5"].mean())
-    constructor_mechanical = features["constructor_rolling_mechanical_dnf_rate_last_5"].fillna(features["constructor_rolling_mechanical_dnf_rate_last_5"].mean())
-    features["dnf_prob"] = driver_crash + constructor_mechanical
-
     return pd.DataFrame({
         "driver_id": features["driver_id"],
         "constructor_id": features["constructor_id"],
         "predicted_quali_position": features["predicted_quali_position"],
         "predicted_finish_position": features["predicted_finish_position"],
-        "dnf_prob": features["dnf_prob"],
     }).sort_values("predicted_finish_position").reset_index(drop=True)
 
