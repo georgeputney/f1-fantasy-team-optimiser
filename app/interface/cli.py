@@ -7,8 +7,8 @@ import fastf1
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from app.data.ingest import get_event_metadata, get_race_results, get_qualifying_results, get_practice_results
-from app.data.clean import clean_events, clean_race_results, clean_qualifying_results, clean_practice_results
+from app.data.ingest import get_event_metadata, get_race_laps, get_race_results, get_qualifying_results, get_practice_results
+from app.data.clean import clean_events, clean_race_laps, clean_race_results, clean_qualifying_results, clean_practice_results
 from app.data.targets import compute_targets
 
 from app.features.build_historic_features import build_historic_features
@@ -51,16 +51,18 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
             typer.echo(f"Ingesting season {s}, round {round_num:02d}...")
 
             get_event_metadata(s, round_num)
-            time.sleep(1) 
+            time.sleep(0.5) 
+            get_race_laps(s, round_num)
+            time.sleep(0.5) 
             get_race_results(s, round_num)
-            time.sleep(1) 
+            time.sleep(0.5) 
             get_qualifying_results(s, round_num)
-            time.sleep(1) 
+            time.sleep(0.5) 
 
             for session_name in ["FP2", "FP3"]:
                 try:
                     get_practice_results(s, round_num, session_name)
-                    time.sleep(1) 
+                    time.sleep(0.5) 
                 except Exception:
                     pass  # sprint weekends don't have FP2/FP3
 
@@ -81,6 +83,7 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
             typer.echo(f"Cleaning season {s}, round {round_num:02d}...")
 
             clean_events(s, round_num)
+            clean_race_laps(s, round_num)
             clean_race_results(s, round_num)
             clean_qualifying_results(s, round_num)
 

@@ -10,6 +10,7 @@ DATA_DIR                            = ROOT_DIR / "data"
 RAW_DIR                             = DATA_DIR / "raw"          # fastf1 API downloads
 RAW_EVENTS_DIR                      = RAW_DIR / "events"
 RAW_RACES_DIR                       = RAW_DIR / "races"
+RAW_RACE_LAPS_DIR                   = RAW_DIR / "race_laps"
 RAW_QUALI_DIR                       = RAW_DIR / "quali"
 RAW_FP3_DIR                         = RAW_DIR / "fp3"
 RAW_FP2_DIR                         = RAW_DIR / "fp2"
@@ -23,10 +24,11 @@ DNF_PATCH_FILE                      = MANUAL_DIR / "dnf_classification_patch.csv
 INTERIM_DIR                         = DATA_DIR / "interim"      # cleaned tables, before feature engineering
 INTERIM_EVENTS_DIR                  = INTERIM_DIR / "events"
 INTERIM_RACES_DIR                   = INTERIM_DIR / "races"
+INTERIM_RACE_LAPS_DIR               = INTERIM_DIR / "race_laps"
 INTERIM_QUALI_DIR                   = INTERIM_DIR / "quali"
-INTERIM_FP3_DIR                         = INTERIM_DIR / "fp3"
-INTERIM_FP2_DIR                         = INTERIM_DIR / "fp2"
-INTERIM_FP1_DIR                         = INTERIM_DIR / "fp1"
+INTERIM_FP3_DIR                     = INTERIM_DIR / "fp3"
+INTERIM_FP2_DIR                     = INTERIM_DIR / "fp2"
+INTERIM_FP1_DIR                     = INTERIM_DIR / "fp1"
 
 PROCESSED_DIR                       = DATA_DIR / "processed"    # feature store, model-ready datasets
 PROCESSED_TARGETS_DIR               = PROCESSED_DIR / "targets"
@@ -35,6 +37,7 @@ PROCESSED_PRACTICE_FEATURES_DIR     = PROCESSED_DIR / "practice_features"
 
 ARTIFACTS_DIR                       = DATA_DIR / "artifacts"    # trained model files
 REPORTS_DIR                         = ROOT_DIR / "reports"      # backtest plots and output tables
+
 
 # season splits (time-aware, no leakage)
 TRAIN_SEASONS                       = [2018, 2019, 2020, 2021, 2022, 2023]  # earliest data with stable telemetry
