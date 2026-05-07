@@ -84,6 +84,24 @@ quali_results = pa.DataFrameSchema(
 )
 
 
+# race lap data, one row per driver per lap
+# fastest_lap_flag is True for exactly one row per race (the overall fastest lap)
+# pit_in_time and pit_out_time are null on non-pit laps
+race_laps = pa.DataFrameSchema({
+    "race_id": pa.Column(str, checks=pa.Check.str_matches(r"^\d{4}_\d{1,2}$")),
+    "season": pa.Column(int),
+    "round": pa.Column(int),
+    "driver_id": pa.Column(str),
+    "constructor_id": pa.Column(str),
+    "lap_number": pa.Column(float, nullable=True),
+    "lap_time": pa.Column(float, nullable=True),
+    "pit_in_time": pa.Column(float, nullable=True),
+    "pit_out_time": pa.Column(float, nullable=True),
+    "is_personal_best": pa.Column(bool),
+    "fastest_lap_flag": pa.Column(bool),
+})
+
+
 # driver-level race outcomes, one row per driver per race
 # primary key: race_id + driver_id
 # source of truth for driver-constructor relationships per race

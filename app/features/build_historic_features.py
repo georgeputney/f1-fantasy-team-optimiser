@@ -88,17 +88,15 @@ def season_points_to_date(race_results, driver_id, season, round_num):
     return {"season_points_to_date": prior_season["points"].sum()}
 
 
-# average constructor fantasy points scored over the last 3 and 5 races
-def constructor_rolling_fantasy_points(fantasy_targets, asset_id, season, round_num):
-    fantasy_targets = fantasy_targets[fantasy_targets["asset_type"] == "constructor"]
+# average constructor finish position across both drivers over the last 3 and 5 races
+def constructor_rolling_finish_pos(race_results, constructor_id, season, round_num):
+    prior_races = _get_prior_results(race_results, constructor_id, season, round_num, "constructor_id")
+    prior_races = prior_races.sort_values(["season", "round"])
 
-    prior_points = _get_prior_results(fantasy_targets, asset_id, season, round_num, "asset_id")
-    prior_points = prior_points.sort_values(["season", "round"])
+    last_3 = prior_races.tail(3)["finish_position"].mean()
+    last_5 = prior_races.tail(5)["finish_position"].mean()
 
-    last_3 = prior_points.tail(3)["actual_fantasy_points"].mean()
-    last_5 = prior_points.tail(5)["actual_fantasy_points"].mean()
-
-    return {"constructor_rolling_fantasy_points_last_3": last_3, "constructor_rolling_fantasy_points_last_5": last_5}
+    return {"constructor_rolling_finish_pos_last_3": last_3, "constructor_rolling_finish_pos_last_5": last_5}
 
 
 # fraction of race-driver entries ending in a mechanical DNF over the last 5 races
@@ -188,7 +186,7 @@ def build_historic_features(race_results, quali_results, fantasy_targets, events
     constructor_rows = []
     for constructor_id in features_df["constructor_id"].unique():
         c = {"race_id": race_id, "constructor_id": constructor_id}
-        c.update(constructor_rolling_fantasy_points(fantasy_targets, constructor_id, season, round_num))
+        c.update(constructor_rolling_finish_pos(race_results, constructor_id, season, round_num))
         c.update(constructor_rolling_mechanical_dnf_rate(race_results, constructor_id, season, round_num))
         c.update(constructor_rolling_quali_position(quali_results, constructor_id, season, round_num))
         c.update(constructor_form_trend(fantasy_targets, constructor_id, season, round_num))

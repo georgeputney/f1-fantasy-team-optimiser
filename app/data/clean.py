@@ -4,8 +4,8 @@ import pandas as pd
 import app.data.schemas as schemas
 
 from app.config import (
-    RAW_RACES_DIR, RAW_QUALI_DIR, RAW_EVENTS_DIR, RAW_FP3_DIR, RAW_FP2_DIR,
-    INTERIM_RACES_DIR, INTERIM_QUALI_DIR, INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR,
+    RAW_RACES_DIR, RAW_RACE_LAPS_DIR, RAW_QUALI_DIR, RAW_EVENTS_DIR, RAW_FP3_DIR, RAW_FP2_DIR,
+    INTERIM_RACES_DIR, INTERIM_RACE_LAPS_DIR, INTERIM_QUALI_DIR, INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR,
     DNF_PATCH_FILE,
 )
 
@@ -132,6 +132,47 @@ def clean_qualifying_results(season, round_num):
     return results
 
 
+# read raw race lap data from data/raw/race_laps/, derive driver_id and constructor_id,
+# convert lap and pit times to seconds, flag the fastest lap, validate against schema,
+# write to data/interim/race_laps/
+def clean_race_laps(season, round_num):
+    laps = pd.read_parquet(RAW_RACE_LAPS_DIR / f"{season}_{round_num:02d}.parquet")
+
+    laps = laps.rename(columns={
+        "TeamId": "constructor_id",
+        "LapTime": "lap_time",
+        "LapNumber": "lap_number",
+        "IsPersonalBest": "is_personal_best",
+        "PitInTime": "pit_in_time",
+        "PitOutTime": "pit_out_time",
+    })
+
+    for col in ["lap_time", "pit_in_time", "pit_out_time"]:
+        laps[col] = laps[col].dt.total_seconds()
+
+    laps["is_personal_best"] = laps["is_personal_best"].eq(True)
+
+    laps["season"] = season
+    laps["round"] = round_num
+    # replace spaces to handle multi-part names
+    laps["driver_id"] = laps["FirstName"].str.lower().str.replace(" ", "_") + "_" + laps["LastName"].str.lower().str.replace(" ", "_")
+    laps["driver_id"] = laps["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    laps["constructor_id"] = laps["constructor_id"].replace(CONSTRUCTOR_ID_NORMALISATION)
+
+    fastest_index = laps["lap_time"].idxmin()
+    laps["fastest_lap_flag"] = False
+    laps.loc[fastest_index, "fastest_lap_flag"] = True
+
+    laps = laps.drop(columns=[c for c in ["DriverId", "FirstName", "LastName", "DriverNumber"] if c in laps.columns])
+
+    schemas.race_laps.validate(laps)
+
+    INTERIM_RACE_LAPS_DIR.mkdir(parents=True, exist_ok=True)
+    laps.to_parquet(INTERIM_RACE_LAPS_DIR / f"{season}_{round_num:02d}.parquet")
+
+    return laps
+
+
 # read raw race results from data/raw/races/, normalise driver and constructor IDs,
 # derive dnf_flag, positions_gained, and fastest_lap_flag, validate against schema,
 # write to data/interim/races/
@@ -163,7 +204,7 @@ def clean_race_results(season, round_num):
     results["dsq_flag"] = results["status"].eq("disqualified")
     results["crash_dnf_flag"] = results["status"].str.contains("accident|collision|damage|spun off", na=False)
 
-    # Apply manual patch for 2023+ seasons where FastF1 returns generic "Retired"
+    # apply manual patch for 2023+ seasons where FastF1 returns generic "Retired"
     if DNF_PATCH_FILE.exists():
         patch = pd.read_csv(DNF_PATCH_FILE, comment="#")
         crash_keys = patch[patch["dnf_type"] == "crash"]["race_id"] + "|" + patch[patch["dnf_type"] == "crash"]["driver_id"]
@@ -172,7 +213,16 @@ def clean_race_results(season, round_num):
 
     results["mechanical_dnf_flag"] = results["dnf_flag"] & ~results["crash_dnf_flag"]
     results["positions_gained"] = results["grid_position"] - results["finish_position"]
-    results["fastest_lap_flag"] = False     # TODO: derive from lap data once laps are ingested
+
+    results["fastest_lap_flag"] = False  # overridden below if race laps are available
+    
+    # derive fastest_lap_flag from race laps if available
+    laps_path = INTERIM_RACE_LAPS_DIR / f"{season}_{round_num:02d}.parquet"
+    if laps_path.exists():
+        race_laps = pd.read_parquet(laps_path)
+        fastest_driver = race_laps.loc[race_laps["lap_time"].idxmin(), "driver_id"]
+        results["fastest_lap_flag"] = results["driver_id"] == fastest_driver
+
     results["dotd_flag"] = False            # TODO: derive probability from historic data
 
     results = results.drop(columns=[c for c in ["DriverId", "FirstName", "LastName", "DriverNumber"] if c in results.columns])

@@ -1,5 +1,6 @@
 """Composes model predictions into expected fantasy points using the scoring rules formula."""
 
+import numpy as np
 import pandas as pd
 
 from app.data.scoring_rules import (
@@ -7,17 +8,21 @@ from app.data.scoring_rules import (
     FASTEST_LAP_POINTS, DOTD_POINTS, RACE_PENALTY, POSITION_GAINED_POINTS, OVERTAKE_MADE_POINTS
 )
 
+_positions = np.arange(1, 21)
+_exp_weights = np.exp(-0.275 * (_positions - 1))
+_exp_probs = _exp_weights / _exp_weights.sum()
+
+FASTEST_LAP_PROB = dict(zip(_positions, _exp_probs))
 
 # MVP stubs - replace with model outputs in V2
 OVERTAKE_PROB = 0  # TODO V2: replace with predicted overtakes once overtake data is available
-FASTEST_LAP_PROB = 0.05  # 1 in 20 drivers
 DOTD_PRIOR = 0.05        # 1 in 20 drivers
 
 
 # computes expected fantasy points per driver from predicted quali and finish positions.
 # optionally accepts a dnf_prob series for exploration - when provided, race points are weighted by P(finish)
 # and a DNF penalty is applied. production code omits dnf_prob (no compose-level DNF adjustment).
-def compose_drivers(predictions, dnf_prob=None):
+def compose_drivers(predictions, dnf_prob=None, fastest_lap_prob=None):
     quali_position = predictions["predicted_quali_position"].astype(int)
     finish_position = predictions["predicted_finish_position"].astype(int)
 
@@ -33,11 +38,17 @@ def compose_drivers(predictions, dnf_prob=None):
     else:
         race_component = finish_points + positions_gained * POSITION_GAINED_POINTS
 
+    fl_prob = (
+        fastest_lap_prob
+        if fastest_lap_prob is not None
+        else quali_position.map(FASTEST_LAP_PROB).fillna(0)
+    )
+
     predictions["expected_fantasy_points"] = (
         quali_points
         + race_component
         + OVERTAKE_PROB * OVERTAKE_MADE_POINTS
-        + FASTEST_LAP_PROB * FASTEST_LAP_POINTS
+        + fl_prob * FASTEST_LAP_POINTS
         + DOTD_PRIOR * DOTD_POINTS
     )
 
