@@ -7,7 +7,7 @@ from app.config import PROCESSED_TARGETS_DIR
 
 
 # looks up actual fantasy points scored by a selected team from historical targets, applying x2 to the doubled driver
-def get_actual_team_points(team, season, round_num):
+def get_actual_team_points(team, season, round_num, transfer_penalty=0):
     targets = pd.read_parquet(PROCESSED_TARGETS_DIR / f"{season}_{round_num:02d}.parquet").set_index("asset_id")["actual_fantasy_points"]
     points = 0
 
@@ -18,11 +18,11 @@ def get_actual_team_points(team, season, round_num):
     for constructor in team["constructors"]:
         points += targets[constructor]
 
-    return points
+    return points - transfer_penalty
     
 
 # selects the optimal team using actual race points as the objective - the theoretical ceiling for any strategy
-def oracle_baseline(season, round_num, prices, budget):
+def oracle_baseline(season, round_num, prices, budget, state=None):
     targets = pd.read_parquet(PROCESSED_TARGETS_DIR / f"{season}_{round_num:02d}.parquet")
     
     drivers = targets[targets["asset_type"] == "driver"][["asset_id", "actual_fantasy_points"]].dropna(subset=["asset_id"])
@@ -38,7 +38,7 @@ def oracle_baseline(season, round_num, prices, budget):
     })
     
 
-    return optimiser(driver_points, constructor_points, prices, budget)
+    return optimiser(driver_points, constructor_points, prices, budget, state)
 
 
 # estimates the expected fantasy points for a random valid team by averaging over N random selections under budget constraints

@@ -176,7 +176,7 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
 # dropped/inactive assets are sold at last known price and warned to the user
 @app.command()
 def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP), no_state: bool = typer.Option(False)):
-    typer.echo(f"Optimising team for season {season}, round {round:02d}, budget {budget}...")
+    typer.echo(f"Optimising team for season {season}, round {round:02d}...")
 
     prices = pd.read_csv(FANTASY_PRICES_DIR / f"{season}_{round:02d}.csv")
     state = None if no_state else load_state(TEAM_STATE_FILE)
@@ -240,13 +240,18 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 
 
 # runs walk-forward backtest comparing model, oracle, and random strategies over historical seasons, prints per-round results and saves a cumulative points plot
+# model and oracle are transfer-constrained with state carried forward each round; random is unconstrained
 @app.command()
 def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP)):
     quali_model = load_model(QUALI_POSITION_MODEL)
     finish_model = load_model(FINISH_POSITION_MODEL)
-    results = []
 
     for s in season:
+        results = []
+
+        model_state = None
+        oracle_state = None  # reset at start of each season - no carry-over between seasons
+
         schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0]
 
@@ -261,40 +266,60 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             typer.echo(f"Backtesting season {s}, round {round_num:02d}...")
 
             prices = pd.read_csv(prices_path)
+            asset_prices_index = prices.set_index("asset_id")["price"]
             predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, s, round_num)
 
             driver_points = compose_drivers(predictions)
             constructor_points = compose_constructor(driver_points)
 
-            model_team = optimiser(driver_points, constructor_points, prices, budget)
-            model_points = get_actual_team_points(model_team, s, round_num)
+            model_team = optimiser(driver_points, constructor_points, prices, budget, model_state)
+            model_points = get_actual_team_points(model_team, s, round_num, model_team["transfer_penalty"]) # deduct transfer penalty from actual points
+            model_state = _build_state(model_team, model_state, asset_prices_index, budget) # carry state forward to next round
 
-            oracle_team = oracle_baseline(s, round_num, prices, budget)
-            oracle_points = get_actual_team_points(oracle_team, s, round_num)
+            oracle_team = oracle_baseline(s, round_num, prices, budget, oracle_state)
+            oracle_points = get_actual_team_points(oracle_team, s, round_num, oracle_team["transfer_penalty"]) # oracle is also transfer-constrained - true upper bound
+            oracle_state = _build_state(oracle_team, oracle_state, asset_prices_index, budget)
 
             random_points = random_baseline(s, round_num, prices, budget)
 
             results.append({"season": s, "round": round_num, "model": model_points, "oracle": oracle_points, "random": random_points})
 
-    df = pd.DataFrame(results)
+        df = pd.DataFrame(results)
 
-    typer.echo(f"\n{'Round':<8} {'Model':>8} {'Oracle':>8} {'Random':>8}")
-    for _, row in df.iterrows():
-        typer.echo(f"  {int(row['round']):<6} {row['model']:>8.1f} {row['oracle']:>8.1f} {row['random']:>8.1f}")
+        typer.echo(f"\n{'Round':<8} {'Model':>8} {'Oracle':>8} {'Random':>8}")
+        for _, row in df.iterrows():
+            typer.echo(f"  {int(row['round']):<6} {row['model']:>8.1f} {row['oracle']:>8.1f} {row['random']:>8.1f}")
 
-    typer.echo(f"\n{'Total':<8} {df['model'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['random'].sum():>8.1f}")
+        typer.echo(f"\n{'Total':<8} {df['model'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['random'].sum():>8.1f}")
 
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    df[["model", "oracle", "random"]].cumsum().plot(title="Cumulative fantasy points by strategy")
+        df[["model", "oracle", "random"]].cumsum().plot(title="Cumulative fantasy points by strategy")
 
-    plt.xlabel("Round")
-    plt.ylabel("Cumulative points")
-    plt.tight_layout()
-    plt.savefig(REPORTS_DIR / f"backtest_{'_'.join(str(s) for s in season)}.png")
+        plt.xlabel("Round")
+        plt.ylabel("Cumulative points")
+        plt.tight_layout()
+        plt.savefig(REPORTS_DIR / f"backtest_{s}.png")
+        plt.close()
 
-    typer.echo(f"\nPlot saved to reports/")
+        typer.echo(f"\nPlot saved to reports/\n")
 
+
+# builds in-memory team state after each backtest round - mirrors save_state but without file I/O
+def _build_state(team, previous_state, asset_prices_index, budget):
+    # sell previous team at current prices; fall back to stored price for dropped/inactive assets
+    available = (previous_state["budget_remaining"] + sum(asset_prices_index.get(i, previous_state["prices"][i]) for i in previous_state["drivers"] + previous_state["constructors"])) if previous_state else budget
+    
+    new_budget = available - sum(asset_prices_index[i] for i in team["drivers"] + team["constructors"])
+    free_transfers = 2 + (previous_state["free_transfers_carried"] if previous_state else 0)
+    
+    return {
+        "drivers": team["drivers"],
+        "constructors": team["constructors"],
+        "prices": {i: float(asset_prices_index[i]) for i in team["drivers"] + team["constructors"]},
+        "budget_remaining": round(new_budget, 1),
+        "free_transfers_carried": 1 if team["transfers_made"] < free_transfers else 0,  # carry 1 if transfers unused
+    }
 
 
 if __name__ == "__main__": app()
