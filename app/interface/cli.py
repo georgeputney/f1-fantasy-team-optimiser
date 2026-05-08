@@ -172,7 +172,8 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
 
 
 # load predictions, compose expected points, and select the optimal team under budget and transfer constraints
-# loads team state from data/manual/team_state.json if it exists; saves updated state after each run unless --no-state is passed
+# loads team state from data/team_state.json if it exists; saves updated state after each run unless --no-state is passed
+# dropped/inactive assets are sold at last known price and warned to the user
 @app.command()
 def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP), no_state: bool = typer.Option(False)):
     typer.echo(f"Optimising team for season {season}, round {round:02d}, budget {budget}...")
@@ -190,11 +191,14 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
     
     team = optimiser(driver_points, constructor_points, prices, budget, state)
 
+    for d in team["dropped"]:
+        typer.echo(f"\n  [!] {d} is inactive - sold at last known price £{state['prices'][d]:.1f}M")
+
     driver_points = driver_points.set_index("driver_id")["expected_fantasy_points"]
     constructor_points = constructor_points.set_index("constructor_id")["expected_fantasy_points"]
     
     asset_prices = prices.set_index("asset_id")["price"]
-    available_budget = (state["budget_remaining"] + sum(asset_prices[i] for i in state["drivers"] + state["constructors"])) if state else budget
+    available_budget = (state["budget_remaining"] + sum(asset_prices.get(i, state["prices"][i]) for i in state["drivers"] + state["constructors"])) if state else budget
 
     total = 0.0
 
@@ -228,7 +232,8 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
         free_transfers = 2 + (state["free_transfers_carried"] if state else 0)
         free_transfers_carried = 1 if team["transfers_made"] < free_transfers else 0
 
-        save_state(TEAM_STATE_FILE, season, round, team["drivers"], team["constructors"], team["doubled_driver"], new_budget_remaining, free_transfers_carried)
+        team_prices = {i: float(asset_prices[i]) for i in team["drivers"] + team["constructors"]}
+        save_state(TEAM_STATE_FILE, season, round, team["drivers"], team["constructors"], team["doubled_driver"], team_prices, new_budget_remaining, free_transfers_carried)
 
         typer.echo(f"\nTransfers made: {team['transfers_made']} ({team['transfer_penalty']} point penalty)")
         typer.echo(f"Free transfers carried to next round: {free_transfers_carried}")

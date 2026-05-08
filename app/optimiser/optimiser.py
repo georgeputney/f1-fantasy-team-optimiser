@@ -19,10 +19,19 @@ def optimiser(driver_points, constructor_points, prices, budget=BUDGET_CAP, stat
     if state is not None:
         prev_team = set(state["drivers"] + state["constructors"])
         free_transfers = 2 + state["free_transfers_carried"]
-        available_budget = state["budget_remaining"] + sum(prices_index[i] for i in prev_team)
+        available_budget = state["budget_remaining"]
+
+        dropped = []
+        for i in prev_team:
+            if i in prices_index:
+                available_budget += prices_index[i]
+            else:
+                available_budget += state["prices"][i]
+                dropped.append(i)
     else:
         prev_team = set()
         available_budget = budget
+        dropped = []
 
     # binary so either prob = 1 (selected) or prob = 0 (not selected)
     selected = pulp.LpVariable.dicts("selected", drivers + constructors, cat="Binary")
@@ -66,4 +75,5 @@ def optimiser(driver_points, constructor_points, prices, budget=BUDGET_CAP, stat
         "doubled_driver": doubled_driver,
         "transfers_made": sum(1 for i in selected_drivers + selected_constructors if i not in prev_team),
         "transfer_penalty": round(pulp.value(penalty_transfers)),
+        "dropped": dropped,
     }

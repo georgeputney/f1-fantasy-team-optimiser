@@ -17,7 +17,7 @@ def load_state(path):
 
 
 # write team state to disk after each round, overwriting the previous state
-def save_state(path, season, round_num, drivers, constructors, doubled_driver, budget_remaining, free_transfers_carried):
+def save_state(path, season, round_num, drivers, constructors, doubled_driver, prices, budget_remaining, free_transfers_carried):
     path = Path(path)
 
     state = {
@@ -26,6 +26,7 @@ def save_state(path, season, round_num, drivers, constructors, doubled_driver, b
         "drivers": list(drivers),
         "constructors": list(constructors),
         "doubled_driver": doubled_driver,
+        "prices": prices,
         "budget_remaining": round(budget_remaining, 1),
         "free_transfers_carried": free_transfers_carried,
     }
