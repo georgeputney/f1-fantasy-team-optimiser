@@ -38,6 +38,8 @@ PROCESSED_PRACTICE_FEATURES_DIR     = PROCESSED_DIR / "practice_features"
 ARTIFACTS_DIR                       = DATA_DIR / "artifacts"    # trained model files
 REPORTS_DIR                         = ROOT_DIR / "reports"      # backtest plots and output tables
 
+TEAM_STATE_FILE                     = DATA_DIR / "team_state_file.json"
+
 
 # season splits (time-aware, no leakage)
 TRAIN_SEASONS                       = [2018, 2019, 2020, 2021, 2022, 2023]  # earliest data with stable telemetry
