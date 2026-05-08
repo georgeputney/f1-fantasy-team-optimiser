@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from app.optimiser import optimiser
+from app.optimiser.optimiser import optimiser
 from app.config import PROCESSED_TARGETS_DIR
 
 
