@@ -3,19 +3,16 @@
 import pandas as pd
 
 
+# sprint
+DRIVER_SPRINT_POSITION_POINTS = {1: 8, 2: 7, 3: 6, 4: 5, 5: 4, 6: 3, 7: 2, 8: 1}
+SPRINT_FASTEST_LAP_POINTS = 5
+SPRINT_PENALTY = -10
+SPRINT_POSITION_GAINED_POINTS = 1
+SPRINT_MAX_POSITION_LOSS_PENALTY = -10
+
+
 # qualifying
-DRIVER_QUALI_POSITION_POINTS = {
-    1: 10,
-    2: 9,
-    3: 8,
-    4: 7,
-    5: 6,
-    6: 5,
-    7: 4,
-    8: 3, 
-    9: 2,
-    10: 1,
-}
+DRIVER_QUALI_POSITION_POINTS = {1: 10, 2: 9, 3: 8, 4: 7, 5: 6, 6: 5, 7: 4, 8: 3, 9: 2, 10: 1}
 CONSTRUCTOR_QUALI_BONUS = {
     (0, 0): -1,
     (1, 0): 1,
@@ -28,23 +25,42 @@ QUALI_PENALTY = -5
 
 
 # race
-DRIVER_RACE_POSITION_POINTS = {
-    1: 25,
-    2: 18,
-    3: 15,
-    4: 12,
-    5: 10,
-    6: 8,
-    7: 6,
-    8: 4, 
-    9: 2,
-    10: 1,
-}
+DRIVER_RACE_POSITION_POINTS = {1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1}
 FASTEST_LAP_POINTS = 10
 DOTD_POINTS = 10
 POSITION_GAINED_POINTS = 1
 OVERTAKE_MADE_POINTS = 1 # TODO: wire up once overtake data is available
 RACE_PENALTY = -20
+
+
+# calculate fantasy points for a driver's sprint result
+def score_driver_sprint(position, positions_gained, dnf_flag, dsq_flag, fastest_lap_flag):
+    if dnf_flag or dsq_flag:
+        return SPRINT_PENALTY
+
+    score = DRIVER_SPRINT_POSITION_POINTS.get(position, 0)
+
+    if pd.isna(positions_gained):
+        positions_gained = 0
+
+    # positions_gained capped so losses can't exceed -10 total
+    capped = max(positions_gained, SPRINT_MAX_POSITION_LOSS_PENALTY)
+    score += capped * SPRINT_POSITION_GAINED_POINTS
+
+    if fastest_lap_flag:
+        score += SPRINT_FASTEST_LAP_POINTS
+
+    return score
+
+
+# calculate fantasy points for a constructor's sprint result
+def score_constructor_sprint(positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags):
+    return sum(
+        score_driver_sprint(p, pg, dnf, dsq, fl)
+        for p, pg, dnf, dsq, fl in zip(
+            positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags
+        )
+    )
 
 
 # calculate fantasy points for a driver's qualifying result
