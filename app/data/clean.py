@@ -4,14 +4,14 @@ import pandas as pd
 import app.data.schemas as schemas
 
 from app.config import (
-    RAW_RACES_DIR, RAW_RACE_LAPS_DIR, RAW_QUALI_DIR, RAW_EVENTS_DIR, RAW_FP3_DIR, RAW_FP2_DIR,
-    INTERIM_RACES_DIR, INTERIM_RACE_LAPS_DIR, INTERIM_QUALI_DIR, INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR,
+    RAW_RACES_DIR, RAW_RACE_LAPS_DIR, RAW_QUALI_DIR, RAW_SPRINT_DIR, RAW_SPRINT_QUALIFYING_DIR, RAW_EVENTS_DIR, RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR,
+    INTERIM_RACES_DIR, INTERIM_RACE_LAPS_DIR, INTERIM_QUALI_DIR, INTERIM_SPRINT_DIR, INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR, INTERIM_FP1_DIR,
     DNF_PATCH_FILE,
 )
 
-RAW_PRACTICE_DIRS = {"FP2": RAW_FP2_DIR, "FP3": RAW_FP3_DIR}
-INTERIM_PRACTICE_DIRS = {"FP2": INTERIM_FP2_DIR, "FP3": INTERIM_FP3_DIR}
-PRACTICE_SCHEMAS = {"FP2": schemas.fp2_results, "FP3": schemas.fp3_results}
+RAW_PRACTICE_DIRS = {"FP1": RAW_FP1_DIR, "FP2": RAW_FP2_DIR, "FP3": RAW_FP3_DIR}
+INTERIM_PRACTICE_DIRS = {"FP1": INTERIM_FP1_DIR, "FP2": INTERIM_FP2_DIR, "FP3": INTERIM_FP3_DIR}
+PRACTICE_SCHEMAS = {"FP1": schemas.fp3_results, "FP2": schemas.fp2_results, "FP3": schemas.fp3_results}
 
 STREET_CIRCUITS = {
     "Monaco", "Baku", "Singapore", "Jeddah", "Melbourne",
@@ -92,6 +92,74 @@ def clean_practice_results(season, round_num, session_name):
     laps.to_parquet(out_dir / f"{season}_{round_num:02d}.parquet")
 
     return laps
+
+
+# read raw sprint qualifying results, normalise driver/constructor IDs,
+# convert Q1/Q2/Q3 times to seconds, write to data/interim/sprint_qualifying/
+def clean_sprint_qualifying_results(season, round_num):
+    results = pd.read_parquet(RAW_SPRINT_QUALIFYING_DIR / f"{season}_{round_num:02d}.parquet")
+
+    for col in ["Q1", "Q2", "Q3"]:
+        results[col] = results[col].dt.total_seconds()
+
+    results = results.rename(columns={
+        "TeamId": "constructor_id",
+        "Position": "sprint_qualifying_position",
+        "Q1": "q1_time",
+        "Q2": "q2_time",
+        "Q3": "q3_time",
+    })
+
+    results["season"] = season
+    results["round"] = round_num
+    results["driver_id"] = results["FirstName"].str.lower().str.replace(" ", "_") + "_" + results["LastName"].str.lower().str.replace(" ", "_")
+    results["driver_id"] = results["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    results["constructor_id"] = results["constructor_id"].replace(CONSTRUCTOR_ID_NORMALISATION)
+    results = results.drop(columns={"DriverId", "FirstName", "LastName"})
+    results["race_id"] = f"{season}_{round_num:02d}"
+
+    INTERIM_SPRINT_QUALIFYING_DIR.mkdir(parents=True, exist_ok=True)
+    results.to_parquet(INTERIM_SPRINT_QUALIFYING_DIR / f"{season}_{round_num:02d}.parquet")
+
+    return results
+
+
+# read raw sprint race results, normalise driver/constructor IDs,
+# derive dnf_flag, dsq_flag, positions_gained, write to data/interim/sprint/
+def clean_sprint_results(season, round_num):
+    results = pd.read_parquet(RAW_SPRINT_DIR / f"{season}_{round_num:02d}.parquet")
+
+    results = results.rename(columns={
+        "TeamId": "constructor_id",
+        "GridPosition": "grid_position",
+        "Position": "finish_position",
+        "Status": "status",
+    })
+
+    results["season"] = season
+    results["round"] = round_num
+    results["driver_id"] = results["FirstName"].str.lower().str.replace(" ", "_") + "_" + results["LastName"].str.lower().str.replace(" ", "_")
+    results["driver_id"] = results["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    results["constructor_id"] = results["constructor_id"].replace(CONSTRUCTOR_ID_NORMALISATION)
+
+    results["status"] = results["status"].str.lower()
+    results["dnf_flag"] = ~(
+        results["status"].str.startswith("+") |
+        results["status"].eq("finished") |
+        results["status"].eq("disqualified") |
+        results["status"].eq("lapped")
+    )
+    results["dsq_flag"] = results["status"].eq("disqualified")
+    results["positions_gained"] = results["grid_position"] - results["finish_position"]
+    results["fastest_lap_flag"] = False
+
+    results = results.drop(columns=[c for c in ["DriverId", "FirstName", "LastName"] if c in results.columns])
+    results["race_id"] = f"{season}_{round_num:02d}"
+
+    INTERIM_SPRINT_DIR.mkdir(parents=True, exist_ok=True)
+    results.to_parquet(INTERIM_SPRINT_DIR / f"{season}_{round_num:02d}.parquet")
+
+    return results
 
 
 # read raw qualifying results from data/raw/quali/, normalise driver and constructor IDs,

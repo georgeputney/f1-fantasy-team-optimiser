@@ -7,8 +7,8 @@ import fastf1
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from app.data.ingest import get_event_metadata, get_race_laps, get_race_results, get_qualifying_results, get_practice_results
-from app.data.clean import clean_events, clean_race_laps, clean_race_results, clean_qualifying_results, clean_practice_results
+from app.data.ingest import get_event_metadata, get_race_laps, get_race_results, get_qualifying_results, get_sprint_results, get_sprint_qualifying_results, get_practice_results
+from app.data.clean import clean_events, clean_race_laps, clean_race_results, clean_qualifying_results, clean_sprint_results, clean_sprint_qualifying_results, clean_practice_results
 from app.data.targets import compute_targets
 
 from app.features.build_historic_features import build_historic_features
@@ -26,7 +26,7 @@ from app.backtest import get_actual_team_points, oracle_baseline, random_baselin
 
 from app.config import (
     ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, 
-    INTERIM_EVENTS_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, 
+    INTERIM_EVENTS_DIR, INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR, INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, 
     PROCESSED_TARGETS_DIR, PROCESSED_HISTORIC_FEATURES_DIR, 
     REPORTS_DIR, TEAM_STATE_FILE
 )
@@ -44,6 +44,8 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
         schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
 
+        sprint_rounds = set(schedule[schedule["EventFormat"].isin(["sprint", "sprint_qualifying", "sprint_shootout"])]["RoundNumber"])  # FP1/sprint sessions only exist on sprint weekends
+
         if round:
             schedule = schedule[schedule["RoundNumber"].isin(round)]
 
@@ -51,21 +53,44 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
 
             typer.echo(f"Ingesting season {s}, round {round_num:02d}...")
 
-            get_event_metadata(s, round_num)
-            time.sleep(0.5) 
-            get_race_laps(s, round_num)
-            time.sleep(0.5) 
-            get_race_results(s, round_num)
-            time.sleep(0.5) 
-            get_qualifying_results(s, round_num)
-            time.sleep(0.5) 
+            try:
+                get_event_metadata(s, round_num)
+                time.sleep(0.5)
+                get_race_laps(s, round_num)
+                time.sleep(0.5)
+                get_race_results(s, round_num)
+                time.sleep(0.5)
+                get_qualifying_results(s, round_num)
+                time.sleep(0.5)
+            except Exception as e:
+                typer.echo(f"  Skipping round {round_num:02d}: data not available ({e})")
+                continue
 
             for session_name in ["FP2", "FP3"]:
                 try:
                     get_practice_results(s, round_num, session_name)
-                    time.sleep(0.5) 
+                    time.sleep(0.5)
                 except Exception:
                     pass  # sprint weekends don't have FP2/FP3
+
+            try:
+                get_sprint_qualifying_results(s, round_num)
+                time.sleep(0.5)
+            except Exception:
+                pass  # non-sprint weekends
+
+            try:
+                get_sprint_results(s, round_num)
+                time.sleep(0.5)
+            except Exception:
+                pass  # non-sprint weekends
+
+            if round_num in sprint_rounds:
+                try:
+                    get_practice_results(s, round_num, "FP1")
+                    time.sleep(0.5)
+                except Exception:
+                    pass
 
 
 # clean raw parquet files for the given seasons and write validated tables to data/interim/
@@ -76,6 +101,8 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
         schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
 
+        sprint_rounds = set(schedule[schedule["EventFormat"].isin(["sprint", "sprint_qualifying", "sprint_shootout"])]["RoundNumber"])  # FP1/sprint sessions only exist on sprint weekends
+
         if round:
             schedule = schedule[schedule["RoundNumber"].isin(round)]
             
@@ -83,16 +110,37 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
 
             typer.echo(f"Cleaning season {s}, round {round_num:02d}...")
 
-            clean_events(s, round_num)
-            clean_race_laps(s, round_num)
-            clean_race_results(s, round_num)
-            clean_qualifying_results(s, round_num)
+            try:
+                clean_events(s, round_num)
+                clean_race_laps(s, round_num)
+                clean_race_results(s, round_num)
+                clean_qualifying_results(s, round_num)
+            except FileNotFoundError:
+                typer.echo(f"  Skipping round {round_num:02d}: raw data not found (run ingest-data first)")
+                continue
 
             for session_name in ["FP2", "FP3"]:
                 try:
                     clean_practice_results(s, round_num, session_name)
                 except Exception:
                     pass  # sprint weekends or rounds without practice data
+
+            try:
+                clean_sprint_qualifying_results(s, round_num)
+            except Exception:
+                pass  # non-sprint weekends
+
+            try:
+                clean_sprint_results(s, round_num)
+            except Exception:
+                pass  # non-sprint weekends
+
+            if round_num in sprint_rounds:
+                try:
+                    clean_practice_results(s, round_num, "FP1")
+                    time.sleep(0.5)
+                except Exception:
+                    pass
 
 
 # compute actual fantasy points from cleaned results and write to data/processed/targets/
@@ -110,7 +158,11 @@ def build_targets(season: list[int] = typer.Option(ALL_SEASONS), round: list[int
 
             typer.echo(f"Building targets for season {s}, round {round_num:02d}...")
 
-            compute_targets(s, round_num)
+            try:
+                compute_targets(s, round_num)
+            except (FileNotFoundError, ValueError):
+                typer.echo(f"  Skipping round {round_num:02d}: cleaned data not found or incomplete (run clean-data first)")
+                continue
 
 
 # build historic rolling features and practice session features for the given seasons and write to data/processed/
@@ -134,7 +186,15 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
 
             typer.echo(f"Building features for season {s}, round {round_num:02d}...")
 
-            build_historic_features(race_results, quali_results, fantasy_targets, events, s, round_num)
+            try:
+                result = build_historic_features(race_results, quali_results, fantasy_targets, events, s, round_num)
+            except FileNotFoundError:
+                typer.echo(f"  Skipping round {round_num:02d}: processed data not found (run build-targets first)")
+                continue
+
+            if result is None:
+                typer.echo(f"  Skipping round {round_num:02d}: no race data available yet")
+                continue
 
             if (INTERIM_FP2_DIR / f"{s}_{round_num:02d}.parquet").exists() and (INTERIM_FP3_DIR / f"{s}_{round_num:02d}.parquet").exists():
                 build_practice_features(s, round_num)
@@ -166,7 +226,7 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
     typer.echo(f"Predicting season {season}, round {round:02d}...")
     
     typer.echo("\nDrivers:")
-    typer.echo(driver_points[["driver_id", "predicted_finish_position", "expected_fantasy_points"]].to_string())
+    typer.echo(driver_points[["driver_id", "predicted_quali_position", "predicted_finish_position", "expected_fantasy_points"]].to_string())
     typer.echo("\nConstructors:")
     typer.echo(constructor_points.to_string())
 

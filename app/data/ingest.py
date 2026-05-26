@@ -7,16 +7,17 @@ Enables the FastF1 cache on import. Each function fetches one session type for o
 import fastf1
 import pandas as pd
 
-from app.config import FASTF1_CACHE_DIR, RAW_EVENTS_DIR, RAW_RACES_DIR, RAW_QUALI_DIR, RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR, RAW_RACE_LAPS_DIR
+from app.config import FASTF1_CACHE_DIR, RAW_EVENTS_DIR, RAW_RACES_DIR, RAW_QUALI_DIR, RAW_SPRINT_DIR, RAW_SPRINT_QUALIFYING_DIR, RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR, RAW_RACE_LAPS_DIR
 
 fastf1.Cache.enable_cache(FASTF1_CACHE_DIR)
 
+FP1_COLUMNS = ["Driver", "LapTime", "Sector1Time", "Sector2Time", "Sector3Time", "IsPersonalBest"]
 FP2_COLUMNS = ["Driver", "LapTime", "Compound", "LapNumber"]
 FP3_COLUMNS = ["Driver", "LapTime", "Sector1Time", "Sector2Time", "Sector3Time", "IsPersonalBest"]
 
-PRACTICE_DIRS = {"FP2": RAW_FP2_DIR, "FP3": RAW_FP3_DIR}
-PRACTICE_COLUMNS = {"FP2": FP2_COLUMNS, "FP3": FP3_COLUMNS}
-PRACTICE_BEST_LAP_ONLY = {"FP2": False, "FP3": True}
+PRACTICE_DIRS = {"FP1": RAW_FP1_DIR, "FP2": RAW_FP2_DIR, "FP3": RAW_FP3_DIR}
+PRACTICE_COLUMNS = {"FP1": FP1_COLUMNS, "FP2": FP2_COLUMNS, "FP3": FP3_COLUMNS}
+PRACTICE_BEST_LAP_ONLY = {"FP1": True, "FP2": False, "FP3": True}
 
 
 # fetch event metadata for a single round from FastF1 and write to data/raw/events/
@@ -58,6 +59,40 @@ def get_practice_results(season, round_num, session_name):
     laps.to_parquet(out_dir / f"{season}_{round_num:02d}.parquet")
 
     return laps
+
+
+# fetch sprint qualifying results for a sprint weekend from FastF1 and write to data/raw/sprint_qualifying/
+def get_sprint_qualifying_results(season, round_num):
+    for identifier in ["SQ", "SS"]:
+        try:
+            session = fastf1.get_session(season, round_num, identifier)
+            session.load(telemetry=False, weather=False, messages=False)
+
+            results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "Position", "Q1", "Q2", "Q3"]].copy()
+            results["race_id"] = f"{season}_{round_num:02d}"
+
+            RAW_SPRINT_QUALIFYING_DIR.mkdir(parents=True, exist_ok=True)
+            results.to_parquet(RAW_SPRINT_QUALIFYING_DIR / f"{season}_{round_num:02d}.parquet")
+
+            return results
+        except Exception:
+            continue
+
+    raise Exception(f"No sprint qualifying session found for {season} round {round_num}")
+
+
+# fetch sprint race results for a sprint weekend from FastF1 and write to data/raw/sprint/
+def get_sprint_results(season, round_num):
+    session = fastf1.get_session(season, round_num, 'S')
+    session.load(telemetry=False, weather=False, messages=False)
+
+    results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "GridPosition", "Position", "Status"]].copy()
+    results["race_id"] = f"{season}_{round_num:02d}"
+
+    RAW_SPRINT_DIR.mkdir(parents=True, exist_ok=True)
+    results.to_parquet(RAW_SPRINT_DIR / f"{season}_{round_num:02d}.parquet")
+
+    return results
 
 
 # fetch qualifying results for a single round from FastF1 and write to data/raw/quali/
