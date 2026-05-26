@@ -66,9 +66,13 @@ def get_sprint_qualifying_results(season, round_num):
     for identifier in ["SQ", "SS"]:
         try:
             session = fastf1.get_session(season, round_num, identifier)
-            session.load(telemetry=False, weather=False, messages=False)
+            session.load(telemetry=False, weather=False, messages=True)
 
             results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "Position", "Q1", "Q2", "Q3"]].copy()
+            
+            if results["Position"].isna().all():  # session loaded but returned no data - try next identifier
+                continue
+
             results["race_id"] = f"{season}_{round_num:02d}"
 
             RAW_SPRINT_QUALIFYING_DIR.mkdir(parents=True, exist_ok=True)

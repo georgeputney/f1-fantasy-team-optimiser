@@ -104,7 +104,7 @@ def clean_sprint_qualifying_results(season, round_num):
 
     results = results.rename(columns={
         "TeamId": "constructor_id",
-        "Position": "sprint_qualifying_position",
+        "Position": "sprint_quali_position",
         "Q1": "q1_time",
         "Q2": "q2_time",
         "Q3": "q3_time",
