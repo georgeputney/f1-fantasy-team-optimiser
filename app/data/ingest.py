@@ -7,7 +7,12 @@ Enables the FastF1 cache on import. Each function fetches one session type for o
 import fastf1
 import pandas as pd
 
-from app.config import FASTF1_CACHE_DIR, RAW_EVENTS_DIR, RAW_RACES_DIR, RAW_QUALI_DIR, RAW_SPRINT_DIR, RAW_SPRINT_QUALIFYING_DIR, RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR, RAW_RACE_LAPS_DIR
+from app.config import (
+    FASTF1_CACHE_DIR, RAW_EVENTS_DIR, 
+    RAW_RACES_DIR, RAW_RACE_LAPS_DIR, RAW_QUALI_DIR, 
+    RAW_SPRINT_DIR, RAW_SPRINT_LAPS_DIR, RAW_SPRINT_QUALIFYING_DIR, 
+    RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR, 
+)
 
 fastf1.Cache.enable_cache(FASTF1_CACHE_DIR)
 
@@ -97,6 +102,25 @@ def get_sprint_results(season, round_num):
     results.to_parquet(RAW_SPRINT_DIR / f"{season}_{round_num:02d}.parquet")
 
     return results
+
+
+# fetch sprint lap data for a single sprint weekend from FastF1 and write to data/raw/sprint_laps/
+# used to derive fastest_lap_flag in clean_sprint_results
+def get_sprint_laps(season, round_num):
+    session = fastf1.get_session(season, round_num, 'S')
+    session.load(laps=True, telemetry=False, weather=False, messages=False)
+
+    laps = session.laps[["Driver", "LapTime"]].copy()
+
+    driver_info = session.results[["Abbreviation", "FirstName", "LastName"]]
+    laps = laps.merge(driver_info, left_on="Driver", right_on="Abbreviation")
+    laps = laps.drop(columns=["Driver", "Abbreviation"])
+    laps["race_id"] = f"{season}_{round_num:02d}"
+
+    RAW_SPRINT_LAPS_DIR.mkdir(parents=True, exist_ok=True)
+    laps.to_parquet(RAW_SPRINT_LAPS_DIR / f"{season}_{round_num:02d}.parquet")
+
+    return laps
 
 
 # fetch qualifying results for a single round from FastF1 and write to data/raw/quali/

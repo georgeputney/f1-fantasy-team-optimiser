@@ -7,8 +7,16 @@ import fastf1
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from app.data.ingest import get_event_metadata, get_race_laps, get_race_results, get_qualifying_results, get_sprint_results, get_sprint_qualifying_results, get_practice_results
-from app.data.clean import clean_events, clean_race_laps, clean_race_results, clean_qualifying_results, clean_sprint_results, clean_sprint_qualifying_results, clean_practice_results
+from app.data.ingest import (
+    get_event_metadata, get_practice_results,
+    get_race_laps, get_race_results, get_qualifying_results, 
+    get_sprint_laps, get_sprint_results, get_sprint_qualifying_results, 
+)
+from app.data.clean import (
+    clean_events, clean_practice_results,
+    clean_race_laps, clean_race_results, clean_qualifying_results, 
+    clean_sprint_laps, clean_sprint_results, clean_sprint_qualifying_results, 
+)
 from app.data.targets import compute_targets
 
 from app.features.build_historic_features import build_historic_features
@@ -26,7 +34,8 @@ from app.backtest import get_actual_team_points, oracle_baseline, random_baselin
 
 from app.config import (
     ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, 
-    INTERIM_EVENTS_DIR, INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR, INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, 
+    INTERIM_EVENTS_DIR, INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR, 
+    INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, 
     PROCESSED_TARGETS_DIR, PROCESSED_HISTORIC_FEATURES_DIR, 
     REPORTS_DIR, TEAM_STATE_FILE
 )
@@ -73,24 +82,30 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
                 except Exception:
                     pass  # sprint weekends don't have FP2/FP3
 
-            try:
-                get_sprint_qualifying_results(s, round_num)
-                time.sleep(0.5)
-            except Exception:
-                pass  # non-sprint weekends
-
-            try:
-                get_sprint_results(s, round_num)
-                time.sleep(0.5)
-            except Exception:
-                pass  # non-sprint weekends
-
             if round_num in sprint_rounds:
                 try:
                     get_practice_results(s, round_num, "FP1")
                     time.sleep(0.5)
                 except Exception:
                     pass
+
+                try:
+                    get_sprint_laps(s, round_num)
+                    time.sleep(0.5)
+                except Exception:
+                    pass
+
+                try:
+                    get_sprint_qualifying_results(s, round_num)
+                    time.sleep(0.5)
+                except Exception:
+                    pass  # non-sprint weekends
+
+                try:
+                    get_sprint_results(s, round_num)
+                    time.sleep(0.5)
+                except Exception:
+                    pass  # non-sprint weekends
 
 
 # clean raw parquet files for the given seasons and write validated tables to data/interim/
@@ -125,22 +140,27 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
                 except Exception:
                     pass  # sprint weekends or rounds without practice data
 
-            try:
-                clean_sprint_qualifying_results(s, round_num)
-            except Exception:
-                pass  # non-sprint weekends
-
-            try:
-                clean_sprint_results(s, round_num)
-            except Exception:
-                pass  # non-sprint weekends
-
             if round_num in sprint_rounds:
                 try:
                     clean_practice_results(s, round_num, "FP1")
                     time.sleep(0.5)
                 except Exception:
                     pass
+
+                try:
+                    clean_sprint_laps(s, round_num)
+                except Exception:
+                    pass
+
+                try:
+                    clean_sprint_qualifying_results(s, round_num)
+                except Exception:
+                    pass  # non-sprint weekends
+
+                try:
+                    clean_sprint_results(s, round_num)
+                except Exception:
+                    pass  # non-sprint weekends
 
 
 # compute actual fantasy points from cleaned results and write to data/processed/targets/

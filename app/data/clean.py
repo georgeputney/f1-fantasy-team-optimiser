@@ -4,8 +4,12 @@ import pandas as pd
 import app.data.schemas as schemas
 
 from app.config import (
-    RAW_RACES_DIR, RAW_RACE_LAPS_DIR, RAW_QUALI_DIR, RAW_SPRINT_DIR, RAW_SPRINT_QUALIFYING_DIR, RAW_EVENTS_DIR, RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR,
-    INTERIM_RACES_DIR, INTERIM_RACE_LAPS_DIR, INTERIM_QUALI_DIR, INTERIM_SPRINT_DIR, INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR, INTERIM_FP1_DIR,
+    RAW_RACES_DIR, RAW_RACE_LAPS_DIR, RAW_QUALI_DIR, 
+    RAW_SPRINT_DIR, RAW_SPRINT_LAPS_DIR, RAW_SPRINT_QUALIFYING_DIR, 
+    RAW_EVENTS_DIR, RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR,
+    INTERIM_RACES_DIR, INTERIM_RACE_LAPS_DIR, INTERIM_QUALI_DIR, 
+    INTERIM_SPRINT_DIR, INTERIM_SPRINT_LAPS_DIR, INTERIM_SPRINT_QUALIFYING_DIR, 
+    INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR, INTERIM_FP1_DIR,
     DNF_PATCH_FILE,
 )
 
@@ -151,7 +155,14 @@ def clean_sprint_results(season, round_num):
     )
     results["dsq_flag"] = results["status"].eq("disqualified")
     results["positions_gained"] = results["grid_position"] - results["finish_position"]
+
+        # derive fastest_lap_flag from sprint laps if available - loaded separately since results has one row per driver
     results["fastest_lap_flag"] = False
+    laps_path = INTERIM_SPRINT_LAPS_DIR / f"{season}_{round_num:02d}.parquet"
+    if laps_path.exists():
+        sprint_laps = pd.read_parquet(laps_path)
+        fastest_driver = sprint_laps.loc[sprint_laps["lap_time"].idxmin(), "driver_id"]
+        results["fastest_lap_flag"] = results["driver_id"] == fastest_driver
 
     results = results.drop(columns=[c for c in ["DriverId", "FirstName", "LastName"] if c in results.columns])
     results["race_id"] = f"{season}_{round_num:02d}"
@@ -160,6 +171,25 @@ def clean_sprint_results(season, round_num):
     results.to_parquet(INTERIM_SPRINT_DIR / f"{season}_{round_num:02d}.parquet")
 
     return results
+
+
+# read raw sprint lap data, derive driver_id, convert LapTime to seconds,
+# write to data/interim/sprint_laps/
+def clean_sprint_laps(season, round_num):
+    laps = pd.read_parquet(RAW_SPRINT_LAPS_DIR / f"{season}_{round_num:02d}.parquet")
+
+    laps["lap_time"] = laps["LapTime"].dt.total_seconds()
+    laps["driver_id"] = laps["FirstName"].str.lower().str.replace(" ", "_") + "_" + laps["LastName"].str.lower().str.replace(" ", "_")
+    laps["driver_id"] = laps["driver_id"].replace(DRIVER_ID_NORMALISATION)
+
+    laps = laps.drop(columns=["LapTime", "FirstName", "LastName"])
+    laps["season"] = season
+    laps["round"] = round_num
+
+    INTERIM_SPRINT_LAPS_DIR.mkdir(parents=True, exist_ok=True)
+    laps.to_parquet(INTERIM_SPRINT_LAPS_DIR / f"{season}_{round_num:02d}.parquet")
+
+    return laps
 
 
 # read raw qualifying results from data/raw/quali/, normalise driver and constructor IDs,
