@@ -7,7 +7,7 @@ into the finish position model as a feature - always chained, no fallback.
 import joblib
 import pandas as pd
 
-from app.config import PROCESSED_HISTORIC_FEATURES_DIR, PROCESSED_PRACTICE_FEATURES_DIR, ARTIFACTS_DIR
+from app.config import PROCESSED_HISTORIC_FEATURES_DIR, PROCESSED_PRACTICE_FEATURES_DIR, ARTIFACTS_DIR, INTERIM_SPRINT_QUALIFYING_DIR
 
 
 # loads a trained model artifact from data/artifacts/
@@ -41,10 +41,19 @@ def predict(quali_model, quali_config, finish_model, finish_config, season, roun
     finish_preds = finish_model.predict(X_finish)
     features["predicted_finish_position"] = pd.Series(finish_preds).rank().astype(int).values
 
+    # add sprint qualifying position if this is a sprint weekend
+    sq_path = INTERIM_SPRINT_QUALIFYING_DIR / f"{season}_{round_num:02d}.parquet"
+    if sq_path.exists():
+        sq = pd.read_parquet(sq_path).set_index("driver_id")["sprint_quali_position"]
+        features["sprint_quali_position"] = features["driver_id"].map(sq)
+    else:
+        features["sprint_quali_position"] = float("nan")
+
     return pd.DataFrame({
         "driver_id": features["driver_id"],
         "constructor_id": features["constructor_id"],
         "predicted_quali_position": features["predicted_quali_position"],
         "predicted_finish_position": features["predicted_finish_position"],
+        "sprint_quali_position": features["sprint_quali_position"],
     }).sort_values("predicted_finish_position").reset_index(drop=True)
 

@@ -4,7 +4,20 @@ import numpy as np
 import pandas as pd
 import app.data.schemas as schemas
 
-from app.config import PROCESSED_HISTORIC_FEATURES_DIR
+from app.config import PROCESSED_HISTORIC_FEATURES_DIR, INTERIM_SPRINT_QUALIFYING_DIR
+
+
+# sprint qualifying position for the current round - NaN on non-sprint weekends
+def sprint_quali_position(season, round_num, driver_id):
+    path = INTERIM_SPRINT_QUALIFYING_DIR / f"{season}_{round_num:02d}.parquet"
+    if not path.exists():
+        return {"sprint_quali_position": float("nan")}
+    
+    sq = pd.read_parquet(path).set_index("driver_id")
+    if driver_id not in sq.index:
+        return {"sprint_quali_position": float("nan")}
+    
+    return {"sprint_quali_position": sq.loc[driver_id, "sprint_quali_position"]}
 
 
 # average qualifying position over the last 3 and 5 races
@@ -152,12 +165,32 @@ def is_street_circuit(events, season, round_num):
 
 
 # builds the full feature row for a single race for all drivers, joins constructor features, validates, and writes to parquet
+# for upcoming races with no results yet, falls back to the most recent prior race for the driver/constructor roster
 def build_historic_features(race_results, quali_results, fantasy_targets, events, season, round_num):
     race_id = f"{season}_{round_num:02d}"
-    drivers = race_results[race_results["race_id"] == race_id]["driver_id"].unique()
+    race_results_round = race_results[race_results["race_id"] == race_id]
+
+    if race_results_round.empty:
+        # upcoming race: use last available race for the roster (may not reflect mid-season driver changes)
+        prior = race_results[
+            (race_results["season"] < season) |
+            ((race_results["season"] == season) & (race_results["round"] < round_num))
+        ].sort_values(["season", "round"])
+        if prior.empty:
+            return None
+        last = prior.iloc[-1][["season", "round"]]
+        race_results_round = prior[(prior["season"] == last["season"]) & (prior["round"] == last["round"])]
+
+    drivers = race_results_round["driver_id"].unique()
 
     quali_results_round = quali_results[quali_results["race_id"] == race_id]  # exclude drivers with no qualifying row (DNS)
-    drivers = [d for d in drivers if d in quali_results_round["driver_id"].values]
+    if not quali_results_round.empty:
+        drivers = [d for d in drivers if d in quali_results_round["driver_id"].values]
+
+    if len(drivers) == 0:
+        return None
+
+    constructor_lookup = race_results_round.set_index("driver_id")["constructor_id"]
 
     rows = []
     for driver_id in drivers:
@@ -172,12 +205,8 @@ def build_historic_features(race_results, quali_results, fantasy_targets, events
         features["season"] = season
         features.update(round_number(round_num))
         features.update(is_street_circuit(events, season, round_num))
-
-        constructor_id = race_results[
-            (race_results["race_id"] == race_id) &
-            (race_results["driver_id"] == driver_id)
-        ]["constructor_id"].iloc[0]
-        features["constructor_id"] = constructor_id
+        features.update(sprint_quali_position(season, round_num, driver_id))
+        features["constructor_id"] = constructor_lookup[driver_id]
 
         rows.append(features)
 

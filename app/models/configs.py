@@ -24,6 +24,7 @@ FINISH_POSITION_MODEL = {
         "constructor_rolling_finish_pos_last_5",
         "constructor_form_trend_last_5",
         "predicted_quali_position",
+        "sprint_quali_position",
         "fp2_gap_to_leader_pct",
         "fp3_gap_to_leader_pct",
         "fp3_sector1_gap_to_leader_pct",
@@ -74,6 +75,7 @@ QUALI_POSITION_MODEL = {
         "fp3_teammate_gap_pct",
         "fp2_longrun_avg_gap_to_field_pct",
         "fp2_laps_completed",
+        "sprint_quali_position",
     ],
     "hyperparams": {
         "n_estimators": 100,

@@ -2,18 +2,21 @@
 
 import pandas as pd
 
-from app.config import INTERIM_FP2_DIR, INTERIM_FP3_DIR, PROCESSED_PRACTICE_FEATURES_DIR
+from app.config import INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR, PROCESSED_PRACTICE_FEATURES_DIR
 
 
 # percentage gap between driver's best lap and the session leader in FP2 and FP3
 def gap_to_leader_pct(fp2_laps, fp3_laps, driver_id):
-    fp2_best = fp2_laps[fp2_laps["driver_id"] == driver_id]["lap_time"].min()
-    fp2_fastest = fp2_laps["lap_time"].min()
-    fp2_gap = (fp2_best - fp2_fastest) / fp2_fastest * 100
-
     fp3_best = fp3_laps[fp3_laps["driver_id"] == driver_id]["lap_time"].min()
     fp3_fastest = fp3_laps["lap_time"].min()
     fp3_gap = (fp3_best - fp3_fastest) / fp3_fastest * 100
+
+    if fp2_laps is None:
+        return {"fp2_gap_to_leader_pct": float("nan"), "fp3_gap_to_leader_pct": fp3_gap}
+
+    fp2_best = fp2_laps[fp2_laps["driver_id"] == driver_id]["lap_time"].min()
+    fp2_fastest = fp2_laps["lap_time"].min()
+    fp2_gap = (fp2_best - fp2_fastest) / fp2_fastest * 100
 
     return {"fp2_gap_to_leader_pct": fp2_gap, "fp3_gap_to_leader_pct": fp3_gap}
 
@@ -50,6 +53,9 @@ def teammate_gap_pct(fp3_laps, driver_id):
 
 # percentage gap between driver's long run average pace and the field long run average in FP2
 def longrun_avg_gap_to_field_pct(fp2_laps, driver_id, field_longrun_avg):
+    if fp2_laps is None:
+        return {"fp2_longrun_avg_gap_to_field_pct": float("nan")}
+
     driver_laps = fp2_laps[fp2_laps["driver_id"] == driver_id].sort_values("lap_number")
     driver_laps = driver_laps.dropna(subset=["lap_time"])
 
@@ -69,6 +75,9 @@ def longrun_avg_gap_to_field_pct(fp2_laps, driver_id, field_longrun_avg):
 
 # number of laps completed by the driver in FP2
 def laps_completed(fp2_laps, driver_id):
+    if fp2_laps is None:
+        return {"fp2_laps_completed": float("nan")}
+
     fp2 = len(fp2_laps[fp2_laps["driver_id"] == driver_id])
 
     return {"fp2_laps_completed": fp2}  # TODO: add fp3_laps_completed if we ingest all FP3 laps
@@ -77,9 +86,15 @@ def laps_completed(fp2_laps, driver_id):
 # builds practice features for all drivers in a given race and writes to data/processed/practice_features/
 def build_practice_features(season, round_num):
     race_id = f"{season}_{round_num:02d}"
-    
-    fp2_laps = pd.read_parquet(INTERIM_FP2_DIR / f"{season}_{round_num:02d}.parquet")
-    fp3_laps = pd.read_parquet(INTERIM_FP3_DIR / f"{season}_{round_num:02d}.parquet")
+
+    fp1_path = INTERIM_FP1_DIR / f"{season}_{round_num:02d}.parquet"
+    fp2_path = INTERIM_FP2_DIR / f"{season}_{round_num:02d}.parquet"
+    fp3_path = INTERIM_FP3_DIR / f"{season}_{round_num:02d}.parquet"
+
+    is_sprint = not fp2_path.exists() and fp1_path.exists()  # sprint weekends have FP1 but no FP2/FP3
+
+    fp3_laps = pd.read_parquet(fp1_path if is_sprint else fp3_path)  # FP1 substitutes for FP3 on sprint weekends; FP2-based features will be NaN
+    fp2_laps = pd.read_parquet(fp2_path) if not is_sprint else None
     
     drivers = fp3_laps["driver_id"].unique()  # FP3 is the reference session
     
@@ -102,9 +117,26 @@ def build_practice_features(season, round_num):
     
     return features_df
 
+def build_practice_features(season, round_num):
+    race_id = f"{season}_{round_num:02d}"
+
+    fp2_path = INTERIM_FP2_DIR / f"{season}_{round_num:02d}.parquet"
+    fp3_path = INTERIM_FP3_DIR / f"{season}_{round_num:02d}.parquet"
+    fp1_path = INTERIM_FP1_DIR / f"{season}_{round_num:02d}.parquet"
+
+    is_sprint = not fp2_path.exists() and fp1_path.exists()
+
+    fp3_laps = pd.read_parquet(fp1_path if is_sprint else fp3_path)
+    fp2_laps = pd.read_parquet(fp2_path) if not is_sprint else None
+    ...
+
+
 
 # computes the field average long run pace from FP2 - called once per race to avoid recomputation per driver
 def _compute_field_longrun_avg(fp2_laps):
+    if fp2_laps is None:
+        return float("nan")
+
     avgs = []
     for did in fp2_laps["driver_id"].unique():
         d = fp2_laps[fp2_laps["driver_id"] == did].sort_values("lap_number").dropna(subset=["lap_time"])

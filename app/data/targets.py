@@ -4,7 +4,42 @@ import pandas as pd
 import app.data.schemas as schemas
 import app.data.scoring_rules as scoring_rules
 
-from app.config import INTERIM_RACES_DIR, INTERIM_QUALI_DIR, PROCESSED_TARGETS_DIR
+from app.config import INTERIM_RACES_DIR, INTERIM_QUALI_DIR, INTERIM_SPRINT_DIR, INTERIM_SPRINT_QUALIFYING_DIR, PROCESSED_TARGETS_DIR
+
+
+# returns fantasy points for all drivers and constructors for a single sprint weekend
+def compute_sprint_targets(season, round_num):
+    results = pd.read_parquet(INTERIM_SPRINT_DIR / f"{season}_{round_num:02d}.parquet")
+
+    drivers_score = results.apply(lambda row: scoring_rules.score_driver_sprint(row["finish_position"], row["positions_gained"], row["dnf_flag"], row["dsq_flag"], row["fastest_lap_flag"]), axis=1)
+    driver_targets = pd.DataFrame({
+        "race_id": results["race_id"],
+        "season": season,
+        "round": round_num,
+        "asset_id": results["driver_id"],
+        "asset_type": "driver",
+        "actual_fantasy_points": drivers_score
+    })
+
+    constructor_groups = results.groupby(["race_id", "constructor_id"]).agg(
+        finish_position=("finish_position", list),
+        positions_gained=("positions_gained", list),
+        dnf_flag=("dnf_flag", list),
+        dsq_flag=("dsq_flag", list),
+        fastest_lap_flag=("fastest_lap_flag", list),
+    ).reset_index()
+
+    constructors_score = constructor_groups.apply(lambda row: scoring_rules.score_constructor_sprint(row["finish_position"], row["positions_gained"], row["dnf_flag"], row["dsq_flag"], row["fastest_lap_flag"]), axis=1)
+    constructor_targets = pd.DataFrame({
+        "race_id": constructor_groups["race_id"],
+        "season": season,
+        "round": round_num,
+        "asset_id": constructor_groups["constructor_id"],
+        "asset_type": "constructor",
+        "actual_fantasy_points": constructors_score
+    })
+
+    return pd.concat([driver_targets, constructor_targets]).reset_index(drop=True)
 
 
 # returns fantasy points for all drivers and constructors for a single qualifying session
@@ -77,14 +112,21 @@ def compute_race_targets(season, round_num):
     return pd.concat([driver_targets, constructor_targets]).reset_index(drop=True) 
 
 
-# computes total fantasy points per asset per race by summing qualifying and race scores, 
+# computes total fantasy points per asset per race by summing sprint, qualifying, and race scores, 
 # validates against schema, 
 # writes to data/processed/targets/
 def compute_targets(season, round_num):
     quali_targets = compute_qualifying_targets(season, round_num)
     race_targets = compute_race_targets(season, round_num)
 
-    targets = pd.concat([quali_targets, race_targets]).reset_index(drop=True) 
+    targets = pd.concat([quali_targets, race_targets]).reset_index(drop=True)
+
+    # add sprint points if this is a sprint weekend
+    sprint_path = INTERIM_SPRINT_DIR / f"{season}_{round_num:02d}.parquet"
+    if sprint_path.exists():
+        sprint_targets = compute_sprint_targets(season, round_num)
+        targets = pd.concat([targets, sprint_targets]).reset_index(drop=True)
+
     targets = targets.groupby(["race_id", "season", "round", "asset_id", "asset_type"], as_index=False)["actual_fantasy_points"].sum()
 
     schemas.fantasy_targets.validate(targets)
