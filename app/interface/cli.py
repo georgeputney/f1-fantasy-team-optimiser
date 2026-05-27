@@ -23,7 +23,7 @@ from app.features.build_historic_features import build_historic_features
 from app.features.build_practice_features import build_practice_features
 
 from app.models.configs import FINISH_POSITION_MODEL, QUALI_POSITION_MODEL
-from app.models.train import main as train_main
+from app.models.train import main as train_main, prod as train_prod
 from app.models.predict import load_model, predict as run_predict
 from app.models.compose import compose_drivers, compose_constructor
 
@@ -220,23 +220,35 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
                 build_practice_features(s, round_num)
 
 
-# train the race finish position model
+# train the race finish and quali position models for DEV or PROD
 @app.command()
-def train_model():
-    typer.echo(f"Training quali position model...")
-    train_main(QUALI_POSITION_MODEL)
+def train_model(prod: bool = typer.Option(False)):
 
-    typer.echo(f"\nTraining finish position model...")
+    if not prod:
+        typer.echo(f"Training quali position model...")
+        train_main(QUALI_POSITION_MODEL)
 
-    quali_model = load_model(QUALI_POSITION_MODEL)
-    train_main(FINISH_POSITION_MODEL, quali_model, QUALI_POSITION_MODEL)
+        typer.echo(f"\nTraining finish position model...")
+
+        quali_model = load_model(QUALI_POSITION_MODEL)
+        train_main(FINISH_POSITION_MODEL, quali_model, QUALI_POSITION_MODEL)
+
+    else:
+        # train production models on all historical data using best_iteration from dev artifacts
+        typer.echo("Retraining quali position model (prod)...")
+        quali_model = train_prod(QUALI_POSITION_MODEL)
+
+        typer.echo("Retraining finish position model (prod)...")
+        train_prod(FINISH_POSITION_MODEL, quali_model=quali_model, quali_config=QUALI_POSITION_MODEL)
+
+        typer.echo("Done.")
 
 
 # load the trained model, predict finish positions, and print expected fantasy points for drivers and constructors
 @app.command()
-def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)):
-    quali_model = load_model(QUALI_POSITION_MODEL)
-    finish_model = load_model(FINISH_POSITION_MODEL)
+def predict_race(season: int = typer.Option(...), round: int = typer.Option(...), prod: bool = typer.Option(False)):
+    quali_model = load_model(QUALI_POSITION_MODEL, prod)
+    finish_model = load_model(FINISH_POSITION_MODEL, prod)
 
     predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
     
@@ -255,14 +267,14 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
 # loads team state from data/team_state.json if it exists; saves updated state after each run unless --no-state is passed
 # dropped/inactive assets are sold at last known price and warned to the user
 @app.command()
-def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP), no_state: bool = typer.Option(False)):
+def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP), no_state: bool = typer.Option(False), prod: bool = typer.Option(False)):
     typer.echo(f"Optimising team for season {season}, round {round:02d}...")
 
     prices = pd.read_csv(FANTASY_PRICES_DIR / f"{season}_{round:02d}.csv")
     state = None if no_state else load_state(TEAM_STATE_FILE)
     
-    quali_model = load_model(QUALI_POSITION_MODEL)
-    finish_model = load_model(FINISH_POSITION_MODEL)
+    quali_model = load_model(QUALI_POSITION_MODEL, prod)
+    finish_model = load_model(FINISH_POSITION_MODEL, prod)
 
     predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
 
