@@ -10,8 +10,11 @@ import pandas as pd
 from app.config import PROCESSED_HISTORIC_FEATURES_DIR, PROCESSED_PRACTICE_FEATURES_DIR, ARTIFACTS_DIR, INTERIM_SPRINT_QUALIFYING_DIR
 
 
-# loads a trained model artifact from data/artifacts/
-def load_model(config):
+# loads a trained model artifact - pass prod=True to load the production artifact trained on all historical data
+def load_model(config, prod=False):
+    if prod:
+        return joblib.load(ARTIFACTS_DIR / f"{config['name']}_prod.joblib")
+    
     return joblib.load(ARTIFACTS_DIR / f"{config['name']}.joblib")
 
 
@@ -31,6 +34,14 @@ def predict(quali_model, quali_config, finish_model, finish_config, season, roun
         for col in practice_cols:
             features[col] = float("nan")
 
+    # load sprint qualifying position if this is a sprint weekend
+    sq_path = INTERIM_SPRINT_QUALIFYING_DIR / f"{season}_{round_num:02d}.parquet"
+    if sq_path.exists():
+        sq = pd.read_parquet(sq_path).set_index("driver_id")["sprint_quali_position"]
+        features["sprint_quali_position"] = features["driver_id"].map(sq)
+    else:
+        features["sprint_quali_position"] = float("nan")
+
     # step 1: predict qualifying position (no quali input by design)
     X_quali = features[quali_config["features"]]
     quali_preds = quali_model.predict(X_quali)
@@ -40,14 +51,6 @@ def predict(quali_model, quali_config, finish_model, finish_config, season, roun
     X_finish = features[finish_config["features"]]
     finish_preds = finish_model.predict(X_finish)
     features["predicted_finish_position"] = pd.Series(finish_preds).rank().astype(int).values
-
-    # add sprint qualifying position if this is a sprint weekend
-    sq_path = INTERIM_SPRINT_QUALIFYING_DIR / f"{season}_{round_num:02d}.parquet"
-    if sq_path.exists():
-        sq = pd.read_parquet(sq_path).set_index("driver_id")["sprint_quali_position"]
-        features["sprint_quali_position"] = features["driver_id"].map(sq)
-    else:
-        features["sprint_quali_position"] = float("nan")
 
     return pd.DataFrame({
         "driver_id": features["driver_id"],
