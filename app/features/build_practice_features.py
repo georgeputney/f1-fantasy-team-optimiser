@@ -91,10 +91,10 @@ def build_practice_features(season, round_num):
     fp2_path = INTERIM_FP2_DIR / f"{season}_{round_num:02d}.parquet"
     fp3_path = INTERIM_FP3_DIR / f"{season}_{round_num:02d}.parquet"
 
-    is_sprint = not fp2_path.exists() and fp1_path.exists()  # sprint weekends have FP1 but no FP2/FP3
+    is_sprint = not fp3_path.exists() and fp1_path.exists()  # sprint weekends have FP1 but no FP3
 
-    fp3_laps = pd.read_parquet(fp1_path if is_sprint else fp3_path)  # FP1 substitutes for FP3 on sprint weekends; FP2-based features will be NaN
-    fp2_laps = pd.read_parquet(fp2_path) if not is_sprint else None
+    fp3_laps = pd.read_parquet(fp1_path if is_sprint else fp3_path)  # FP1 substitutes for FP3 on sprint weekends
+    fp2_laps = pd.read_parquet(fp2_path) if fp2_path.exists() else None  # 2021-22 sprint rounds have FP2; 2023+ don't
     
     drivers = fp3_laps["driver_id"].unique()  # FP3 is the reference session
     
@@ -116,21 +116,6 @@ def build_practice_features(season, round_num):
     features_df.to_parquet(PROCESSED_PRACTICE_FEATURES_DIR / f"{season}_{round_num:02d}.parquet")
     
     return features_df
-
-def build_practice_features(season, round_num):
-    race_id = f"{season}_{round_num:02d}"
-
-    fp2_path = INTERIM_FP2_DIR / f"{season}_{round_num:02d}.parquet"
-    fp3_path = INTERIM_FP3_DIR / f"{season}_{round_num:02d}.parquet"
-    fp1_path = INTERIM_FP1_DIR / f"{season}_{round_num:02d}.parquet"
-
-    is_sprint = not fp2_path.exists() and fp1_path.exists()
-
-    fp3_laps = pd.read_parquet(fp1_path if is_sprint else fp3_path)
-    fp2_laps = pd.read_parquet(fp2_path) if not is_sprint else None
-    ...
-
-
 
 # computes the field average long run pace from FP2 - called once per race to avoid recomputation per driver
 def _compute_field_longrun_avg(fp2_laps):

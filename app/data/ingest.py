@@ -160,7 +160,7 @@ def get_race_laps(season, round_num):
     session = fastf1.get_session(season, round_num, 'R')
     session.load(laps=True, telemetry=False, weather=False, messages=False)
 
-    laps = session.laps[["Driver", "LapTime", "LapNumber", "IsPersonalBest", "PitInTime", "PitOutTime"]].copy()
+    laps = session.laps[["Driver", "LapTime", "LapNumber", "IsPersonalBest", "PitInTime", "PitOutTime", "TrackStatus"]].copy()
 
     driver_info = session.results[["Abbreviation", "FirstName", "LastName", "TeamId"]]
     laps = laps.merge(driver_info, left_on="Driver", right_on="Abbreviation")

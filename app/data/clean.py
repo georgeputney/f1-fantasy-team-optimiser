@@ -18,8 +18,16 @@ INTERIM_PRACTICE_DIRS = {"FP1": INTERIM_FP1_DIR, "FP2": INTERIM_FP2_DIR, "FP3": 
 PRACTICE_SCHEMAS = {"FP1": schemas.fp3_results, "FP2": schemas.fp2_results, "FP3": schemas.fp3_results}
 
 STREET_CIRCUITS = {
-    "Monaco", "Baku", "Singapore", "Jeddah", "Melbourne",
+    "Monaco", "Baku", "Marina Bay", "Jeddah", "Melbourne",
     "Las Vegas", "Miami", "Sochi",
+}
+
+# canonical location names - FastF1 uses different strings for the same circuit across seasons
+LOCATION_NORMALISATION = {
+    "Monte Carlo":  "Monaco",       # renamed to Monaco from 2022
+    "Singapore":    "Marina Bay",   # renamed to Marina Bay from 2022
+    "Yas Marina":   "Yas Island",   # renamed to Yas Island from 2019
+    "Miami Gardens": "Miami",       # renamed to Miami Gardens from 2025
 }
 
 DRIVER_ID_NORMALISATION = {
@@ -48,6 +56,7 @@ def clean_events(season, round_num):
     })
 
     events["season"] = season
+    events["location"] = events["location"].replace(LOCATION_NORMALISATION)
     events["is_sprint"] = events["EventFormat"].isin(["sprint", "sprint_qualifying", "sprint_shootout"])
     events["is_street_circuit"] = events["location"].isin(STREET_CIRCUITS)
 
@@ -243,6 +252,7 @@ def clean_race_laps(season, round_num):
         "IsPersonalBest": "is_personal_best",
         "PitInTime": "pit_in_time",
         "PitOutTime": "pit_out_time",
+        "TrackStatus": "track_status",
     })
 
     for col in ["lap_time", "pit_in_time", "pit_out_time"]:
