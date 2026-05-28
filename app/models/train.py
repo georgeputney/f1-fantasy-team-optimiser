@@ -9,7 +9,8 @@ from xgboost import XGBRegressor, XGBClassifier
 
 from app.config import (
     PROCESSED_HISTORIC_FEATURES_DIR, INTERIM_RACES_DIR, INTERIM_QUALI_DIR, ARTIFACTS_DIR,
-    TRAIN_SEASONS, VAL_SEASONS, TEST_SEASONS, PROCESSED_PRACTICE_FEATURES_DIR
+    TRAIN_SEASONS, VAL_SEASONS, TEST_SEASONS, PROCESSED_PRACTICE_FEATURES_DIR,
+    PROCESSED_CIRCUIT_FEATURES_DIR,
 )
 from app.models.evaluation import evaluate
 
@@ -26,6 +27,7 @@ MODEL_CLASSES = {
 def load_data(config, quali_model=None, quali_config=None):
     historic_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_HISTORIC_FEATURES_DIR.glob("*.parquet"))])
     practice_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_PRACTICE_FEATURES_DIR.glob("*.parquet"))])
+    circuit_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_CIRCUIT_FEATURES_DIR.glob("*.parquet"))])
 
     race_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_RACES_DIR.glob("*.parquet"))])
     quali_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_QUALI_DIR.glob("*.parquet"))])
@@ -41,6 +43,10 @@ def load_data(config, quali_model=None, quali_config=None):
     ).merge(
         practice_features,
         on=["race_id", "driver_id"],
+        how="left"
+    ).merge(
+        circuit_features,
+        on="race_id",
         how="left"
     )
 
@@ -117,6 +123,7 @@ def save_prod(model, config):
 def load_data_prod(config, quali_model=None, quali_config=None):
     historic_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_HISTORIC_FEATURES_DIR.glob("*.parquet"))])
     practice_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_PRACTICE_FEATURES_DIR.glob("*.parquet"))])
+    circuit_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_CIRCUIT_FEATURES_DIR.glob("*.parquet"))])
 
     race_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_RACES_DIR.glob("*.parquet"))])
     quali_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_QUALI_DIR.glob("*.parquet"))])
@@ -132,6 +139,10 @@ def load_data_prod(config, quali_model=None, quali_config=None):
     ).merge(
         practice_features,
         on=["race_id", "driver_id"],
+        how="left"
+    ).merge(
+        circuit_features,
+        on="race_id",
         how="left"
     )
 

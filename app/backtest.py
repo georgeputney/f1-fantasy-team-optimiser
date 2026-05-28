@@ -41,6 +41,35 @@ def oracle_baseline(season, round_num, prices, budget, state=None):
     return optimiser(driver_points, constructor_points, prices, budget, state)
 
 
+# selects the oracle-optimal team from the previous round to be played unchanged in the current round
+# represents a "momentum" strategy: assume last week's best performers will repeat
+# returns None for round 1 of a season (no prior round available)
+def lagged_baseline(season, round_num, prices, budget):
+    # find the previous round's targets file
+    prev_path = PROCESSED_TARGETS_DIR / f"{season}_{(round_num - 1):02d}.parquet"
+    if not prev_path.exists():
+        return None
+
+    targets = pd.read_parquet(prev_path)
+
+    # only keep assets available in this round's prices - handles team/driver changes between seasons
+    available_assets = set(prices["asset_id"])
+
+    drivers = targets[(targets["asset_type"] == "driver") & (targets["asset_id"].isin(available_assets))][["asset_id", "actual_fantasy_points"]].dropna(subset=["asset_id"])
+    driver_points = drivers.rename(columns={
+        "asset_id": "driver_id",
+        "actual_fantasy_points": "expected_fantasy_points"
+    })
+
+    constructors = targets[(targets["asset_type"] == "constructor") & (targets["asset_id"].isin(available_assets))][["asset_id", "actual_fantasy_points"]].dropna(subset=["asset_id"])
+    constructor_points = constructors.rename(columns={
+        "asset_id": "constructor_id",
+        "actual_fantasy_points": "expected_fantasy_points"
+    })
+
+    return optimiser(driver_points, constructor_points, prices, budget, state=None)
+
+
 # estimates the expected fantasy points for a random valid team by averaging over N random selections under budget constraints
 def random_baseline(season, round_num, prices, budget, n=1000):
     drivers = prices[prices["asset_type"] == "driver"]

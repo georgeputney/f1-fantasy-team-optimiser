@@ -154,14 +154,10 @@ def constructor_form_trend(fantasy_targets, asset_id, season, round_num):
 def season(season):
     return {"season": season}
 
+
 # round number within the season
 def round_number(round_num):
     return {"round_number": round_num}
-
-
-# whether the current race is held on a street circuit
-def is_street_circuit(events, season, round_num):
-    return {"is_street_circuit": events[events["race_id"] == f"{season}_{round_num:02d}"]["is_street_circuit"].iloc[0]}
 
 
 # builds the full feature row for a single race for all drivers, joins constructor features, validates, and writes to parquet
@@ -204,7 +200,6 @@ def build_historic_features(race_results, quali_results, fantasy_targets, events
         features.update(season_points_to_date(race_results, driver_id, season, round_num))
         features["season"] = season
         features.update(round_number(round_num))
-        features.update(is_street_circuit(events, season, round_num))
         features.update(sprint_quali_position(season, round_num, driver_id))
         features["constructor_id"] = constructor_lookup[driver_id]
 

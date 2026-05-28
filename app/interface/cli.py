@@ -21,6 +21,7 @@ from app.data.targets import compute_targets
 
 from app.features.build_historic_features import build_historic_features
 from app.features.build_practice_features import build_practice_features
+from app.features.build_circuit_features import build_circuit_features
 
 from app.models.configs import FINISH_POSITION_MODEL, QUALI_POSITION_MODEL
 from app.models.train import main as train_main, prod as train_prod
@@ -30,13 +31,14 @@ from app.models.compose import compose_drivers, compose_constructor
 from app.optimiser.optimiser import optimiser
 from app.optimiser.state import load_state, save_state
 
-from app.backtest import get_actual_team_points, oracle_baseline, random_baseline
+from app.backtest import get_actual_team_points, oracle_baseline, random_baseline, lagged_baseline
 
 from app.config import (
-    ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, 
-    INTERIM_EVENTS_DIR, INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR, 
-    INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR, 
-    PROCESSED_TARGETS_DIR, PROCESSED_HISTORIC_FEATURES_DIR, 
+    ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR,
+    INTERIM_EVENTS_DIR, INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR,
+    INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR,
+    INTERIM_RACE_LAPS_DIR,
+    PROCESSED_TARGETS_DIR, PROCESSED_HISTORIC_FEATURES_DIR,
     REPORTS_DIR, TEAM_STATE_FILE
 )
 
@@ -194,6 +196,12 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
     events = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_EVENTS_DIR.glob("*.parquet"))])
     fantasy_targets = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_TARGETS_DIR.glob("*.parquet"))])
 
+    race_laps_files = sorted(INTERIM_RACE_LAPS_DIR.glob("*.parquet"))
+    race_laps_all = pd.concat([pd.read_parquet(f) for f in race_laps_files]) if race_laps_files else None
+
+    fp3_files = sorted(INTERIM_FP3_DIR.glob("*.parquet"))
+    fp3_all = pd.concat([pd.read_parquet(f) for f in fp3_files]) if fp3_files else None
+
     for s in season:
 
         schedule = fastf1.get_event_schedule(s)
@@ -216,8 +224,10 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
                 typer.echo(f"  Skipping round {round_num:02d}: no race data available yet")
                 continue
 
-            if (INTERIM_FP2_DIR / f"{s}_{round_num:02d}.parquet").exists() and (INTERIM_FP3_DIR / f"{s}_{round_num:02d}.parquet").exists():
+            if (INTERIM_FP3_DIR / f"{s}_{round_num:02d}.parquet").exists() or (INTERIM_FP1_DIR / f"{s}_{round_num:02d}.parquet").exists():
                 build_practice_features(s, round_num)
+
+            build_circuit_features(race_results, quali_results, events, race_laps_all, fp3_all, s, round_num)
 
 
 # train the race finish and quali position models for DEV or PROD
@@ -374,19 +384,23 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
 
             random_points = random_baseline(s, round_num, prices, budget)
 
-            results.append({"season": s, "round": round_num, "model": model_points, "oracle": oracle_points, "random": random_points})
+            lagged_team = lagged_baseline(s, round_num, prices, budget)
+            lagged_points = get_actual_team_points(lagged_team, s, round_num) if lagged_team else None
+
+            results.append({"season": s, "round": round_num, "model": model_points, "oracle": oracle_points, "random": random_points, "lagged": lagged_points})
 
         df = pd.DataFrame(results)
 
-        typer.echo(f"\n{'Round':<8} {'Model':>8} {'Oracle':>8} {'Random':>8}")
+        typer.echo(f"\n{'Round':<8} {'Model':>8} {'Oracle':>8} {'Lagged':>8} {'Random':>8}")
         for _, row in df.iterrows():
-            typer.echo(f"  {int(row['round']):<6} {row['model']:>8.1f} {row['oracle']:>8.1f} {row['random']:>8.1f}")
+            lagged_str = f"{row['lagged']:>8.1f}" if pd.notna(row["lagged"]) else f"{'N/A':>8}"
+            typer.echo(f"  {int(row['round']):<6} {row['model']:>8.1f} {row['oracle']:>8.1f} {lagged_str} {row['random']:>8.1f}")
 
-        typer.echo(f"\n{'Total':<8} {df['model'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['random'].sum():>8.1f}")
+        typer.echo(f"\n{'Total':<8} {df['model'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['lagged'].sum():>8.1f} {df['random'].sum():>8.1f}")
 
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-        df[["model", "oracle", "random"]].cumsum().plot(title="Cumulative fantasy points by strategy")
+        df[["model", "oracle", "lagged", "random"]].cumsum().plot(title="Cumulative fantasy points by strategy", color=["blue", "orange", "red", "green"])
 
         plt.xlabel("Round")
         plt.ylabel("Cumulative points")
