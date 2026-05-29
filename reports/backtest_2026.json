@@ -1,0 +1,42 @@
+[
+  {
+    "season": 2026,
+    "round": 1,
+    "model": 123.0,
+    "oracle": 185.0,
+    "random": 26.60749506903353,
+    "lagged": NaN
+  },
+  {
+    "season": 2026,
+    "round": 2,
+    "model": 168.0,
+    "oracle": 307.0,
+    "random": 32.78870673952641,
+    "lagged": 186.0
+  },
+  {
+    "season": 2026,
+    "round": 3,
+    "model": 95.0,
+    "oracle": 224.0,
+    "random": 37.23456790123457,
+    "lagged": 138.0
+  },
+  {
+    "season": 2026,
+    "round": 4,
+    "model": 86.0,
+    "oracle": 268.0,
+    "random": 35.824380165289256,
+    "lagged": 110.0
+  },
+  {
+    "season": 2026,
+    "round": 5,
+    "model": 247.0,
+    "oracle": 286.0,
+    "random": 44.97595190380761,
+    "lagged": 65.0
+  }
+]

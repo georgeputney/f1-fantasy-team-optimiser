@@ -15,7 +15,9 @@ dependencies = [
     "pulp>=2.7",
     "matplotlib>=3.7",
     "pandera>=0.19",
-    "typer"
+    "typer",
+    "plotly>=5.0",
+    "streamlit>=1.32",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +28,10 @@ dev = [
     "notebook>=7.0",
     "seaborn>=0.13",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
 
 [tool.ruff]
 line-length = 100

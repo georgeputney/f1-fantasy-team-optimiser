@@ -1,5 +1,6 @@
 """CLI entry points for the F1 fantasy optimiser pipeline."""
 
+import json
 import logging
 import time
 import typer
@@ -254,6 +255,66 @@ def train_model(prod: bool = typer.Option(False)):
         typer.echo("Done.")
 
 
+# generate reports/predictions_latest.json for the Streamlit app
+@app.command()
+def generate_reports(season: int = typer.Option(...), round: int = typer.Option(...), prod: bool = typer.Option(False)):
+    from datetime import datetime
+
+    prices_path = FANTASY_PRICES_DIR / f"{season}_{round:02d}.csv"
+    if not prices_path.exists():
+        typer.echo(f"No prices file found: {prices_path}")
+        raise typer.Exit(1)
+
+    prices = pd.read_csv(prices_path)
+    prices_index = prices.set_index("asset_id")["price"]
+
+    quali_model = load_model(QUALI_POSITION_MODEL, prod=prod)
+    finish_model = load_model(FINISH_POSITION_MODEL, prod=prod)
+
+    predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
+    driver_pts = compose_drivers(predictions)
+    constructor_pts = compose_constructor(driver_pts)
+
+    events_path = INTERIM_EVENTS_DIR / f"{season}_{round:02d}.parquet"
+    circuit = pd.read_parquet(events_path)["location"].iloc[0] if events_path.exists() else f"Round {round}"
+
+    drivers_out = [
+        {
+            "driver_id": row["driver_id"],
+            "constructor_id": row["constructor_id"],
+            "expected_points": float(row["expected_fantasy_points"]),
+            "price": float(prices_index.get(row["driver_id"], 0)),
+            "predicted_quali_position": int(row["predicted_quali_position"]),
+            "predicted_finish_position": int(row["predicted_finish_position"]),
+        }
+        for _, row in driver_pts.iterrows()
+    ]
+
+    constructors_out = [
+        {
+            "constructor_id": row["constructor_id"],
+            "expected_points": float(row["expected_fantasy_points"]),
+            "price": float(prices_index.get(row["constructor_id"], 0)),
+        }
+        for _, row in constructor_pts.iterrows()
+    ]
+
+    output = {
+        "season": season,
+        "round": round,
+        "circuit": str(circuit),
+        "generated_at": datetime.now().isoformat(),
+        "drivers": sorted(drivers_out, key=lambda x: -x["expected_points"]),
+        "constructors": sorted(constructors_out, key=lambda x: -x["expected_points"]),
+    }
+
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    with open(REPORTS_DIR / "predictions_latest.json", "w") as f:
+        json.dump(output, f, indent=2)
+
+    typer.echo(f"Saved to reports/predictions_latest.json")
+
+
 # load the trained model, predict finish positions, and print expected fantasy points for drivers and constructors
 @app.command()
 def predict_race(season: int = typer.Option(...), round: int = typer.Option(...), prod: bool = typer.Option(False)):
@@ -407,6 +468,9 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
         plt.tight_layout()
         plt.savefig(REPORTS_DIR / f"backtest_{s}.png")
         plt.close()
+
+        with open(REPORTS_DIR / f"backtest_{s}.json", "w") as f:
+            json.dump(df.to_dict(orient="records"), f, indent=2)
 
         typer.echo(f"\nPlot saved to reports/\n")
 
