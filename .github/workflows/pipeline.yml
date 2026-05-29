@@ -1,0 +1,93 @@
+name: F1 Fantasy Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      season:
+        type: string
+        required: true
+      round:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      season:
+        description: 'Season (e.g. 2026)'
+        required: true
+        type: string
+      round:
+        description: 'Round number'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package
+        run: pip install -e . --quiet
+
+      # process previous round's race results if targets are missing — keeps rolling averages current
+      - name: Process previous round (if race targets missing)
+        run: |
+          PREV=$(( ${{ inputs.round }} - 1 ))
+          if [ $PREV -lt 1 ]; then exit 0; fi
+          TARGETS="data/processed/targets/${{ inputs.season }}_$(printf '%02d' $PREV).parquet"
+          if [ -f "$TARGETS" ]; then exit 0; fi
+          python -m app.interface.cli ingest-data   --season ${{ inputs.season }} --round $PREV || true
+          python -m app.interface.cli clean-data    --season ${{ inputs.season }} --round $PREV || true
+          python -m app.interface.cli build-targets --season ${{ inputs.season }} --round $PREV || true
+          python -m app.interface.cli build-features --season ${{ inputs.season }} --round $PREV || true
+
+      - name: Ingest current round
+        run: |
+          python -m app.interface.cli ingest-data \
+            --season ${{ inputs.season }} \
+            --round  ${{ inputs.round }}
+
+      - name: Clean current round
+        run: |
+          python -m app.interface.cli clean-data \
+            --season ${{ inputs.season }} \
+            --round  ${{ inputs.round }}
+
+      - name: Build features
+        run: |
+          python -m app.interface.cli build-features \
+            --season ${{ inputs.season }} \
+            --round  ${{ inputs.round }}
+
+      # skip if prices file not yet committed for this round
+      - name: Generate reports
+        run: |
+          PRICES="data/manual/fantasy_prices/${{ inputs.season }}_$(printf '%02d' ${{ inputs.round }}).csv"
+          if [ -f "$PRICES" ]; then
+            python -m app.interface.cli generate-reports \
+              --season ${{ inputs.season }} \
+              --round  ${{ inputs.round }} \
+              --prod
+          else
+            echo "No prices file at $PRICES — skipping generate-reports"
+          fi
+
+      - name: Commit results
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/interim/ data/processed/ reports/
+          git diff --staged --quiet || git commit -m "chore: ${{ inputs.season }} round ${{ inputs.round }} data + predictions" && git push
