@@ -418,7 +418,9 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
         schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0]
 
-        for round_num in schedule["RoundNumber"]:
+        for _, event in schedule.iterrows():
+            round_num = event["RoundNumber"]
+            location = event.get("Location", str(round_num))
             prices_path = FANTASY_PRICES_DIR / f"{s}_{round_num:02d}.csv"
             features_path = PROCESSED_HISTORIC_FEATURES_DIR / f"{s}_{round_num:02d}.parquet"
             targets_path = PROCESSED_TARGETS_DIR / f"{s}_{round_num:02d}.parquet"
@@ -426,7 +428,7 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             if not (prices_path.exists() and features_path.exists() and targets_path.exists()):
                 continue
 
-            typer.echo(f"Backtesting season {s}, round {round_num:02d}...")
+            typer.echo(f"Backtesting season {s}, round {round_num:02d} - {location}...")
 
             prices = pd.read_csv(prices_path)
             asset_prices_index = prices.set_index("asset_id")["price"]
@@ -448,14 +450,14 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             lagged_team = lagged_baseline(s, round_num, prices, budget)
             lagged_points = get_actual_team_points(lagged_team, s, round_num) if lagged_team else None
 
-            results.append({"season": s, "round": round_num, "model": model_points, "oracle": oracle_points, "random": random_points, "lagged": lagged_points})
+            results.append({"season": s, "round": round_num, "location": location, "model": model_points, "oracle": oracle_points, "random": random_points, "lagged": lagged_points})
 
         df = pd.DataFrame(results)
 
-        typer.echo(f"\n{'Round':<8} {'Model':>8} {'Oracle':>8} {'Lagged':>8} {'Random':>8}")
+        typer.echo(f"\n{'Round':<6} {'Location':<18} {'Model':>8} {'Oracle':>8} {'Lagged':>8} {'Random':>8}")
         for _, row in df.iterrows():
             lagged_str = f"{row['lagged']:>8.1f}" if pd.notna(row["lagged"]) else f"{'N/A':>8}"
-            typer.echo(f"  {int(row['round']):<6} {row['model']:>8.1f} {row['oracle']:>8.1f} {lagged_str} {row['random']:>8.1f}")
+            typer.echo(f"  {int(row['round']):<4} {row['location']:<18} {row['model']:>8.1f} {row['oracle']:>8.1f} {lagged_str} {row['random']:>8.1f}")
 
         typer.echo(f"\n{'Total':<8} {df['model'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['lagged'].sum():>8.1f} {df['random'].sum():>8.1f}")
 

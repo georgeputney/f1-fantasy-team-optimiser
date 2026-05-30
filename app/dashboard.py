@@ -98,6 +98,9 @@ h2, h3 {
     font-size: 10px !important; letter-spacing: 0.1em !important;
     text-transform: uppercase !important; color: rgba(247,246,243,0.4) !important; font-weight: 400 !important;
 }
+
+/* Plotly — pointer cursor instead of crosshair */
+.js-plotly-plot .plotly .cursor-crosshair { cursor: pointer !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -315,10 +318,14 @@ with tab1:
             x="expected_fantasy_points",
             y="name",
             orientation="h",
-            hover_data={"price": ":.1f", "color": False, "name": False},
+            hover_data={"price": False, "color": False, "name": False, "expected_fantasy_points": False},
             labels={"expected_fantasy_points": "Expected Points", "name": "", "price": "Price (£M)"},
+            custom_data=["price"],
         )
-        fig_drivers.update_traces(marker_color=driver_chart["color"].tolist())
+        fig_drivers.update_traces(
+            marker_color=driver_chart["color"].tolist(),
+            hovertemplate="<b>%{y}</b><br>Expected pts: %{x:.1f}<br>Price: £%{customdata[0]:.1f}M<extra></extra>",
+        )
         fig_drivers.update_layout(
             showlegend=False, height=500, margin=dict(l=130, r=0, t=36, b=0),
             paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
@@ -328,8 +335,11 @@ with tab1:
                        title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
                        tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
             yaxis=dict(automargin=False, tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+            hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
+                            font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+            dragmode=False,
         )
-        st.plotly_chart(fig_drivers, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_drivers, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
 
         # constructors bar chart - selected team highlighted in red with bold label
         constructor_chart = constructor_df[["constructor_id", "expected_fantasy_points", "price"]].assign(
@@ -342,10 +352,14 @@ with tab1:
             x="expected_fantasy_points",
             y="name",
             orientation="h",
-            hover_data={"price": ":.1f", "color": False, "name": False},
+            hover_data={"price": False, "color": False, "name": False, "expected_fantasy_points": False},
             labels={"expected_fantasy_points": "Expected Points", "name": "", "price": "Price (£M)"},
+            custom_data=["price"],
         )
-        fig_constructors.update_traces(marker_color=constructor_chart["color"].tolist())
+        fig_constructors.update_traces(
+            marker_color=constructor_chart["color"].tolist(),
+            hovertemplate="<b>%{y}</b><br>Expected pts: %{x:.1f}<br>Price: £%{customdata[0]:.1f}M<extra></extra>",
+        )
         fig_constructors.update_layout(
             showlegend=False, height=300, margin=dict(l=130, r=0, t=36, b=0),
             paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
@@ -355,8 +369,11 @@ with tab1:
                        title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
                        tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
             yaxis=dict(automargin=False, tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+            hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
+                            font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+            dragmode=False,
         )
-        st.plotly_chart(fig_constructors, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_constructors, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
 
 
 # model performance tab
@@ -385,16 +402,18 @@ with tab2:
     summary.index.name = "Season"
 
     st.subheader("Season summary")
-    st.dataframe(
-        summary,
-        use_container_width=True,
-        column_config={
-            "Season": st.column_config.NumberColumn(width="small"),
-            "Model": st.column_config.NumberColumn(width="medium"),
-            "Oracle": st.column_config.NumberColumn(width="medium"),
-            "% of Oracle": st.column_config.NumberColumn(width="medium"),
-        },
+    summary_rows = "".join(
+        f'<tr><td>{int(season)}</td><td>{int(row["Model"])}</td><td>{int(row["Oracle"])}</td><td>{row["% of Oracle"]:.1f}%</td></tr>'
+        for season, row in summary.iterrows()
     )
+    st.markdown(f"""
+    <table class="team-table">
+      <colgroup><col style="width:20%"><col style="width:26%"><col style="width:26%"><col style="width:28%"></colgroup>
+      <thead><tr>{''.join(f'<th>{h}</th>' for h in ["Season", "Model", "Oracle", "% of Oracle"])}</tr></thead>
+      <tbody>{summary_rows}</tbody>
+    </table>
+    <div style="height:1rem"></div>
+    """, unsafe_allow_html=True)
 
     st.subheader("Cumulative points by strategy")
     season_options = sorted(all_data["season"].unique())
@@ -403,23 +422,48 @@ with tab2:
     season_data = all_data[all_data["season"] == selected_season].copy()
     season_data["Model"] = season_data["model"].cumsum()
     season_data["Oracle"] = season_data["oracle"].cumsum()
+    has_location = "location" in season_data.columns
 
+    id_vars = ["round"] + (["location"] if has_location else [])
+    cumulative_melted = season_data.melt(id_vars=id_vars, value_vars=["Model", "Oracle"],
+                                         var_name="Strategy", value_name="Cumulative Points")
+    round_melted = season_data.melt(id_vars=["round"], value_vars=["model", "oracle"],
+                                    var_name="_s", value_name="round_pts")
+    round_melted["Strategy"] = round_melted["_s"].str.capitalize()
+    melted = cumulative_melted.merge(round_melted[["round", "Strategy", "round_pts"]], on=["round", "Strategy"])
+
+    custom = (["location", "round_pts"] if has_location else ["round_pts"])
     fig2 = px.line(
-        season_data.melt(id_vars="round", value_vars=["Model", "Oracle"], var_name="Strategy", value_name="Cumulative Points"),
+        melted,
         x="round",
         y="Cumulative Points",
         color="Strategy",
         color_discrete_map={"Model": "#c8401a", "Oracle": "rgba(247,246,243,0.4)"},
         labels={"round": "Round"},
         markers=True,
+        custom_data=custom,
+    )
+    fig2.update_traces(
+        hovertemplate=(
+            "<b>%{customdata[0]}</b><br>%{fullData.name}: %{y:,.0f} pts (+%{customdata[1]:.0f} this round)<extra></extra>"
+            if has_location else
+            "%{fullData.name}: %{y:,.0f} pts (+%{customdata[0]:.0f} this round)<extra></extra>"
+        )
     )
     fig2.update_layout(
         paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
         font=dict(family="DM Sans", color="#f7f6f3"),
-        xaxis=dict(gridcolor="rgba(247,246,243,0.08)"),
-        yaxis=dict(gridcolor="rgba(247,246,243,0.08)"),
+        xaxis=dict(gridcolor="rgba(247,246,243,0.08)", tickmode="linear", dtick=1,
+                   title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
+                   tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+        yaxis=dict(gridcolor="rgba(247,246,243,0.08)",
+                   title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
+                   tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+        hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
+                        font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+        dragmode=False,
     )
-    st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
 
     # per-round % of oracle achieved
     season_data["pct_of_oracle"] = (season_data["model"] / season_data["oracle"] * 100).round(1)
@@ -428,21 +472,33 @@ with tab2:
         season_data,
         x="round",
         y="pct_of_oracle",
-        hover_data={"model": True, "oracle": True},
-        labels={"round": "Round", "pct_of_oracle": "% of Oracle", "model": "Model pts", "oracle": "Oracle pts"},
+        custom_data=["location", "model", "oracle"] if has_location else ["model", "oracle"],
+        labels={"round": "Round", "pct_of_oracle": "% of Oracle"},
         title="% of oracle achieved per round",
     )
-    fig3.update_traces(marker_color="#c8401a")
+    hover = (
+        "<b>%{customdata[0]}</b><br>% of Oracle: %{y:.1f}%<br>Model pts: %{customdata[1]}<br>Oracle pts: %{customdata[2]}<extra></extra>"
+        if has_location else
+        "% of Oracle: %{y:.1f}%<br>Model pts: %{customdata[0]}<br>Oracle pts: %{customdata[1]}<extra></extra>"
+    )
+    fig3.update_traces(marker_color="#c8401a", hovertemplate=hover)
     fig3.add_hline(y=season_data["pct_of_oracle"].mean(), line_dash="dash", line_color="rgba(247,246,243,0.3)",
                    annotation_text=f"avg {season_data['pct_of_oracle'].mean():.1f}%", annotation_position="top right")
     fig3.add_hline(y=100, line_dash="solid", line_color="rgba(247,246,243,0.08)", line_width=1)
     fig3.update_yaxes(range=[0, 105])
-    fig3.update_xaxes(range=[0.5, max_round + 0.5])
+    fig3.update_xaxes(range=[0.5, max_round + 0.5], tickmode="linear", dtick=1)
     fig3.update_layout(
         margin=dict(t=40),
         paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
         font=dict(family="DM Sans", color="#f7f6f3"),
-        xaxis=dict(gridcolor="rgba(247,246,243,0.08)"),
-        yaxis=dict(gridcolor="rgba(247,246,243,0.08)"),
+        xaxis=dict(gridcolor="rgba(247,246,243,0.08)",
+                   title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
+                   tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+        yaxis=dict(gridcolor="rgba(247,246,243,0.08)",
+                   title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
+                   tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+        hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
+                        font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+        dragmode=False,
     )
-    st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
