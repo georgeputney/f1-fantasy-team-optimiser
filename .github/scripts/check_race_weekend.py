@@ -16,6 +16,7 @@ from pathlib import Path
 import fastf1
 
 
+Path("/tmp/fastf1_check_cache").mkdir(parents=True, exist_ok=True)
 fastf1.Cache.enable_cache("/tmp/fastf1_check_cache")
 
 
