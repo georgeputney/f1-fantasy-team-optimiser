@@ -3,10 +3,12 @@
 import json
 from pathlib import Path
 
+import re
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-
+import streamlit.components.v1 as st_components
 
 from app.optimiser.optimiser import optimiser
 
@@ -27,6 +29,25 @@ TEAM_COLORS = {
 }
 
 st.set_page_config(page_title="F1 Fantasy Optimiser", layout="wide")
+
+# detect viewport width - cookie path is instant (sent with every HTTP request),
+# JS round-trip only fires on the very first visit to set the cookie.
+_cookie_match = re.search(r'\bvw=(\d+)', st.context.headers.get("cookie", ""))
+if _cookie_match:
+    st.session_state.viewport_width = int(_cookie_match.group(1))
+
+if "viewport_width" not in st.session_state:
+    st_components.html(
+        "<script>"
+        "var w=window.innerWidth;"
+        "document.cookie='vw='+w+';path=/;max-age=31536000';"
+        "window.parent.location.reload();"
+        "</script>",
+        height=0,
+    )
+
+_vw_known = "viewport_width" in st.session_state
+_is_mobile = st.session_state.get("viewport_width", 1920) < 768
 
 st.markdown("""
 <style>
@@ -112,6 +133,9 @@ st.markdown("<h1>F1 Fantasy<br/>Team Optimiser</h1>", unsafe_allow_html=True)
 # formats driver/constructor IDs as display names e.g. max_verstappen -> Max Verstappen
 def format_name(id_str):
     return id_str.replace("_", " ").title()
+
+def last_name(id_str):
+    return id_str.split("_")[-1].title()
 
 
 tab1, tab2 = st.tabs(["Team Picker", "Model Performance"])
@@ -306,90 +330,100 @@ with tab1:
         st.markdown(f'<p style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(247,246,243,0.4);margin-bottom:4px">Total cost</p><p style="font-family:\'Cormorant Garamond\',serif;font-size:2.4rem;font-weight:300;color:#f7f6f3;margin:0 0 1rem 0">£{total_cost:.1f}M <span style="font-size:1rem;color:rgba(247,246,243,0.45);font-family:\'DM Sans\',sans-serif;font-weight:300">/ £{budget:.1f}M</span></p>', unsafe_allow_html=True)
 
     with col_right:
-        # per-chart x ranges with 0 aligned at the same relative position in both charts
-        d_left = abs(min(driver_df["expected_fantasy_points"].min(), 0)) * 1.1
-        d_right = driver_df["expected_fantasy_points"].max() * 1.05
-        zero_fraction = d_left / (d_left + d_right) if (d_left + d_right) > 0 else 0
+        if not _vw_known:
+            st.markdown(
+                '<p style="color:rgba(247,246,243,0.2);font-size:11px;letter-spacing:0.1em;'
+                'text-transform:uppercase;margin-top:6rem;text-align:center">Loading…</p>',
+                unsafe_allow_html=True,
+            )
+        else:
+            # per-chart x ranges with 0 aligned at the same relative position in both charts
+            d_left = abs(min(driver_df["expected_fantasy_points"].min(), 0)) * 1.1
+            d_right = driver_df["expected_fantasy_points"].max() * 1.05
+            zero_fraction = d_left / (d_left + d_right) if (d_left + d_right) > 0 else 0
 
-        c_right = constructor_df["expected_fantasy_points"].max() * 1.05
-        c_left = (zero_fraction * c_right / (1 - zero_fraction)) if zero_fraction > 0 else 0
+            c_right = constructor_df["expected_fantasy_points"].max() * 1.05
+            c_left = (zero_fraction * c_right / (1 - zero_fraction)) if zero_fraction > 0 else 0
 
-        driver_x_range = [-d_left, d_right]
-        constructor_x_range = [-c_left, c_right]
+            driver_x_range = [-d_left, d_right]
+            constructor_x_range = [-c_left, c_right]
 
-        # drivers bar chart - sorted by expected points, selected team highlighted in red with bold label
-        driver_chart = driver_df[["driver_id", "expected_fantasy_points", "price"]].assign(
-            name=lambda df: df["driver_id"].apply(lambda x: f"<b>{format_name(x)}</b>" if x in selected_ids else format_name(x)),
-            color=lambda df: df["driver_id"].apply(lambda x: TEAM_COLORS.get(driver_team.get(x, ""), "#f7f6f3") if x in selected_ids else "#3a3a38"),
-        ).sort_values("expected_fantasy_points")
+            _name_fn = last_name if _is_mobile else format_name
+            _chart_l = 80 if _is_mobile else 130
 
-        fig_drivers = px.bar(
-            driver_chart,
-            x="expected_fantasy_points",
-            y="name",
-            orientation="h",
-            hover_data={"price": False, "color": False, "name": False, "expected_fantasy_points": False},
-            labels={"expected_fantasy_points": "Expected Points", "name": "", "price": "Price (£M)"},
-            custom_data=["price"],
-        )
-        fig_drivers.update_traces(
-            marker_color=driver_chart["color"].tolist(),
-            hovertemplate="<b>%{y}</b><br>Expected pts: %{x:.1f}<br>Price: £%{customdata[0]:.1f}M<extra></extra>",
-        )
-        fig_drivers.update_layout(
-            showlegend=False, height=500, margin=dict(l=130, r=0, t=36, b=0),
-            paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
-            font=dict(family="DM Sans", color="#f7f6f3"),
-            title=dict(text="Drivers", font=dict(size=11, color="rgba(247,246,243,0.4)", family="DM Sans"), x=0),
-            xaxis=dict(gridcolor="rgba(247,246,243,0.08)", range=driver_x_range, fixedrange=True,
-                       title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
-                       tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-            yaxis=dict(automargin=False, fixedrange=True,
-                       tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-            hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
-                            font=dict(family="DM Sans", size=12, color="#f7f6f3")),
-            hovermode="closest",
-            dragmode=False,
-            clickmode="none",
-        )
-        st.plotly_chart(fig_drivers, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
+            # drivers bar chart - sorted by expected points, selected team highlighted in red with bold label
+            driver_chart = driver_df[["driver_id", "expected_fantasy_points", "price"]].assign(
+                name=lambda df: df["driver_id"].apply(lambda x: f"<b>{_name_fn(x)}</b>" if x in selected_ids else _name_fn(x)),
+                color=lambda df: df["driver_id"].apply(lambda x: TEAM_COLORS.get(driver_team.get(x, ""), "#f7f6f3") if x in selected_ids else "#3a3a38"),
+            ).sort_values("expected_fantasy_points")
 
-        # constructors bar chart - selected team highlighted in red with bold label
-        constructor_chart = constructor_df[["constructor_id", "expected_fantasy_points", "price"]].assign(
-            name=lambda df: df["constructor_id"].apply(lambda x: f"<b>{format_name(x)}</b>" if x in selected_ids else format_name(x)),
-            color=lambda df: df["constructor_id"].apply(lambda x: TEAM_COLORS.get(x, "#f7f6f3") if x in selected_ids else "#3a3a38"),
-        ).sort_values("expected_fantasy_points")
+            fig_drivers = px.bar(
+                driver_chart,
+                x="expected_fantasy_points",
+                y="name",
+                orientation="h",
+                hover_data={"price": False, "color": False, "name": False, "expected_fantasy_points": False},
+                labels={"expected_fantasy_points": "Expected Points", "name": "", "price": "Price (£M)"},
+                custom_data=["price"],
+            )
+            fig_drivers.update_traces(
+                marker_color=driver_chart["color"].tolist(),
+                hovertemplate="<b>%{y}</b><br>Expected pts: %{x:.1f}<br>Price: £%{customdata[0]:.1f}M<extra></extra>",
+            )
+            fig_drivers.update_layout(
+                showlegend=False, height=500, margin=dict(l=_chart_l, r=0, t=36, b=0),
+                paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
+                font=dict(family="DM Sans", color="#f7f6f3"),
+                title=dict(text="Drivers", font=dict(size=11, color="rgba(247,246,243,0.4)", family="DM Sans"), x=0),
+                xaxis=dict(gridcolor="rgba(247,246,243,0.08)", range=driver_x_range, fixedrange=True,
+                           title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
+                           tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+                yaxis=dict(automargin=False, fixedrange=True,
+                           tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+                hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
+                                font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+                hovermode="closest",
+                dragmode=False,
+                clickmode="none",
+            )
+            st.plotly_chart(fig_drivers, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
 
-        fig_constructors = px.bar(
-            constructor_chart,
-            x="expected_fantasy_points",
-            y="name",
-            orientation="h",
-            hover_data={"price": False, "color": False, "name": False, "expected_fantasy_points": False},
-            labels={"expected_fantasy_points": "Expected Points", "name": "", "price": "Price (£M)"},
-            custom_data=["price"],
-        )
-        fig_constructors.update_traces(
-            marker_color=constructor_chart["color"].tolist(),
-            hovertemplate="<b>%{y}</b><br>Expected pts: %{x:.1f}<br>Price: £%{customdata[0]:.1f}M<extra></extra>",
-        )
-        fig_constructors.update_layout(
-            showlegend=False, height=300, margin=dict(l=130, r=0, t=36, b=0),
-            paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
-            font=dict(family="DM Sans", color="#f7f6f3"),
-            title=dict(text="Constructors", font=dict(size=11, color="rgba(247,246,243,0.4)", family="DM Sans"), x=0),
-            xaxis=dict(gridcolor="rgba(247,246,243,0.08)", range=constructor_x_range, fixedrange=True,
-                       title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
-                       tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-            yaxis=dict(automargin=False, fixedrange=True,
-                       tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-            hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
-                            font=dict(family="DM Sans", size=12, color="#f7f6f3")),
-            hovermode="closest",
-            dragmode=False,
-            clickmode="none",
-        )
-        st.plotly_chart(fig_constructors, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
+            # constructors bar chart - selected team highlighted in red with bold label
+            constructor_chart = constructor_df[["constructor_id", "expected_fantasy_points", "price"]].assign(
+                name=lambda df: df["constructor_id"].apply(lambda x: f"<b>{format_name(x)}</b>" if x in selected_ids else format_name(x)),
+                color=lambda df: df["constructor_id"].apply(lambda x: TEAM_COLORS.get(x, "#f7f6f3") if x in selected_ids else "#3a3a38"),
+            ).sort_values("expected_fantasy_points")
+
+            fig_constructors = px.bar(
+                constructor_chart,
+                x="expected_fantasy_points",
+                y="name",
+                orientation="h",
+                hover_data={"price": False, "color": False, "name": False, "expected_fantasy_points": False},
+                labels={"expected_fantasy_points": "Expected Points", "name": "", "price": "Price (£M)"},
+                custom_data=["price"],
+            )
+            fig_constructors.update_traces(
+                marker_color=constructor_chart["color"].tolist(),
+                hovertemplate="<b>%{y}</b><br>Expected pts: %{x:.1f}<br>Price: £%{customdata[0]:.1f}M<extra></extra>",
+            )
+            fig_constructors.update_layout(
+                showlegend=False, height=300, margin=dict(l=_chart_l, r=0, t=36, b=0),
+                paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
+                font=dict(family="DM Sans", color="#f7f6f3"),
+                title=dict(text="Constructors", font=dict(size=11, color="rgba(247,246,243,0.4)", family="DM Sans"), x=0),
+                xaxis=dict(gridcolor="rgba(247,246,243,0.08)", range=constructor_x_range, fixedrange=True,
+                           title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
+                           tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+                yaxis=dict(automargin=False, fixedrange=True,
+                           tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+                hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
+                                font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+                hovermode="closest",
+                dragmode=False,
+                clickmode="none",
+            )
+            st.plotly_chart(fig_constructors, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
 
 
 # model performance tab
