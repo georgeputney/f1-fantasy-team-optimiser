@@ -80,6 +80,7 @@ h2, h3 {
     padding: 0 0 3px 0;
 }
 .stTabs [data-baseweb="tab-list"] { gap: 24px; border-bottom: 1px solid rgba(247,246,243,0.12); justify-content: flex-end; }
+@media (max-width: 768px) { .stTabs [data-baseweb="tab-list"] { justify-content: flex-start; } }
 .stTabs [aria-selected="true"] { color: #c8401a !important; border-bottom: 1px solid #c8401a !important; }
 
 /* Metrics use the serif for editorial feel */
@@ -141,10 +142,13 @@ with tab1:
     col_left, col_spacer, col_right = st.columns([1, 0.1, 2])
 
     with col_left:
+        budget_error_slot = st.empty()
         budget = st.number_input("Budget (£M)", min_value=0.0, max_value=200.0, value=100.0, step=0.1)
-        error_slot = st.empty()
+        def _err(msg, slot):
+            slot.markdown(f'<p style="font-family:\'DM Sans\',sans-serif;font-size:13px;color:#c8401a;margin:0 0 8px 0">{msg}</p>', unsafe_allow_html=True)
 
         has_current_team = st.checkbox("Enter current team")
+        driver_error_slot = st.empty()
         current_drivers = []
         current_constructors = []
         free_transfers = 2
@@ -156,6 +160,10 @@ with tab1:
                 selection_mode="multi",
                 default=[],
             )
+            if len(current_drivers) > 5:
+                _err("Select at most 5 drivers.", driver_error_slot)
+                st.stop()
+            constructor_error_slot = st.empty()
             current_constructors = st.pills(
                 "Current constructors",
                 options=[c["constructor_id"] for c in sorted(data["constructors"], key=lambda x: x["price"], reverse=True)],
@@ -163,17 +171,14 @@ with tab1:
                 selection_mode="multi",
                 default=[],
             )
-            if len(current_drivers) > 5:
-                error_slot.error("Select at most 5 drivers.")
-                st.stop()
             if len(current_constructors) > 2:
-                error_slot.error("Select at most 2 constructors.")
+                _err("Select at most 2 constructors.", constructor_error_slot)
                 st.stop()
             team_cost = sum(float(prices_index.get(i, 0)) for i in current_drivers + current_constructors)
             if team_cost > 0:
                 remaining = budget - team_cost
                 if remaining < 0:
-                    error_slot.error(f"Team costs £{team_cost:.1f}M - £{abs(remaining):.1f}M over budget.")
+                    _err(f"Team costs £{team_cost:.1f}M, £{abs(remaining):.1f}M over budget.", budget_error_slot)
                     st.stop()
                 st.progress(min(team_cost / budget, 1.0), text=f"£{team_cost:.1f}M spent - £{remaining:.1f}M remaining")
 
@@ -331,13 +336,16 @@ with tab1:
             paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
             font=dict(family="DM Sans", color="#f7f6f3"),
             title=dict(text="Drivers", font=dict(size=11, color="rgba(247,246,243,0.4)", family="DM Sans"), x=0),
-            xaxis=dict(gridcolor="rgba(247,246,243,0.08)", range=driver_x_range,
+            xaxis=dict(gridcolor="rgba(247,246,243,0.08)", range=driver_x_range, fixedrange=True,
                        title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
                        tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-            yaxis=dict(automargin=False, tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+            yaxis=dict(automargin=False, fixedrange=True,
+                       tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
             hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
                             font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+            hovermode="closest",
             dragmode=False,
+            clickmode="none",
         )
         st.plotly_chart(fig_drivers, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
 
@@ -365,13 +373,16 @@ with tab1:
             paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
             font=dict(family="DM Sans", color="#f7f6f3"),
             title=dict(text="Constructors", font=dict(size=11, color="rgba(247,246,243,0.4)", family="DM Sans"), x=0),
-            xaxis=dict(gridcolor="rgba(247,246,243,0.08)", range=constructor_x_range,
+            xaxis=dict(gridcolor="rgba(247,246,243,0.08)", range=constructor_x_range, fixedrange=True,
                        title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
                        tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-            yaxis=dict(automargin=False, tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
+            yaxis=dict(automargin=False, fixedrange=True,
+                       tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
             hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
                             font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+            hovermode="closest",
             dragmode=False,
+            clickmode="none",
         )
         st.plotly_chart(fig_constructors, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
 
@@ -397,19 +408,29 @@ with tab2:
         all_data.groupby("season")[["model", "oracle"]]
         .sum()
         .assign(pct_of_oracle=lambda df: (df["model"] / df["oracle"] * 100).round(1))
-        .rename(columns={"model": "Model", "oracle": "Oracle", "pct_of_oracle": "% of Oracle"})
+        .rename(columns={"model": "Model (our prediction)", "oracle": "Oracle (best possible)", "pct_of_oracle": "% of Oracle"})
     )
     summary.index.name = "Season"
 
+    def _pct_bar(pct):
+        return (
+            f'<div style="display:flex;align-items:center;gap:10px">'
+            f'<div style="flex:1;height:3px;background:rgba(247,246,243,0.08);border-radius:2px">'
+            f'<div style="width:{pct:.1f}%;height:100%;background:#c8401a;border-radius:2px"></div>'
+            f'</div>'
+            f'<span style="min-width:3.5em;text-align:right">{pct:.1f}%</span>'
+            f'</div>'
+        )
+
     st.subheader("Season summary")
     summary_rows = "".join(
-        f'<tr><td>{int(season)}</td><td>{int(row["Model"])}</td><td>{int(row["Oracle"])}</td><td>{row["% of Oracle"]:.1f}%</td></tr>'
+        f'<tr><td>{int(season)}</td><td>{int(row["Model (our prediction)"])}</td><td>{int(row["Oracle (best possible)"])}</td><td>{_pct_bar(row["% of Oracle"])}</td></tr>'
         for season, row in summary.iterrows()
     )
     st.markdown(f"""
     <table class="team-table">
-      <colgroup><col style="width:20%"><col style="width:26%"><col style="width:26%"><col style="width:28%"></colgroup>
-      <thead><tr>{''.join(f'<th>{h}</th>' for h in ["Season", "Model", "Oracle", "% of Oracle"])}</tr></thead>
+      <colgroup><col style="width:15%"><col style="width:20%"><col style="width:20%"><col style="width:45%"></colgroup>
+      <thead><tr>{''.join(f'<th>{h}</th>' for h in ["Season", "Model (our prediction)", "Oracle (best possible)", "% of Oracle"])}</tr></thead>
       <tbody>{summary_rows}</tbody>
     </table>
     <div style="height:1rem"></div>
@@ -420,34 +441,35 @@ with tab2:
     selected_season = st.selectbox("Season", season_options, index=len(season_options) - 1)
 
     season_data = all_data[all_data["season"] == selected_season].copy()
-    season_data["Model"] = season_data["model"].cumsum()
-    season_data["Oracle"] = season_data["oracle"].cumsum()
+    season_data["Model (our prediction)"] = season_data["model"].cumsum()
+    season_data["Oracle (best possible)"] = season_data["oracle"].cumsum()
     has_location = "location" in season_data.columns
 
     id_vars = ["round"] + (["location"] if has_location else [])
-    cumulative_melted = season_data.melt(id_vars=id_vars, value_vars=["Model", "Oracle"],
+    cumulative_melted = season_data.melt(id_vars=id_vars, value_vars=["Model (our prediction)", "Oracle (best possible)"],
                                          var_name="Strategy", value_name="Cumulative Points")
     round_melted = season_data.melt(id_vars=["round"], value_vars=["model", "oracle"],
                                     var_name="_s", value_name="round_pts")
-    round_melted["Strategy"] = round_melted["_s"].str.capitalize()
-    melted = cumulative_melted.merge(round_melted[["round", "Strategy", "round_pts"]], on=["round", "Strategy"])
+    round_melted["Strategy"] = round_melted["_s"].map({"model": "Model (our prediction)", "oracle": "Oracle (best possible)"})
+    round_melted["short_name"] = round_melted["_s"].str.capitalize()
+    melted = cumulative_melted.merge(round_melted[["round", "Strategy", "round_pts", "short_name"]], on=["round", "Strategy"])
 
-    custom = (["location", "round_pts"] if has_location else ["round_pts"])
+    custom = (["location", "round_pts", "short_name"] if has_location else ["round_pts", "short_name"])
     fig2 = px.line(
         melted,
         x="round",
         y="Cumulative Points",
         color="Strategy",
-        color_discrete_map={"Model": "#c8401a", "Oracle": "rgba(247,246,243,0.4)"},
+        color_discrete_map={"Model (our prediction)": "#c8401a", "Oracle (best possible)": "rgba(247,246,243,0.4)"},
         labels={"round": "Round"},
         markers=True,
         custom_data=custom,
     )
     fig2.update_traces(
         hovertemplate=(
-            "<b>%{customdata[0]}</b><br>%{fullData.name}: %{y:,.0f} pts (+%{customdata[1]:.0f} this round)<extra></extra>"
+            "<b>%{customdata[0]}</b><br>%{customdata[2]}: %{y:,.0f} pts (+%{customdata[1]:.0f} this round)<extra></extra>"
             if has_location else
-            "%{fullData.name}: %{y:,.0f} pts (+%{customdata[0]:.0f} this round)<extra></extra>"
+            "%{customdata[1]}: %{y:,.0f} pts (+%{customdata[0]:.0f} this round)<extra></extra>"
         )
     )
     fig2.update_layout(
@@ -461,6 +483,9 @@ with tab2:
                    tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
         hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
                         font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5,
+                    title_text="",
+                    font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
         dragmode=False,
     )
     st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
@@ -491,14 +516,16 @@ with tab2:
         margin=dict(t=40),
         paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
         font=dict(family="DM Sans", color="#f7f6f3"),
-        xaxis=dict(gridcolor="rgba(247,246,243,0.08)",
+        xaxis=dict(gridcolor="rgba(247,246,243,0.08)", fixedrange=True,
                    title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
                    tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-        yaxis=dict(gridcolor="rgba(247,246,243,0.08)",
+        yaxis=dict(gridcolor="rgba(247,246,243,0.08)", fixedrange=True,
                    title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
                    tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
         hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
                         font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+        hovermode="closest",
         dragmode=False,
+        clickmode="none",
     )
     st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
