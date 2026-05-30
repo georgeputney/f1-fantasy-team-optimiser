@@ -46,7 +46,7 @@ pip install -e .
 
 ## Data
 
-Race and qualifying data is fetched from [FastF1](https://github.com/theOehrly/Fast-F1). Fantasy prices are manually maintained CSVs in `data/raw/fantasy_prices/` — these must be updated before each race weekend.
+Race and qualifying data is fetched from [FastF1](https://github.com/theOehrly/Fast-F1). Fantasy prices are manually maintained CSVs in `data/raw/fantasy_prices/` - these must be updated before each race weekend.
 
 ## Stack
 

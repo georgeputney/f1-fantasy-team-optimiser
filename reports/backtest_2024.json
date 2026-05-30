@@ -1,0 +1,194 @@
+[
+  {
+    "season": 2024,
+    "round": 1,
+    "model": 129.0,
+    "oracle": 202.0,
+    "random": 68.81132075471699,
+    "lagged": NaN
+  },
+  {
+    "season": 2024,
+    "round": 2,
+    "model": 168.0,
+    "oracle": 204.0,
+    "random": 52.24761904761905,
+    "lagged": 156.0
+  },
+  {
+    "season": 2024,
+    "round": 3,
+    "model": 125.0,
+    "oracle": 255.0,
+    "random": 77.11351351351351,
+    "lagged": 186.0
+  },
+  {
+    "season": 2024,
+    "round": 4,
+    "model": 104.0,
+    "oracle": 232.0,
+    "random": 37.215384615384615,
+    "lagged": 143.0
+  },
+  {
+    "season": 2024,
+    "round": 5,
+    "model": 174.0,
+    "oracle": 269.0,
+    "random": 55.50294695481336,
+    "lagged": 193.0
+  },
+  {
+    "season": 2024,
+    "round": 6,
+    "model": 193.0,
+    "oracle": 253.0,
+    "random": 77.46942800788955,
+    "lagged": 171.0
+  },
+  {
+    "season": 2024,
+    "round": 7,
+    "model": 144.0,
+    "oracle": 184.0,
+    "random": 52.76888888888889,
+    "lagged": 128.0
+  },
+  {
+    "season": 2024,
+    "round": 8,
+    "model": 123.0,
+    "oracle": 232.0,
+    "random": 33.56347438752784,
+    "lagged": 171.0
+  },
+  {
+    "season": 2024,
+    "round": 9,
+    "model": 85.0,
+    "oracle": 231.0,
+    "random": 40.285714285714285,
+    "lagged": -51.0
+  },
+  {
+    "season": 2024,
+    "round": 10,
+    "model": 166.0,
+    "oracle": 209.0,
+    "random": 53.80466472303207,
+    "lagged": 102.0
+  },
+  {
+    "season": 2024,
+    "round": 11,
+    "model": 183.0,
+    "oracle": 255.0,
+    "random": 82.45738636363636,
+    "lagged": 61.0
+  },
+  {
+    "season": 2024,
+    "round": 12,
+    "model": 116.0,
+    "oracle": 204.0,
+    "random": 53.6625386996904,
+    "lagged": 75.0
+  },
+  {
+    "season": 2024,
+    "round": 13,
+    "model": 150.0,
+    "oracle": 235.0,
+    "random": 34.644067796610166,
+    "lagged": 116.0
+  },
+  {
+    "season": 2024,
+    "round": 14,
+    "model": 140.0,
+    "oracle": 211.0,
+    "random": 37.003571428571426,
+    "lagged": 72.0
+  },
+  {
+    "season": 2024,
+    "round": 15,
+    "model": 173.0,
+    "oracle": 235.0,
+    "random": 40.66108786610879,
+    "lagged": 55.0
+  },
+  {
+    "season": 2024,
+    "round": 16,
+    "model": 141.0,
+    "oracle": 240.0,
+    "random": 40.104838709677416,
+    "lagged": 139.0
+  },
+  {
+    "season": 2024,
+    "round": 17,
+    "model": 163.0,
+    "oracle": 256.0,
+    "random": 36.504672897196265,
+    "lagged": 148.0
+  },
+  {
+    "season": 2024,
+    "round": 18,
+    "model": 147.0,
+    "oracle": 228.0,
+    "random": 34.523148148148145,
+    "lagged": 91.0
+  },
+  {
+    "season": 2024,
+    "round": 19,
+    "model": 187.0,
+    "oracle": 300.0,
+    "random": 53.27173913043478,
+    "lagged": 102.0
+  },
+  {
+    "season": 2024,
+    "round": 20,
+    "model": 163.0,
+    "oracle": 261.0,
+    "random": 18.651515151515152,
+    "lagged": 154.0
+  },
+  {
+    "season": 2024,
+    "round": 21,
+    "model": 159.0,
+    "oracle": 342.0,
+    "random": 17.674556213017752,
+    "lagged": -67.0
+  },
+  {
+    "season": 2024,
+    "round": 22,
+    "model": 190.0,
+    "oracle": 254.0,
+    "random": 24.255172413793105,
+    "lagged": 9.0
+  },
+  {
+    "season": 2024,
+    "round": 23,
+    "model": 156.0,
+    "oracle": 275.0,
+    "random": 10.6875,
+    "lagged": 49.0
+  },
+  {
+    "season": 2024,
+    "round": 24,
+    "model": 180.0,
+    "oracle": 256.0,
+    "random": 12.020689655172413,
+    "lagged": 106.0
+  }
+]
