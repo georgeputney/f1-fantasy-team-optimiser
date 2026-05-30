@@ -128,8 +128,13 @@ with tab1:
     data = json.loads(pred_path.read_text())
     driver_team = {d["driver_id"]: d["constructor_id"] for d in data["drivers"] if "constructor_id" in d}
 
-    st.subheader(f"Season {data['season']} - Round {data['round']}: {data['circuit']}")
-    st.caption(f"Last updated {data['generated_at'][:10]}")
+    st.markdown(
+        f'<p style="font-family:\'Cormorant Garamond\',serif;font-size:1.8rem;font-weight:300;letter-spacing:-0.01em;color:#f7f6f3;margin:0 0 2px 0">'
+        f'Season {data["season"]} - Round {data["round"]}: {data["circuit"]}</p>'
+        f'<p style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(247,246,243,0.35);margin:0 0 1rem 0">'
+        f'Last updated {data["generated_at"][:10]}</p>',
+        unsafe_allow_html=True,
+    )
 
     driver_df = pd.DataFrame(data["drivers"]).rename(columns={"expected_points": "expected_fantasy_points"})
     constructor_df = pd.DataFrame(data["constructors"]).rename(columns={"expected_points": "expected_fantasy_points"})

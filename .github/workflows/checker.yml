@@ -2,7 +2,7 @@ name: Race Weekend Checker
 
 on:
   schedule:
-    - cron: '0 * * * *'   # every hour — fast once pip is cached
+    - cron: '0 * * * *'   # every hour - fast once pip is cached
   workflow_dispatch: {}   # manual trigger for testing
 
 permissions:

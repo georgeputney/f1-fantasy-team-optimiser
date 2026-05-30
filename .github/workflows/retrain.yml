@@ -41,6 +41,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No artifact changes."
           else
-            git commit -m "chore: retrain prod models — ${{ inputs.note }}"
+            git commit -m "chore: retrain prod models - ${{ inputs.note }}"
             git push
           fi
