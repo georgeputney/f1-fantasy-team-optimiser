@@ -201,7 +201,16 @@ with tab1:
             price = float(prices_index[d])
             doubled = d == team["doubled_driver"]
             display_pts = pts * 2 if doubled else pts
-            driver_rows.append({"Driver": format_name(d) + (" x2" if doubled else ""), "Pts": f"{display_pts:.1f}", "Price": f"£{price:.1f}M"})
+            team_color = TEAM_COLORS.get(driver_team.get(d, ""), "#888")
+            driver_rows.append({
+                "id": d,
+                "Driver": format_name(d),
+                "suffix": " x2" if doubled else "",
+                "Pts": display_pts,
+                "Price": f"£{price:.1f}M",
+                "color": team_color,
+                "doubled": doubled,
+            })
             total_points += display_pts
             total_cost += price
 
@@ -209,12 +218,49 @@ with tab1:
         for c in team["constructors"]:
             pts = float(constructor_df.set_index("constructor_id")["expected_fantasy_points"][c])
             price = float(prices_index[c])
-            constructor_rows.append({"Constructor": format_name(c), "Pts": f"{pts:.1f}", "Price": f"£{price:.1f}M"})
+            team_color = TEAM_COLORS.get(c, "#888")
+            constructor_rows.append({
+                "Constructor": format_name(c),
+                "Pts": pts,
+                "Price": f"£{price:.1f}M",
+                "color": team_color,
+            })
             total_points += pts
             total_cost += price
 
-        def _tr(cells, tag="td"):
-            return "<tr>" + "".join(f"<{tag}>{c}</{tag}>" for c in cells) + "</tr>"
+        def _pts_html(pts):
+            if pts < 0:
+                color = "#e05252"
+            elif pts >= 50:
+                color = "#f7f6f3"
+            else:
+                color = "rgba(247,246,243,0.75)"
+            return f'<span style="color:{color};font-variant-numeric:tabular-nums">{pts:.1f}</span>'
+
+        def _dot(color):
+            return f'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:{color};margin-right:9px;vertical-align:middle"></span>'
+
+        def _th(label):
+            return f'<th>{label}</th>'
+
+        def _tr_driver(r):
+            suffix = f' <span style="color:rgba(247,246,243,0.45);font-size:11px">x2</span>' if r["suffix"] else ""
+            return (
+                f'<tr>'
+                f'<td>{_dot(r["color"])}{r["Driver"]}{suffix}</td>'
+                f'<td>{_pts_html(r["Pts"])}</td>'
+                f'<td>{r["Price"]}</td>'
+                f'</tr>'
+            )
+
+        def _tr_constructor(r):
+            return (
+                f'<tr>'
+                f'<td>{_dot(r["color"])}{r["Constructor"]}</td>'
+                f'<td>{_pts_html(r["Pts"])}</td>'
+                f'<td>{r["Price"]}</td>'
+                f'</tr>'
+            )
 
         table_html = """
         <style>
@@ -222,18 +268,19 @@ with tab1:
         .team-table th { color:rgba(247,246,243,0.35); font-size:10px; font-weight:400; letter-spacing:0.1em; text-transform:uppercase; padding:6px 12px 8px 12px; text-align:left; border-bottom:1px solid rgba(247,246,243,0.12); }
         .team-table td { padding:10px 12px; border-bottom:1px solid rgba(247,246,243,0.06); }
         .team-table tr:last-child td { border-bottom:1px solid rgba(247,246,243,0.12); }
+        .team-table tbody tr:hover td { background:rgba(247,246,243,0.04); }
         .team-table col.name { width:55%; }
         .team-table col.stat { width:22%; }
-        .team-table .gap td { height:24px; border:none; }
+        .team-table .gap td { height:20px; border:none; }
         </style>
         <table class="team-table">
           <colgroup><col class="name"><col class="stat"><col class="stat"></colgroup>
-          <thead>""" + _tr(["Driver", "Pts", "Price"], "th") + """</thead>
-          <tbody>""" + "".join(_tr([r["Driver"], r["Pts"], r["Price"]]) for r in driver_rows) + """
+          <thead><tr>""" + _th("Driver") + _th("Pts") + _th("Price") + """</tr></thead>
+          <tbody>""" + "".join(_tr_driver(r) for r in driver_rows) + """
             <tr class="gap"><td colspan="3"></td></tr>
-          </thead>
-          <thead>""" + _tr(["Constructor", "Pts", "Price"], "th") + """</thead>
-          <tbody>""" + "".join(_tr([r["Constructor"], r["Pts"], r["Price"]]) for r in constructor_rows) + """
+          </tbody>
+          <thead><tr>""" + _th("Constructor") + _th("Pts") + _th("Price") + """</tr></thead>
+          <tbody>""" + "".join(_tr_constructor(r) for r in constructor_rows) + """
           </tbody>
         </table>
         <div style="height:1.5rem"></div>
