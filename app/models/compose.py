@@ -6,7 +6,7 @@ import pandas as pd
 from app.data.scoring_rules import (
     CONSTRUCTOR_QUALI_BONUS, DRIVER_QUALI_POSITION_POINTS, DRIVER_RACE_POSITION_POINTS,
     FASTEST_LAP_POINTS, DOTD_POINTS, RACE_PENALTY, POSITION_GAINED_POINTS, OVERTAKE_MADE_POINTS,
-    DRIVER_SPRINT_POSITION_POINTS, SPRINT_FASTEST_LAP_POINTS
+    DRIVER_SPRINT_POSITION_POINTS, SPRINT_FASTEST_LAP_POINTS, SPRINT_OVERTAKE_MADE_POINTS
 )
 
 _positions = np.arange(1, 21)
@@ -73,7 +73,9 @@ def compose_drivers(predictions, location=None, season=None, predict_overtakes=N
         sprint_position = predictions["sprint_quali_position"].fillna(20).astype(int)
         sprint_finish_points = sprint_position.map(lambda p: DRIVER_SPRINT_POSITION_POINTS.get(p, 0))
         sprint_fl_prob = sprint_position.map(FASTEST_LAP_PROB).fillna(0)
-        sprint_points = sprint_finish_points + sprint_fl_prob * SPRINT_FASTEST_LAP_POINTS
+        # expected sprint overtakes: 1/3 of predicted race overtakes (sprint is ~1/3 race length)
+        sprint_expected_overtakes = expected_overtakes / 3
+        sprint_points = sprint_finish_points + sprint_fl_prob * SPRINT_FASTEST_LAP_POINTS + sprint_expected_overtakes * SPRINT_OVERTAKE_MADE_POINTS
         predictions["points_sprint"] = sprint_points
         predictions["expected_fantasy_points"] += sprint_points
 

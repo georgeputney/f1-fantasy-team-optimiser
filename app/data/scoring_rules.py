@@ -9,6 +9,7 @@ SPRINT_FASTEST_LAP_POINTS = 5
 SPRINT_PENALTY = -10
 SPRINT_POSITION_GAINED_POINTS = 1
 SPRINT_MAX_POSITION_LOSS_PENALTY = -10
+SPRINT_OVERTAKE_MADE_POINTS = 1
 
 
 # qualifying
@@ -34,7 +35,7 @@ RACE_PENALTY = -20
 
 
 # calculate fantasy points for a driver's sprint result
-def score_driver_sprint(position, positions_gained, dnf_flag, dsq_flag, fastest_lap_flag):
+def score_driver_sprint(position, positions_gained, dnf_flag, dsq_flag, fastest_lap_flag, sprint_overtakes=0):
     if dnf_flag or dsq_flag:
         return SPRINT_PENALTY
 
@@ -49,6 +50,8 @@ def score_driver_sprint(position, positions_gained, dnf_flag, dsq_flag, fastest_
 
     if fastest_lap_flag:
         score += SPRINT_FASTEST_LAP_POINTS
+
+    score += sprint_overtakes * SPRINT_OVERTAKE_MADE_POINTS
 
     return score
 
