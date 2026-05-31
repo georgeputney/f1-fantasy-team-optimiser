@@ -28,6 +28,7 @@ from app.models.configs import FINISH_POSITION_MODEL, QUALI_POSITION_MODEL
 from app.models.train import main as train_main, prod as train_prod
 from app.models.predict import load_model, predict as run_predict
 from app.models.compose import compose_drivers, compose_constructor
+from app.data.overtakes import build_overtake_predictor
 
 from app.optimiser.optimiser import optimiser
 from app.optimiser.state import load_state, save_state
@@ -40,6 +41,7 @@ from app.config import (
     INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR,
     INTERIM_RACE_LAPS_DIR,
     PROCESSED_TARGETS_DIR, PROCESSED_HISTORIC_FEATURES_DIR,
+    RACE_OVERTAKES_DIR,
     REPORTS_DIR, TEAM_STATE_FILE
 )
 
@@ -61,9 +63,11 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
         if round:
             schedule = schedule[schedule["RoundNumber"].isin(round)]
 
-        for round_num in schedule["RoundNumber"]:
+        for _, event in schedule.iterrows():
+            round_num = int(event["RoundNumber"])
+            location = event.get("Location", str(round_num))
 
-            typer.echo(f"Ingesting season {s}, round {round_num:02d}...")
+            typer.echo(f"Ingesting season {s}, round {round_num:02d} - {location}...")
 
             try:
                 get_event_metadata(s, round_num)
@@ -124,9 +128,11 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
         if round:
             schedule = schedule[schedule["RoundNumber"].isin(round)]
             
-        for round_num in schedule["RoundNumber"]:
+        for _, event in schedule.iterrows():
+            round_num = int(event["RoundNumber"])
+            location = event.get("Location", str(round_num))
 
-            typer.echo(f"Cleaning season {s}, round {round_num:02d}...")
+            typer.echo(f"Cleaning season {s}, round {round_num:02d} - {location}...")
 
             try:
                 clean_events(s, round_num)
@@ -177,9 +183,11 @@ def build_targets(season: list[int] = typer.Option(ALL_SEASONS), round: list[int
         if round:
             schedule = schedule[schedule["RoundNumber"].isin(round)]
 
-        for round_num in schedule["RoundNumber"]:
+        for _, event in schedule.iterrows():
+            round_num = int(event["RoundNumber"])
+            location = event.get("Location", str(round_num))
 
-            typer.echo(f"Building targets for season {s}, round {round_num:02d}...")
+            typer.echo(f"Building targets for season {s}, round {round_num:02d} - {location}...")
 
             try:
                 compute_targets(s, round_num)
@@ -203,6 +211,19 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
     fp3_files = sorted(INTERIM_FP3_DIR.glob("*.parquet"))
     fp3_all = pd.concat([pd.read_parquet(f) for f in fp3_files]) if fp3_files else None
 
+    overtake_files = sorted(RACE_OVERTAKES_DIR.glob("*.csv"))
+    if overtake_files:
+        _ot_frames = []
+        for _f in overtake_files:
+            _s, _r = _f.stem.split("_")
+            _df = pd.read_csv(_f)
+            _df["season"] = int(_s)
+            _df["round"] = int(_r)
+            _ot_frames.append(_df)
+        overtake_history = pd.concat(_ot_frames).reset_index(drop=True)
+    else:
+        overtake_history = pd.DataFrame(columns=["driver_id", "race_overtakes", "season", "round"])
+
     for s in season:
 
         schedule = fastf1.get_event_schedule(s)
@@ -211,12 +232,14 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
         if round:
             schedule = schedule[schedule["RoundNumber"].isin(round)]
 
-        for round_num in schedule["RoundNumber"]:
+        for _, event in schedule.iterrows():
+            round_num = int(event["RoundNumber"])
+            location = event.get("Location", str(round_num))
 
-            typer.echo(f"Building features for season {s}, round {round_num:02d}...")
+            typer.echo(f"Building features for season {s}, round {round_num:02d} - {location}...")
 
             try:
-                result = build_historic_features(race_results, quali_results, fantasy_targets, events, s, round_num)
+                result = build_historic_features(race_results, quali_results, fantasy_targets, events, overtake_history, s, round_num)
             except FileNotFoundError:
                 typer.echo(f"  Skipping round {round_num:02d}: processed data not found (run build-targets first)")
                 continue
@@ -228,7 +251,7 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
             if (INTERIM_FP3_DIR / f"{s}_{round_num:02d}.parquet").exists() or (INTERIM_FP1_DIR / f"{s}_{round_num:02d}.parquet").exists():
                 build_practice_features(s, round_num)
 
-            build_circuit_features(race_results, quali_results, events, race_laps_all, fp3_all, s, round_num)
+            build_circuit_features(race_results, quali_results, events, race_laps_all, fp3_all, overtake_history, s, round_num)
 
 
 # train the race finish and quali position models for DEV or PROD
@@ -271,12 +294,15 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
     quali_model = load_model(QUALI_POSITION_MODEL, prod=prod)
     finish_model = load_model(FINISH_POSITION_MODEL, prod=prod)
 
-    predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
-    driver_pts = compose_drivers(predictions)
-    constructor_pts = compose_constructor(driver_pts)
-
     events_path = INTERIM_EVENTS_DIR / f"{season}_{round:02d}.parquet"
     circuit = pd.read_parquet(events_path)["location"].iloc[0] if events_path.exists() else f"Round {round}"
+
+    typer.echo(f"Generating reports for season {season}, round {round:02d} - {circuit}...")
+
+    predict_overtakes = build_overtake_predictor()
+    predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
+    driver_pts = compose_drivers(predictions, location=circuit, season=season, predict_overtakes=predict_overtakes)
+    constructor_pts = compose_constructor(driver_pts)
 
     drivers_out = [
         {
@@ -286,6 +312,15 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
             "price": float(prices_index.get(row["driver_id"], 0)),
             "predicted_quali_position": int(row["predicted_quali_position"]),
             "predicted_finish_position": int(row["predicted_finish_position"]),
+            "points_breakdown": {
+                "quali": float(row.get("points_quali", 0)),
+                "finish": float(row.get("points_finish", 0)),
+                "positions_gained": float(row.get("points_positions_gained", 0)),
+                "overtakes": float(row.get("expected_overtakes", 0)),
+                "prob_fl": float(row.get("prob_fl", 0)),
+                "prob_dotd": float(row.get("prob_dotd", 0)),
+                "sprint": float(row.get("points_sprint", 0)),
+            },
         }
         for _, row in driver_pts.iterrows()
     ]
@@ -321,15 +356,19 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
     quali_model = load_model(QUALI_POSITION_MODEL, prod)
     finish_model = load_model(FINISH_POSITION_MODEL, prod)
 
+    events_path = INTERIM_EVENTS_DIR / f"{season}_{round:02d}.parquet"
+    location = pd.read_parquet(events_path)["location"].iloc[0] if events_path.exists() else None
+
+    predict_overtakes = build_overtake_predictor()
     predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
-    
-    driver_points = compose_drivers(predictions)
+
+    driver_points = compose_drivers(predictions, location=location, season=season, predict_overtakes=predict_overtakes)
     constructor_points = compose_constructor(driver_points)
 
-    typer.echo(f"Predicting season {season}, round {round:02d}...")
+    typer.echo(f"Predicting season {season}, round {round:02d} - {location}...")
     
     typer.echo("\nDrivers:")
-    typer.echo(driver_points[["driver_id", "predicted_quali_position", "predicted_finish_position", "expected_fantasy_points"]].to_string())
+    typer.echo(driver_points[["driver_id", "predicted_quali_position", "predicted_finish_position", "expected_overtakes", "expected_fantasy_points"]].to_string())
     typer.echo("\nConstructors:")
     typer.echo(constructor_points.to_string())
 
@@ -339,19 +378,23 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
 # dropped/inactive assets are sold at last known price and warned to the user
 @app.command()
 def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP), no_state: bool = typer.Option(False), prod: bool = typer.Option(False)):
-    typer.echo(f"Optimising team for season {season}, round {round:02d}...")
-
     prices = pd.read_csv(FANTASY_PRICES_DIR / f"{season}_{round:02d}.csv")
     state = None if no_state else load_state(TEAM_STATE_FILE)
-    
+
     quali_model = load_model(QUALI_POSITION_MODEL, prod)
     finish_model = load_model(FINISH_POSITION_MODEL, prod)
 
+    events_path = INTERIM_EVENTS_DIR / f"{season}_{round:02d}.parquet"
+    location = pd.read_parquet(events_path)["location"].iloc[0] if events_path.exists() else None
+
+    typer.echo(f"Optimising team for season {season}, round {round:02d} - {location}...")
+
+    predict_overtakes = build_overtake_predictor()
     predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
 
-    driver_points = compose_drivers(predictions)
+    driver_points = compose_drivers(predictions, location=location, season=season, predict_overtakes=predict_overtakes)
     constructor_points = compose_constructor(driver_points)
-    
+
     team = optimiser(driver_points, constructor_points, prices, budget, state)
 
     for d in team["dropped"]:
@@ -408,6 +451,7 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP)):
     quali_model = load_model(QUALI_POSITION_MODEL)
     finish_model = load_model(FINISH_POSITION_MODEL)
+    predict_overtakes = build_overtake_predictor()
 
     for s in season:
         results = []
@@ -432,9 +476,13 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
 
             prices = pd.read_csv(prices_path)
             asset_prices_index = prices.set_index("asset_id")["price"]
+
+            events_path = INTERIM_EVENTS_DIR / f"{s}_{round_num:02d}.parquet"
+            bt_location = pd.read_parquet(events_path)["location"].iloc[0] if events_path.exists() else None
+
             predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, s, round_num)
 
-            driver_points = compose_drivers(predictions)
+            driver_points = compose_drivers(predictions, location=bt_location, season=s, predict_overtakes=predict_overtakes)
             constructor_points = compose_constructor(driver_points)
 
             model_team = optimiser(driver_points, constructor_points, prices, budget, model_state)

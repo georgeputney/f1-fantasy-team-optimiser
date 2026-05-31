@@ -11,32 +11,20 @@ def circuit_data_n_seasons(circuit_races):
     return {"circuit_data_n_seasons": int(circuit_races["season"].nunique())}
 
 
-# mean ratio of positions gained at this circuit vs the season average across all prior seasons
-# season-normalised to cancel out regulation-era differences in overtaking rates
-def circuit_overtake_index(all_prior_races, circuit_race_ids):
-    race_overtakes = (
-        all_prior_races
-        .assign(_pg=lambda df: df["positions_gained"].clip(lower=0))
-        .groupby("race_id")["_pg"]
-        .sum()
-        .rename("race_overtakes")
-    )
+# mean ratio of F1 Fantasy overtakes at this circuit vs the season average, season-normalised
+# uses manual race_overtakes data; circuit_race_ids already enforces the temporal cutoff
+def circuit_overtake_index(overtake_history, circuit_race_ids):
+    if overtake_history.empty:
+        return {"circuit_overtake_index": float("nan")}
 
-    season_avg = (
-        all_prior_races[["race_id", "season"]]
-        .drop_duplicates()
-        .merge(race_overtakes, on="race_id")
-        .groupby("season")["race_overtakes"]
-        .mean()
-        .rename("season_avg")
-    )
+    ot = overtake_history.copy()
+    ot["race_id"] = ot["season"].astype(str) + "_" + ot["round"].astype(str).str.zfill(2)
 
-    circuit_df = (
-        all_prior_races[all_prior_races["race_id"].isin(circuit_race_ids)][["race_id", "season"]]
-        .drop_duplicates()
-        .merge(race_overtakes, on="race_id")
-        .merge(season_avg, on="season")
-    )
+    race_totals = ot.groupby(["race_id", "season"])["race_overtakes"].sum().reset_index()
+    season_avg = race_totals.groupby("season")["race_overtakes"].mean().rename("season_avg")
+    race_totals = race_totals.join(season_avg, on="season")
+
+    circuit_df = race_totals[race_totals["race_id"].isin(circuit_race_ids)]
 
     if circuit_df.empty or (circuit_df["season_avg"] == 0).all():
         return {"circuit_overtake_index": float("nan")}
@@ -116,7 +104,7 @@ def circuit_fp3_top3_to_quali_top3_rate(fp3_all, prior_quali, circuit_race_ids):
 # builds circuit features for a single race and writes to data/processed/circuit_features/
 # one row per race (same values apply to all drivers); merged on race_id in train.py and predict.py
 # race_laps_all and fp3_all may be None if those interim directories are empty
-def build_circuit_features(race_results, quali_results, events, race_laps_all, fp3_all, season, round_num):
+def build_circuit_features(race_results, quali_results, events, race_laps_all, fp3_all, overtake_history, season, round_num):
     race_id = f"{season}_{round_num:02d}"
     location = events[events["race_id"] == race_id]["location"].iloc[0]
 
@@ -131,7 +119,7 @@ def build_circuit_features(race_results, quali_results, events, race_laps_all, f
 
     features = {"race_id": race_id}
     features.update(circuit_data_n_seasons(circuit_races))
-    features.update(circuit_overtake_index(prior_race_results, circuit_race_ids))
+    features.update(circuit_overtake_index(overtake_history, circuit_race_ids))
     features.update(circuit_pole_to_win_rate(circuit_races))
     features.update(circuit_top3_grid_to_podium_rate(circuit_races))
     features.update(circuit_dnf_rate(circuit_races))

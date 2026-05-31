@@ -22,6 +22,7 @@ FASTF1_CACHE_DIR                    = RAW_DIR / "fastf1_cache"
 
 MANUAL_DIR                          = DATA_DIR / "manual"       # manually maintained inputs
 FANTASY_PRICES_DIR                  = MANUAL_DIR / "fantasy_prices"
+RACE_OVERTAKES_DIR                  = MANUAL_DIR / "race_overtakes"
 DNF_PATCH_FILE                      = MANUAL_DIR / "dnf_classification_patch.csv"  # crash overrides for 2023+ (FastF1 returns generic "Retired")
 
 INTERIM_DIR                         = DATA_DIR / "interim"      # cleaned tables, before feature engineering

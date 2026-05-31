@@ -29,7 +29,7 @@ DRIVER_RACE_POSITION_POINTS = {1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8:
 FASTEST_LAP_POINTS = 10
 DOTD_POINTS = 10
 POSITION_GAINED_POINTS = 1
-OVERTAKE_MADE_POINTS = 1 # TODO: wire up once overtake data is available
+OVERTAKE_MADE_POINTS = 1
 RACE_PENALTY = -20
 
 
@@ -86,10 +86,10 @@ def score_constructor_qualifying(positions, q1_times, q2_times, q3_times):
 
 
 # calculate fantasy points for a driver's race result
-def score_driver_race(position, positions_gained, dnf_flag, dsq_flag, fastest_lap_flag, dotd_flag):
+def score_driver_race(position, positions_gained, dnf_flag, dsq_flag, fastest_lap_flag, dotd_flag, race_overtakes=0):
     if dnf_flag or dsq_flag:
         return RACE_PENALTY
-    
+
     score = DRIVER_RACE_POSITION_POINTS.get(position, 0)
 
     if pd.isna(positions_gained):
@@ -102,6 +102,8 @@ def score_driver_race(position, positions_gained, dnf_flag, dsq_flag, fastest_la
         score += FASTEST_LAP_POINTS
     if dotd_flag:
         score += DOTD_POINTS
+
+    score += race_overtakes * OVERTAKE_MADE_POINTS
 
     return score
 
