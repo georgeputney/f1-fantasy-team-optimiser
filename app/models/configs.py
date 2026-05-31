@@ -16,6 +16,7 @@ FINISH_POSITION_MODEL = {
         "circuit_rolling_finish_pos_last_3",
         "circuit_rolling_finish_pos_last_5",
         "season_points_to_date",
+        "driver_overtake_index",
         "round_number",
         "constructor_rolling_mechanical_dnf_rate_last_5",
         "constructor_rolling_quali_pos_last_3",

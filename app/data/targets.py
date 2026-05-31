@@ -4,14 +4,23 @@ import pandas as pd
 import app.data.schemas as schemas
 import app.data.scoring_rules as scoring_rules
 
-from app.config import INTERIM_RACES_DIR, INTERIM_QUALI_DIR, INTERIM_SPRINT_DIR, INTERIM_SPRINT_QUALIFYING_DIR, PROCESSED_TARGETS_DIR
+from app.config import INTERIM_RACES_DIR, INTERIM_QUALI_DIR, INTERIM_SPRINT_DIR, INTERIM_SPRINT_QUALIFYING_DIR, PROCESSED_TARGETS_DIR, RACE_OVERTAKES_DIR, SPRINT_OVERTAKES_DIR
 
 
 # returns fantasy points for all drivers and constructors for a single sprint weekend
 def compute_sprint_targets(season, round_num):
     results = pd.read_parquet(INTERIM_SPRINT_DIR / f"{season}_{round_num:02d}.parquet")
 
-    drivers_score = results.apply(lambda row: scoring_rules.score_driver_sprint(row["finish_position"], row["positions_gained"], row["dnf_flag"], row["dsq_flag"], row["fastest_lap_flag"]), axis=1)
+    # merge in manual sprint overtake counts (0 if file not yet available)
+    sprint_overtakes_path = SPRINT_OVERTAKES_DIR / f"{season}_{round_num:02d}.csv"
+    if sprint_overtakes_path.exists():
+        sprint_overtakes = pd.read_csv(sprint_overtakes_path)[["driver_id", "sprint_overtakes"]]
+        results = results.merge(sprint_overtakes, on="driver_id", how="left")
+        results["sprint_overtakes"] = results["sprint_overtakes"].fillna(0).astype(int)
+    else:
+        results["sprint_overtakes"] = 0
+
+    drivers_score = results.apply(lambda row: scoring_rules.score_driver_sprint(row["finish_position"], row["positions_gained"], row["dnf_flag"], row["dsq_flag"], row["fastest_lap_flag"], row["sprint_overtakes"]), axis=1)
     driver_targets = pd.DataFrame({
         "race_id": results["race_id"],
         "season": season,
@@ -81,7 +90,16 @@ def compute_qualifying_targets(season, round_num):
 def compute_race_targets(season, round_num):
     results = pd.read_parquet(INTERIM_RACES_DIR / f"{season}_{round_num:02d}.parquet")
 
-    drivers_score = results.apply(lambda row: scoring_rules.score_driver_race(row["finish_position"], row["positions_gained"], row["dnf_flag"], row["dsq_flag"], row["fastest_lap_flag"], row["dotd_flag"]), axis=1)
+    # merge in manual overtake counts (0 if file not yet available)
+    overtakes_path = RACE_OVERTAKES_DIR / f"{season}_{round_num:02d}.csv"
+    if overtakes_path.exists():
+        overtakes = pd.read_csv(overtakes_path)[["driver_id", "race_overtakes"]]
+        results = results.merge(overtakes, on="driver_id", how="left")
+        results["race_overtakes"] = results["race_overtakes"].fillna(0).astype(int)
+    else:
+        results["race_overtakes"] = 0
+
+    drivers_score = results.apply(lambda row: scoring_rules.score_driver_race(row["finish_position"], row["positions_gained"], row["dnf_flag"], row["dsq_flag"], row["fastest_lap_flag"], row["dotd_flag"], row["race_overtakes"]), axis=1)
     driver_targets = pd.DataFrame({
         "race_id": results["race_id"],
         "season": season,

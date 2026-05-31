@@ -150,6 +150,28 @@ def constructor_form_trend(fantasy_targets, asset_id, season, round_num):
     return {"constructor_form_trend_last_5": slope}
 
 
+# season-normalised overtake index for a driver from historical manual data - 1.0 = season average
+# uses only prior data to avoid leakage; returns NaN with fewer than 3 data points
+def driver_overtake_index(overtake_history, driver_id, season, round_num):
+    prior = overtake_history[
+        (overtake_history["season"] < season) |
+        ((overtake_history["season"] == season) & (overtake_history["round"] < round_num))
+    ]
+
+    if prior.empty:
+        return {"driver_overtake_index": float("nan")}
+
+    season_means = prior.groupby("season")["race_overtakes"].mean()
+    prior = prior.copy()
+    prior["overtake_index"] = prior["race_overtakes"] / prior["season"].map(season_means)
+
+    driver_prior = prior[prior["driver_id"] == driver_id]
+    if len(driver_prior) < 3:
+        return {"driver_overtake_index": float("nan")}
+
+    return {"driver_overtake_index": driver_prior["overtake_index"].mean()}
+
+
 # season
 def season(season):
     return {"season": season}
@@ -162,7 +184,7 @@ def round_number(round_num):
 
 # builds the full feature row for a single race for all drivers, joins constructor features, validates, and writes to parquet
 # for upcoming races with no results yet, falls back to the most recent prior race for the driver/constructor roster
-def build_historic_features(race_results, quali_results, fantasy_targets, events, season, round_num):
+def build_historic_features(race_results, quali_results, fantasy_targets, events, overtake_history, season, round_num):
     race_id = f"{season}_{round_num:02d}"
     race_results_round = race_results[race_results["race_id"] == race_id]
 
@@ -198,6 +220,7 @@ def build_historic_features(race_results, quali_results, fantasy_targets, events
         features.update(circuit_rolling_quali_pos(quali_results, events, driver_id, season, round_num))
         features.update(circuit_rolling_finish_pos(race_results, events, driver_id, season, round_num))
         features.update(season_points_to_date(race_results, driver_id, season, round_num))
+        features.update(driver_overtake_index(overtake_history, driver_id, season, round_num))
         features["season"] = season
         features.update(round_number(round_num))
         features.update(sprint_quali_position(season, round_num, driver_id))

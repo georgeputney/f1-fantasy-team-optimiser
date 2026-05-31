@@ -7,6 +7,7 @@ Manually maintained inputs - files that cannot be derived from the FastF1 API an
 | File/Directory | Updated | Description |
 |---|---|---|
 | `fantasy_prices/` | Each race weekend | F1 Fantasy asset prices per round |
+| `race_overtakes/` | Each race weekend | Per-driver race overtake counts (2023+) |
 | `dnf_classification_patch.csv` | Each race weekend (if a crash DNF occurred) | Crash vs mechanical DNF overrides for 2023+ |
 
 ---
@@ -31,6 +32,31 @@ Sort order: drivers first (alphabetical `asset_id`), then constructors (alphabet
 ### Source
 
 F1 Fantasy price PDFs, available on the F1 Fantasy website each race weekend.
+
+---
+
+## race_overtakes/
+
+One CSV per race weekend, named `{year}_{round:02d}.csv` (e.g. `2026_05.csv`).
+
+### Schema
+
+```
+driver_id, race_overtakes
+```
+
+- `driver_id`: canonical driver identifier (see ID conventions below)
+- `race_overtakes`: number of on-track overtakes scored in the race (integer)
+
+Sort order: no required order. Header always present. LF line endings.
+
+### Source
+
+F1 Fantasy statistics page, scraped after each race weekend. Sprint overtake counts are **not** included here — they are tracked separately if needed.
+
+### Coverage
+
+2023–2026 (ongoing). All rounds for completed seasons; current season updated race by race.
 
 ---
 
