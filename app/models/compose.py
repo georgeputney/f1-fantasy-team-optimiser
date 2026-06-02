@@ -15,15 +15,17 @@ _exp_probs = _exp_weights / _exp_weights.sum()
 
 FASTEST_LAP_PROB = dict(zip(_positions, _exp_probs))
 
-DOTD_PRIOR = 0.05        # 1 in 20 drivers
+_DOTD_FALLBACK = 0.05    # flat prior used when no dotd predictor is provided
 
 
 # computes expected fantasy points per driver from predicted quali and finish positions.
 # predict_overtakes is an optional callable from build_overtake_predictor() - if provided,
 # expected overtake points are included per driver using their driver_id, location, and season.
+# predict_dotd is an optional callable from build_dotd_predictor() - if provided, per-driver
+# DOTD probabilities are used instead of a flat prior. probabilities sum to 1.0 across the field.
 # optionally accepts a dnf_prob series for exploration - when provided, race points are weighted by P(finish)
 # and a DNF penalty is applied. production code omits dnf_prob (no compose-level DNF adjustment).
-def compose_drivers(predictions, location=None, season=None, predict_overtakes=None, dnf_prob=None, fastest_lap_prob=None):
+def compose_drivers(predictions, location=None, season=None, predict_overtakes=None, predict_dotd=None, dnf_prob=None, fastest_lap_prob=None):
     quali_position = predictions["predicted_quali_position"].astype(int)
     finish_position = predictions["predicted_finish_position"].astype(int)
 
@@ -52,12 +54,18 @@ def compose_drivers(predictions, location=None, season=None, predict_overtakes=N
     else:
         expected_overtakes = pd.Series(0.0, index=predictions.index)
 
+    dotd_prob = (
+        predict_dotd(predictions["driver_id"]).values
+        if predict_dotd is not None
+        else pd.Series(_DOTD_FALLBACK, index=predictions.index)
+    )
+
     predictions["points_quali"] = quali_points
     predictions["points_finish"] = finish_points
     predictions["points_positions_gained"] = positions_gained_points
     predictions["expected_overtakes"] = expected_overtakes
     predictions["prob_fl"] = fl_prob           # probability 0-1, sums to ~1.0 across all drivers
-    predictions["prob_dotd"] = DOTD_PRIOR      # flat prior: 1/n_drivers, sums to 1.0
+    predictions["prob_dotd"] = dotd_prob       # probability 0-1, sums to 1.0 across all drivers
     predictions["points_sprint"] = 0.0
 
     predictions["expected_fantasy_points"] = (
@@ -65,7 +73,7 @@ def compose_drivers(predictions, location=None, season=None, predict_overtakes=N
         + race_component
         + expected_overtakes * OVERTAKE_MADE_POINTS
         + fl_prob * FASTEST_LAP_POINTS
-        + DOTD_PRIOR * DOTD_POINTS
+        + dotd_prob * DOTD_POINTS
     )
 
     # add sprint points if sprint weekend
