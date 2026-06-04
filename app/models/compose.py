@@ -48,8 +48,9 @@ def compose_drivers(predictions, location=None, season=None, predict_overtakes=N
         else quali_position.map(FASTEST_LAP_PROB).fillna(0)
     )
     if predict_overtakes is not None and location is not None and season is not None:
-        expected_overtakes = predictions["driver_id"].map(
-            lambda d: predict_overtakes(d, location, season)
+        expected_overtakes = predictions.apply(
+            lambda r: predict_overtakes(r["driver_id"], location, season, int(r["predicted_quali_position"])),
+            axis=1,
         )
     else:
         expected_overtakes = pd.Series(0.0, index=predictions.index)

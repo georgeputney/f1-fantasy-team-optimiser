@@ -1,10 +1,8 @@
 """Training loop for XGBoost models - loads data, fits model, evaluates, and saves artifact to data/artifacts/."""
 
-import numpy as np
 import pandas as pd
 import joblib
 
-from pathlib import Path
 from xgboost import XGBRegressor, XGBClassifier
 
 from app.config import (
@@ -76,7 +74,12 @@ def load_data(config, quali_model=None, quali_config=None):
     X_test = X[df["season"].isin(TEST_SEASONS)]
     y_test = y[df["season"].isin(TEST_SEASONS)]
 
-    return X_train, y_train, X_val, y_val, X_test, y_test
+    all_split_seasons = set(TRAIN_SEASONS + VAL_SEASONS + TEST_SEASONS)
+    live_mask = ~df["season"].isin(all_split_seasons)
+    X_live = X[live_mask]
+    y_live = y[live_mask]
+
+    return X_train, y_train, X_val, y_val, X_test, y_test, X_live, y_live
 
 
 # instantiates and fits an XGBoost model using the config, with early stopping on the validation set
@@ -97,19 +100,31 @@ def save(model, config):
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
     joblib.dump(model, ARTIFACTS_DIR / f"{config['name']}.joblib")
+
+
+# loads a fitted model from data/artifacts/
+def load(config):
+    return joblib.load(ARTIFACTS_DIR / f"{config['name']}.joblib")
     
 
 # orchestrates the full training pipeline - loads data, trains, saves, and evaluates.
 # pass quali_model and quali_config when training the finish model so it trains on predicted quali positions.
 def main(config, quali_model=None, quali_config=None):
-    X_train, y_train, X_val, y_val, X_test, y_test = load_data(config, quali_model, quali_config)
+    X_train, y_train, X_val, y_val, X_test, y_test, X_live, y_live = load_data(config, quali_model, quali_config)
     model = train(config, X_train, y_train, X_val, y_val)
     save(model, config)
 
     evaluate(model, X_val, y_val, "val", config["eval_metrics"])
     evaluate(model, X_test, y_test, "test", config["eval_metrics"])
+    if len(X_live):
+        evaluate(model, X_live, y_live, "live", config["eval_metrics"])
 
 
+
+# saves a per-season walk-forward model to data/artifacts/ under a _{season} suffix
+def save_season(model, config, season):
+    ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, ARTIFACTS_DIR / f"{config['name']}_{season}.joblib")
 
 
 # saves the production model to data/artifacts/ under a _prod suffix
@@ -182,5 +197,65 @@ def prod(config, quali_model=None, quali_config=None):
     X_all, y_all = load_data_prod(config, quali_model, quali_config)
     model = train_prod(config, X_all, y_all)
     save_prod(model, config)
+    return model
+
+
+# loads all data strictly before (cutoff_season, cutoff_round) for walk-forward training
+def load_data_upto(config, cutoff_season, cutoff_round, quali_model=None, quali_config=None):
+    historic_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_HISTORIC_FEATURES_DIR.glob("*.parquet"))])
+    practice_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_PRACTICE_FEATURES_DIR.glob("*.parquet"))])
+    circuit_features = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_CIRCUIT_FEATURES_DIR.glob("*.parquet"))])
+
+    race_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_RACES_DIR.glob("*.parquet"))])
+    quali_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_QUALI_DIR.glob("*.parquet"))])
+
+    df = historic_features.merge(
+        race_results[["race_id", "driver_id", "finish_position", "dnf_flag"]],
+        on=["race_id", "driver_id"], how="left"
+    ).merge(
+        quali_results[["race_id", "driver_id", "quali_position"]],
+        on=["race_id", "driver_id"], how="left"
+    ).merge(
+        practice_features, on=["race_id", "driver_id"], how="left"
+    ).merge(
+        circuit_features, on="race_id", how="left"
+    )
+
+    # keep only races that happened before the target round (no lookahead)
+    df = df[
+        (df["season"] < cutoff_season) |
+        ((df["season"] == cutoff_season) & (df["round_number"] < cutoff_round))
+    ]
+
+    if quali_model is not None:
+        X_quali = df[quali_config["features"]]
+        raw_preds = quali_model.predict(X_quali)
+        df["predicted_quali_position"] = (
+            df.assign(_pred=raw_preds)
+            .groupby("race_id")["_pred"]
+            .rank(method="first")
+            .astype(int)
+        )
+
+    df = df.dropna(subset=[config["target"]])
+    return df[config["features"]], df[config["target"]]
+
+
+# trains a walk-forward model: holds out last 20% of (time-ordered) data to find best_n via early
+# stopping, then retrains on all data with that fixed n_estimators
+def train_walk_forward(config, X_all, y_all):
+    split = int(len(X_all) * 0.8)
+    X_train, X_val = X_all.iloc[:split], X_all.iloc[split:]
+    y_train, y_val = y_all.iloc[:split], y_all.iloc[split:]
+
+    tuning_model = MODEL_CLASSES[config["model_type"]](**config["hyperparams"])
+    tuning_model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
+    best_n = tuning_model.best_iteration + 1
+
+    hyperparams = {**config["hyperparams"], "n_estimators": best_n}
+    hyperparams.pop("early_stopping_rounds", None)
+
+    model = MODEL_CLASSES[config["model_type"]](**hyperparams)
+    model.fit(X_all, y_all, verbose=False)
     return model
 

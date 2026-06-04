@@ -46,6 +46,7 @@ PROCESSED_CIRCUIT_FEATURES_DIR      = PROCESSED_DIR / "circuit_features"
 
 ARTIFACTS_DIR                       = DATA_DIR / "artifacts"    # trained model files
 REPORTS_DIR                         = ROOT_DIR / "reports"      # backtest plots and output tables
+PREDICTIONS_DIR                     = REPORTS_DIR / "predictions"  # per-race prediction snapshots
 
 TEAM_STATE_FILE                     = DATA_DIR / "team_state_file.json"
 

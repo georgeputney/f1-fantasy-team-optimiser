@@ -14,7 +14,17 @@ from app.config import PROCESSED_HISTORIC_FEATURES_DIR, PROCESSED_PRACTICE_FEATU
 def load_model(config, prod=False):
     if prod:
         return joblib.load(ARTIFACTS_DIR / f"{config['name']}_prod.joblib")
-    
+    return joblib.load(ARTIFACTS_DIR / f"{config['name']}.joblib")
+
+
+# loads a per-season walk-forward artifact; falls back to prod then dev if not found
+def load_season_model(config, season):
+    season_path = ARTIFACTS_DIR / f"{config['name']}_{season}.joblib"
+    if season_path.exists():
+        return joblib.load(season_path)
+    prod_path = ARTIFACTS_DIR / f"{config['name']}_prod.joblib"
+    if prod_path.exists():
+        return joblib.load(prod_path)
     return joblib.load(ARTIFACTS_DIR / f"{config['name']}.joblib")
 
 
@@ -51,15 +61,21 @@ def predict(quali_model, quali_config, finish_model, finish_config, season, roun
     else:
         features["sprint_quali_position"] = float("nan")
 
+    # fill any feature columns not present in this race's data with NaN
+    # (can happen when a feature was added after some historic files were processed)
+    for col in set(quali_config["features"] + finish_config["features"]):
+        if col not in features.columns:
+            features[col] = float("nan")
+
     # step 1: predict qualifying position (no quali input by design)
     X_quali = features[quali_config["features"]]
     quali_preds = quali_model.predict(X_quali)
-    features["predicted_quali_position"] = pd.Series(quali_preds).rank().astype(int).values
+    features["predicted_quali_position"] = pd.Series(quali_preds).rank(method="first").astype(int).values
 
     # step 2: predict finish position using predicted quali position as a feature
     X_finish = features[finish_config["features"]]
     finish_preds = finish_model.predict(X_finish)
-    features["predicted_finish_position"] = pd.Series(finish_preds).rank().astype(int).values
+    features["predicted_finish_position"] = pd.Series(finish_preds).rank(method="first").astype(int).values
 
     return pd.DataFrame({
         "driver_id": features["driver_id"],
