@@ -3,216 +3,216 @@
     "season": 2025,
     "round": 1,
     "location": "Melbourne",
-    "model": 100.0,
-    "oracle": 245.0,
-    "random": 31.199124726477024,
+    "model": 117,
+    "oracle": 275,
+    "random": 31.63317757009346,
     "lagged": NaN
   },
   {
     "season": 2025,
     "round": 2,
     "location": "Shanghai",
-    "model": 191.0,
-    "oracle": 300.0,
-    "random": 123.49887133182844,
-    "lagged": 194.0
+    "model": 176,
+    "oracle": 327,
+    "random": 128.481981981982,
+    "lagged": 273.0
   },
   {
     "season": 2025,
     "round": 3,
     "location": "Suzuka",
-    "model": 142.0,
-    "oracle": 179.0,
-    "random": 79.68264840182648,
-    "lagged": 122.0
+    "model": 154,
+    "oracle": 190,
+    "random": 86.87614678899082,
+    "lagged": 132.0
   },
   {
     "season": 2025,
     "round": 4,
     "location": "Sakhir",
-    "model": 222.0,
-    "oracle": 286.0,
-    "random": 107.847533632287,
-    "lagged": 156.0
+    "model": 232,
+    "oracle": 302,
+    "random": 120.09619686800895,
+    "lagged": 214.0
   },
   {
     "season": 2025,
     "round": 5,
     "location": "Jeddah",
-    "model": 213.0,
-    "oracle": 230.0,
-    "random": 75.24489795918367,
-    "lagged": 165.0
+    "model": 225,
+    "oracle": 252,
+    "random": 85.38823529411765,
+    "lagged": 173.0
   },
   {
     "season": 2025,
     "round": 6,
     "location": "Miami Gardens",
-    "model": 98.0,
-    "oracle": 318.0,
-    "random": 84.25669642857143,
-    "lagged": 224.0
+    "model": 97,
+    "oracle": 344,
+    "random": 90.82126696832579,
+    "lagged": 238.0
   },
   {
     "season": 2025,
     "round": 7,
     "location": "Imola",
-    "model": 141.0,
-    "oracle": 246.0,
-    "random": 73.97111111111111,
-    "lagged": 136.0
+    "model": 157,
+    "oracle": 289,
+    "random": 91.56694560669456,
+    "lagged": 176.0
   },
   {
     "season": 2025,
     "round": 8,
     "location": "Monaco",
-    "model": 131.0,
-    "oracle": 247.0,
-    "random": 52.98444444444444,
-    "lagged": 126.0
+    "model": 171,
+    "oracle": 264,
+    "random": 64.61659192825113,
+    "lagged": 136.0
   },
   {
     "season": 2025,
     "round": 9,
     "location": "Barcelona",
-    "model": 228.0,
-    "oracle": 288.0,
-    "random": 100.8048780487805,
-    "lagged": 203.0
+    "model": 241,
+    "oracle": 315,
+    "random": 107.00418410041841,
+    "lagged": 213.0
   },
   {
     "season": 2025,
     "round": 10,
     "location": "Montr\u00e9al",
-    "model": 216.0,
-    "oracle": 291.0,
-    "random": 93.04605263157895,
-    "lagged": 131.0
+    "model": 226,
+    "oracle": 319,
+    "random": 110.5120879120879,
+    "lagged": 160.0
   },
   {
     "season": 2025,
     "round": 11,
     "location": "Spielberg",
-    "model": 215.0,
-    "oracle": 285.0,
-    "random": 92.60629921259843,
-    "lagged": 74.0
+    "model": 245,
+    "oracle": 320,
+    "random": 106.99409448818898,
+    "lagged": 81.0
   },
   {
     "season": 2025,
     "round": 12,
     "location": "Silverstone",
-    "model": 83.0,
-    "oracle": 299.0,
-    "random": 49.26410835214447,
-    "lagged": 208.0
+    "model": 95,
+    "oracle": 323,
+    "random": 61.921171171171174,
+    "lagged": 223.0
   },
   {
     "season": 2025,
     "round": 13,
     "location": "Spa-Francorchamps",
-    "model": 241.0,
-    "oracle": 278.0,
-    "random": 107.54609929078015,
-    "lagged": 209.0
+    "model": 248,
+    "oracle": 285,
+    "random": 109.50337078651685,
+    "lagged": 171.0
   },
   {
     "season": 2025,
     "round": 14,
     "location": "Budapest",
-    "model": 217.0,
-    "oracle": 267.0,
-    "random": 98.7462311557789,
-    "lagged": 215.0
+    "model": 257,
+    "oracle": 298,
+    "random": 114.93846153846154,
+    "lagged": 204.0
   },
   {
     "season": 2025,
     "round": 15,
     "location": "Zandvoort",
-    "model": 101.0,
-    "oracle": 269.0,
-    "random": 116.75534441805226,
-    "lagged": 163.0
+    "model": 123,
+    "oracle": 283,
+    "random": 128.8352144469526,
+    "lagged": 173.0
   },
   {
     "season": 2025,
     "round": 16,
     "location": "Monza",
-    "model": 203.0,
-    "oracle": 245.0,
-    "random": 69.25174825174825,
-    "lagged": 72.0
+    "model": 238,
+    "oracle": 297,
+    "random": 80.28636363636363,
+    "lagged": 75.0
   },
   {
     "season": 2025,
     "round": 17,
     "location": "Baku",
-    "model": 76.0,
-    "oracle": 301.0,
-    "random": 99.25510204081633,
-    "lagged": 153.0
+    "model": 102,
+    "oracle": 332,
+    "random": 111.0982800982801,
+    "lagged": 170.0
   },
   {
     "season": 2025,
     "round": 18,
     "location": "Marina Bay",
-    "model": 186.0,
-    "oracle": 244.0,
-    "random": 87.31851851851852,
-    "lagged": 143.0
+    "model": 201,
+    "oracle": 269,
+    "random": 100.37831325301205,
+    "lagged": 135.0
   },
   {
     "season": 2025,
     "round": 19,
     "location": "Austin",
-    "model": 193.0,
-    "oracle": 354.0,
-    "random": 122.19617224880383,
-    "lagged": 121.0
+    "model": 177,
+    "oracle": 387,
+    "random": 121.36405529953917,
+    "lagged": 97.0
   },
   {
     "season": 2025,
     "round": 20,
     "location": "Mexico City",
-    "model": 134.0,
-    "oracle": 270.0,
-    "random": 57.94061757719715,
-    "lagged": 115.0
+    "model": 178,
+    "oracle": 291,
+    "random": 91.16927083333333,
+    "lagged": 117.0
   },
   {
     "season": 2025,
     "round": 21,
     "location": "S\u00e3o Paulo",
-    "model": 277.0,
-    "oracle": 377.0,
-    "random": 120.05541561712846,
-    "lagged": 147.0
+    "model": 274,
+    "oracle": 425,
+    "random": 127.74246575342465,
+    "lagged": 189.0
   },
   {
     "season": 2025,
     "round": 22,
     "location": "Las Vegas",
-    "model": 145.0,
-    "oracle": 306.0,
-    "random": 53.10632911392405,
-    "lagged": 214.0
+    "model": 135,
+    "oracle": 368,
+    "random": 65.50877192982456,
+    "lagged": 246.0
   },
   {
     "season": 2025,
     "round": 23,
     "location": "Lusail",
-    "model": 237.0,
-    "oracle": 317.0,
-    "random": 67.27556818181819,
-    "lagged": 171.0
+    "model": 254,
+    "oracle": 370,
+    "random": 103.55927835051547,
+    "lagged": 221.0
   },
   {
     "season": 2025,
     "round": 24,
     "location": "Yas Island",
-    "model": 220.0,
-    "oracle": 297.0,
-    "random": 125.35955056179775,
-    "lagged": 139.0
+    "model": 235,
+    "oracle": 341,
+    "random": 140.63186813186815,
+    "lagged": 242.0
   }
 ]

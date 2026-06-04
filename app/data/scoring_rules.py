@@ -57,11 +57,13 @@ def score_driver_sprint(position, positions_gained, dnf_flag, dsq_flag, fastest_
 
 
 # calculate fantasy points for a constructor's sprint result
-def score_constructor_sprint(positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags):
+def score_constructor_sprint(positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags, sprint_overtakes=None):
+    if sprint_overtakes is None:
+        sprint_overtakes = [0] * len(positions)
     return sum(
-        score_driver_sprint(p, pg, dnf, dsq, fl)
-        for p, pg, dnf, dsq, fl in zip(
-            positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags
+        score_driver_sprint(p, pg, dnf, dsq, fl, so)
+        for p, pg, dnf, dsq, fl, so in zip(
+            positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags, sprint_overtakes
         )
     )
 
@@ -112,13 +114,15 @@ def score_driver_race(position, positions_gained, dnf_flag, dsq_flag, fastest_la
 
 
 # calculate fantasy points for a constructor's race result, pitstop scoring added in V2
-def score_constructor_race(positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags):
+def score_constructor_race(positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags, race_overtakes=None):
+    if race_overtakes is None:
+        race_overtakes = [0] * len(positions)
     score = sum(
-        score_driver_race(p, pg, dnf, dsq, fl, dotd_flag=False)
-        for p, pg, dnf, dsq, fl in zip(
-            positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags
+        score_driver_race(p, pg, dnf, dsq, fl, dotd_flag=False, race_overtakes=ro)
+        for p, pg, dnf, dsq, fl, ro in zip(
+            positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags, race_overtakes
         )
     )
     # TODO: add pitstop points
- 
+
     return score

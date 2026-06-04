@@ -3,12 +3,12 @@
 import pandas as pd
 
 from app.optimiser.optimiser import optimiser
-from app.config import PROCESSED_TARGETS_DIR
+from app.data.targets import load_fantasy_targets
 
 
 # looks up actual fantasy points scored by a selected team from historical targets, applying x2 to the doubled driver
 def get_actual_team_points(team, season, round_num, transfer_penalty=0):
-    targets = pd.read_parquet(PROCESSED_TARGETS_DIR / f"{season}_{round_num:02d}.parquet").set_index("asset_id")["actual_fantasy_points"]
+    targets = load_fantasy_targets(season, round_num).set_index("asset_id")["actual_fantasy_points"]
     points = 0
 
     for driver in team["drivers"]:
@@ -19,12 +19,12 @@ def get_actual_team_points(team, season, round_num, transfer_penalty=0):
         points += targets[constructor]
 
     return points - transfer_penalty
-    
+
 
 # selects the optimal team using actual race points as the objective - the theoretical ceiling for any strategy
 def oracle_baseline(season, round_num, prices, budget, state=None):
-    targets = pd.read_parquet(PROCESSED_TARGETS_DIR / f"{season}_{round_num:02d}.parquet")
-    
+    targets = load_fantasy_targets(season, round_num)
+
     drivers = targets[targets["asset_type"] == "driver"][["asset_id", "actual_fantasy_points"]].dropna(subset=["asset_id"])
     driver_points = drivers.rename(columns={
         "asset_id": "driver_id",
@@ -36,7 +36,7 @@ def oracle_baseline(season, round_num, prices, budget, state=None):
         "asset_id": "constructor_id",
         "actual_fantasy_points": "expected_fantasy_points" # use actual points as the objective so the ILP picks the best possible team in hindsight
     })
-    
+
 
     return optimiser(driver_points, constructor_points, prices, budget, state)
 
@@ -45,12 +45,13 @@ def oracle_baseline(season, round_num, prices, budget, state=None):
 # represents a "momentum" strategy: assume last week's best performers will repeat
 # returns None for round 1 of a season (no prior round available)
 def lagged_baseline(season, round_num, prices, budget):
-    # find the previous round's targets file
-    prev_path = PROCESSED_TARGETS_DIR / f"{season}_{(round_num - 1):02d}.parquet"
+    from app.config import FANTASY_POINTS_DIR
+
+    prev_path = FANTASY_POINTS_DIR / f"{season}_{(round_num - 1):02d}.csv"
     if not prev_path.exists():
         return None
 
-    targets = pd.read_parquet(prev_path)
+    targets = load_fantasy_targets(season, round_num - 1)
 
     # only keep assets available in this round's prices - handles team/driver changes between seasons
     available_assets = set(prices["asset_id"])
@@ -74,19 +75,19 @@ def lagged_baseline(season, round_num, prices, budget):
 def random_baseline(season, round_num, prices, budget, n=1000):
     drivers = prices[prices["asset_type"] == "driver"]
     constructors = prices[prices["asset_type"] == "constructor"]
-    
+
     total = 0
     valid = 0
-    
+
     for _ in range(n):
         sampled_drivers = drivers.sample(5)
         sampled_constructors = constructors.sample(2)
 
         cost = sampled_drivers["price"].sum() + sampled_constructors["price"].sum()
-        
+
         if cost > budget:
             continue
-        
+
         doubled = sampled_drivers.sample(1)["asset_id"].iloc[0]
 
         team = {
@@ -97,5 +98,5 @@ def random_baseline(season, round_num, prices, budget, n=1000):
 
         total += get_actual_team_points(team, season, round_num)
         valid += 1
-    
+
     return total / valid if valid > 0 else 0

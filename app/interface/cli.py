@@ -18,7 +18,7 @@ from app.data.clean import (
     clean_race_laps, clean_race_results, clean_qualifying_results, 
     clean_sprint_laps, clean_sprint_results, clean_sprint_qualifying_results, 
 )
-from app.data.targets import compute_targets
+from app.data.targets import load_all_fantasy_targets
 
 from app.features.build_historic_features import build_historic_features
 from app.features.build_practice_features import build_practice_features
@@ -37,11 +37,11 @@ from app.optimiser.state import load_state, save_state
 from app.backtest import get_actual_team_points, oracle_baseline, random_baseline, lagged_baseline
 
 from app.config import (
-    ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR,
+    ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, FANTASY_POINTS_DIR,
     INTERIM_EVENTS_DIR, INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR,
     INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR,
     INTERIM_RACE_LAPS_DIR,
-    PROCESSED_TARGETS_DIR, PROCESSED_HISTORIC_FEATURES_DIR,
+    PROCESSED_HISTORIC_FEATURES_DIR,
     RACE_OVERTAKES_DIR,
     REPORTS_DIR, PREDICTIONS_DIR, TEAM_STATE_FILE
 )
@@ -173,30 +173,6 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
                     pass  # non-sprint weekends
 
 
-# compute actual fantasy points from cleaned results and write to data/processed/targets/
-@app.command()
-def build_targets(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] = typer.Option(None)):
-    for s in season:
-
-        schedule = fastf1.get_event_schedule(s)
-        schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
-
-        if round:
-            schedule = schedule[schedule["RoundNumber"].isin(round)]
-
-        for _, event in schedule.iterrows():
-            round_num = int(event["RoundNumber"])
-            location = event.get("Location", str(round_num))
-
-            typer.echo(f"Building targets for season {s}, round {round_num:02d} - {location}...")
-
-            try:
-                compute_targets(s, round_num)
-            except (FileNotFoundError, ValueError):
-                typer.echo(f"  Skipping round {round_num:02d}: cleaned data not found or incomplete (run clean-data first)")
-                continue
-
-
 # build historic rolling features and practice session features for the given seasons and write to data/processed/
 @app.command()
 def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] = typer.Option(None)):
@@ -204,7 +180,7 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
     race_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_RACES_DIR.glob("*.parquet"))])
     quali_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_QUALI_DIR.glob("*.parquet"))])
     events = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_EVENTS_DIR.glob("*.parquet"))])
-    fantasy_targets = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_TARGETS_DIR.glob("*.parquet"))])
+    fantasy_targets = load_all_fantasy_targets()
 
     race_laps_files = sorted(INTERIM_RACE_LAPS_DIR.glob("*.parquet"))
     race_laps_all = pd.concat([pd.read_parquet(f) for f in race_laps_files]) if race_laps_files else None
@@ -242,7 +218,7 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
             try:
                 result = build_historic_features(race_results, quali_results, fantasy_targets, events, overtake_history, s, round_num)
             except FileNotFoundError:
-                typer.echo(f"  Skipping round {round_num:02d}: processed data not found (run build-targets first)")
+                typer.echo(f"  Skipping round {round_num:02d}: data not found (run clean-data first)")
                 continue
 
             if result is None:
@@ -566,7 +542,7 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             location = event.get("Location", str(round_num))
             prices_path = FANTASY_PRICES_DIR / f"{s}_{round_num:02d}.csv"
             features_path = PROCESSED_HISTORIC_FEATURES_DIR / f"{s}_{round_num:02d}.parquet"
-            targets_path = PROCESSED_TARGETS_DIR / f"{s}_{round_num:02d}.parquet"
+            targets_path = FANTASY_POINTS_DIR / f"{s}_{round_num:02d}.csv"
 
             if not (prices_path.exists() and features_path.exists() and targets_path.exists()):
                 continue

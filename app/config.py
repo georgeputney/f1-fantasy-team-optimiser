@@ -22,6 +22,7 @@ FASTF1_CACHE_DIR                    = RAW_DIR / "fastf1_cache"
 
 MANUAL_DIR                          = DATA_DIR / "manual"       # manually maintained inputs
 FANTASY_PRICES_DIR                  = MANUAL_DIR / "fantasy_prices"
+FANTASY_POINTS_DIR                  = MANUAL_DIR / "fantasy_points"
 RACE_OVERTAKES_DIR                  = MANUAL_DIR / "race_overtakes"
 SPRINT_OVERTAKES_DIR                = MANUAL_DIR / "sprint_overtakes"
 DNF_PATCH_FILE                      = MANUAL_DIR / "dnf_classification_patch.csv"  # crash overrides for 2023+ (FastF1 returns generic "Retired")
@@ -39,7 +40,6 @@ INTERIM_FP2_DIR                     = INTERIM_DIR / "fp2"
 INTERIM_FP1_DIR                     = INTERIM_DIR / "fp1"
 
 PROCESSED_DIR                       = DATA_DIR / "processed"    # feature store, model-ready datasets
-PROCESSED_TARGETS_DIR               = PROCESSED_DIR / "targets"
 PROCESSED_HISTORIC_FEATURES_DIR     = PROCESSED_DIR / "historic_features"
 PROCESSED_PRACTICE_FEATURES_DIR     = PROCESSED_DIR / "practice_features"
 PROCESSED_CIRCUIT_FEATURES_DIR      = PROCESSED_DIR / "circuit_features"
