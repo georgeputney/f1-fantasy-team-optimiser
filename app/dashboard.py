@@ -5,14 +5,15 @@ from pathlib import Path
 
 import re
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 import streamlit.components.v1 as st_components
 
 from app.optimiser.optimiser import optimiser
-
-REPORTS_DIR = Path("reports")
+from app.config import REPORTS_DIR, PREDICTIONS_DIR
 
 TEAM_COLORS = {
     "red_bull":      "#3671C6",
@@ -27,6 +28,74 @@ TEAM_COLORS = {
     "audi":          "#AA0000",
     "cadillac":      "#F0F0F0",
 }
+
+_PLOTLY_THEME = dict(
+    paper_bgcolor="#0e0e0d",
+    plot_bgcolor="#0e0e0d",
+    font=dict(family="DM Sans", color="#f7f6f3"),
+    hoverlabel=dict(
+        bgcolor="#1c1c1a",
+        bordercolor="rgba(247,246,243,0.12)",
+        font=dict(family="DM Sans", size=12, color="#f7f6f3"),
+    ),
+    dragmode=False,
+)
+
+_TICK_FONT = dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")
+_GRID_COLOR = "rgba(247,246,243,0.08)"
+
+_TABLE_CSS = """body { margin:0; background:transparent; font-family:'DM Sans',sans-serif; color:#f7f6f3; }
+table { width:100%; border-collapse:collapse; font-family:'DM Sans',sans-serif; font-size:13px; color:#f7f6f3; }
+th { color:rgba(247,246,243,0.35); font-size:10px; font-weight:400; letter-spacing:0.1em; text-transform:uppercase; padding:6px 12px 8px 12px; text-align:left; border-bottom:1px solid rgba(247,246,243,0.12); cursor:pointer; user-select:none; white-space:nowrap; }
+th:hover { color:rgba(247,246,243,0.65); }
+th.sort-asc::after { content:" \u25B2"; font-size:9px; }
+th.sort-desc::after { content:" \u25BC"; font-size:9px; }
+td { padding:10px 12px; border-bottom:1px solid rgba(247,246,243,0.06); }
+tr:last-child td { border-bottom:1px solid rgba(247,246,243,0.12); }
+tbody tr:hover td { background:rgba(247,246,243,0.04); }
+"""
+
+_SORT_JS_TEMPLATE = r"""(function() {
+  var tbl = document.getElementById('__TID__');
+  var tbody = tbl.querySelector('tbody');
+  var ths = Array.from(tbl.querySelectorAll('thead th'));
+  ths.forEach(function(th, i) {
+    th.addEventListener('click', function() {
+      var asc = th.classList.contains('sort-desc') || !th.classList.contains('sort-asc');
+      ths.forEach(function(h) { h.classList.remove('sort-asc','sort-desc'); });
+      th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+      Array.from(tbody.querySelectorAll('tr'))
+        .sort(function(a,b) {
+          var at = a.cells[i].innerText.trim(), bt = b.cells[i].innerText.trim();
+          var av = parseFloat(at.replace('%','').replace('+','').replace(/[^\d.\-]/g,''));
+          var bv = parseFloat(bt.replace('%','').replace('+','').replace(/[^\d.\-]/g,''));
+          if (isNaN(av)) av = at.toLowerCase();
+          if (isNaN(bv)) bv = bt.toLowerCase();
+          return av < bv ? (asc ? -1 : 1) : av > bv ? (asc ? 1 : -1) : 0;
+        })
+        .forEach(function(r) { tbody.appendChild(r); });
+    });
+  });
+})();"""
+
+
+def _sort_js(table_id):
+    return _SORT_JS_TEMPLATE.replace('__TID__', table_id)
+
+
+def _sortable_table(table_id, headers_html, rows_html, colgroup_html, height, extra_css=""):
+    st_components.html(
+        f"<!DOCTYPE html><html><head><style>{_TABLE_CSS}"
+        f".scroll-wrap {{ overflow-x:auto; -webkit-overflow-scrolling:touch; }}"
+        f"{extra_css}</style></head><body>"
+        f'<div class="scroll-wrap"><table id="{table_id}">'
+        f"<colgroup>{colgroup_html}</colgroup>"
+        f"<thead><tr>{headers_html}</tr></thead>"
+        f"<tbody>{rows_html}</tbody>"
+        f"</table></div><script>{_sort_js(table_id)}</script></body></html>",
+        height=height, scrolling=False,
+    )
+
 
 st.set_page_config(page_title="F1 Fantasy Optimiser", layout="wide")
 
@@ -47,7 +116,7 @@ if "viewport_width" not in st.session_state:
     )
 
 _vw_known = "viewport_width" in st.session_state
-_is_mobile = st.session_state.get("viewport_width", 1920) < 768
+_is_mobile: bool = st.session_state.get("viewport_width", 1920) < 768
 
 st.markdown("""
 <style>
@@ -72,7 +141,7 @@ h1 {
     letter-spacing: -0.02em !important;
 }
 
-/* h2/h3 also get serif — covers subheader() and ### Recommended team */
+/* h2/h3 also get serif - covers subheader() and ### Recommended team */
 h2, h3 {
     font-family: 'Cormorant Garamond', serif !important;
     font-weight: 300 !important;
@@ -88,9 +157,9 @@ h2, h3 {
 }
 
 /* Tighten default page padding */
-.main .block-container { padding-top: 0.5rem; }
+.main .block-container { padding-top: 0.5rem; padding-left: 1rem !important; padding-right: 1rem !important; }
 
-/* Tabs — smaller, right-aligned */
+/* Tabs - smaller, right-aligned */
 .stTabs [data-baseweb="tab"] {
     font-size: 10px !important;
     letter-spacing: 0.12em !important;
@@ -101,7 +170,11 @@ h2, h3 {
     padding: 0 0 3px 0;
 }
 .stTabs [data-baseweb="tab-list"] { gap: 24px; border-bottom: 1px solid rgba(247,246,243,0.12); justify-content: flex-end; }
-@media (max-width: 768px) { .stTabs [data-baseweb="tab-list"] { justify-content: flex-start; } }
+@media (max-width: 768px) {
+    .stTabs [data-baseweb="tab-list"] { display:flex !important; width:100% !important; justify-content:space-between !important; gap:0 !important; border-bottom:1px solid rgba(247,246,243,0.12); }
+    .stTabs [data-baseweb="tab"] { flex:1 !important; min-width:0 !important; text-align:center !important; justify-content:center !important; align-items:center !important; display:flex !important; padding:10px 2px !important; font-size:9px !important; letter-spacing:0.06em !important; }
+    input, select, textarea { font-size: 16px !important; }
+}
 .stTabs [aria-selected="true"] { color: #c8401a !important; border-bottom: 1px solid #c8401a !important; }
 
 /* Metrics use the serif for editorial feel */
@@ -121,7 +194,7 @@ h2, h3 {
     text-transform: uppercase !important; color: rgba(247,246,243,0.4) !important; font-weight: 400 !important;
 }
 
-/* Plotly — pointer cursor instead of crosshair */
+/* Plotly - pointer cursor instead of crosshair */
 .js-plotly-plot .plotly .cursor-crosshair { cursor: pointer !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -138,23 +211,26 @@ def last_name(id_str):
     return id_str.split("_")[-1].title()
 
 
-tab1, tab2 = st.tabs(["Team Picker", "Model Performance"])
+tab1, tab2, tab3 = st.tabs(
+    ["Team Picker", "Performance", "Breakdown"] if _is_mobile else
+    ["Team Picker", "Model Performance", "Driver Breakdown"]
+)
 
 
 # team picker tab
 with tab1:
-    pred_path = REPORTS_DIR / "predictions_latest.json"
-
-    if not pred_path.exists():
-        st.info("No predictions available yet.")
+    _available = sorted(PREDICTIONS_DIR.glob("predictions_????_??.json"))
+    if not _available:
+        st.info("No predictions available yet. Run `generate-reports` to create them.")
         st.stop()
+    pred_path = _available[-1]  # highest season + round
 
     data = json.loads(pred_path.read_text())
     driver_team = {d["driver_id"]: d["constructor_id"] for d in data["drivers"] if "constructor_id" in d}
 
     st.markdown(
         f'<p style="font-family:\'Cormorant Garamond\',serif;font-size:1.8rem;font-weight:300;letter-spacing:-0.01em;color:#f7f6f3;margin:0 0 2px 0">'
-        f'Season {data["season"]} - Round {data["round"]}: {data["circuit"]}</p>'
+        f'R{data["round"]}: {data["circuit"]}</p>'
         f'<p style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(247,246,243,0.35);margin:0 0 1rem 0">'
         f'Last updated {data["generated_at"][:10]}</p>',
         unsafe_allow_html=True,
@@ -172,7 +248,7 @@ with tab1:
 
     with col_left:
         budget_error_slot = st.empty()
-        budget = st.number_input("Budget (£M)", min_value=0.0, max_value=200.0, value=100.0, step=0.1)
+        budget = st.number_input("Budget (£M)", min_value=0.0, max_value=200.0, value=100.0, step=0.1, format="%.1f")
         def _err(msg, slot):
             slot.markdown(f'<p style="font-family:\'DM Sans\',sans-serif;font-size:13px;color:#c8401a;margin:0 0 8px 0">{msg}</p>', unsafe_allow_html=True)
 
@@ -215,7 +291,6 @@ with tab1:
 
         state = None
         if current_drivers or current_constructors:
-            team_cost = sum(float(prices_index.get(i, 0)) for i in current_drivers + current_constructors)
             state = {
                 "drivers": current_drivers,
                 "constructors": current_constructors,
@@ -234,58 +309,55 @@ with tab1:
 
         driver_rows = []
         for d in team["drivers"]:
-            pts = float(driver_df.set_index("driver_id")["expected_fantasy_points"][d])
+            points = float(driver_df.set_index("driver_id")["expected_fantasy_points"][d])
             price = float(prices_index[d])
             doubled = d == team["doubled_driver"]
-            display_pts = pts * 2 if doubled else pts
+            display_points = points * 2 if doubled else points
             team_color = TEAM_COLORS.get(driver_team.get(d, ""), "#888")
             driver_rows.append({
                 "id": d,
                 "Driver": format_name(d),
                 "suffix": " x2" if doubled else "",
-                "Pts": display_pts,
+                "points": display_points,
                 "Price": f"£{price:.1f}M",
                 "color": team_color,
                 "doubled": doubled,
             })
-            total_points += display_pts
+            total_points += display_points
             total_cost += price
 
         constructor_rows = []
         for c in team["constructors"]:
-            pts = float(constructor_df.set_index("constructor_id")["expected_fantasy_points"][c])
+            points = float(constructor_df.set_index("constructor_id")["expected_fantasy_points"][c])
             price = float(prices_index[c])
             team_color = TEAM_COLORS.get(c, "#888")
             constructor_rows.append({
                 "Constructor": format_name(c),
-                "Pts": pts,
+                "points": points,
                 "Price": f"£{price:.1f}M",
                 "color": team_color,
             })
-            total_points += pts
+            total_points += points
             total_cost += price
 
-        def _pts_html(pts):
-            if pts < 0:
+        def _points_html(points):
+            if points < 0:
                 color = "#e05252"
-            elif pts >= 50:
+            elif points >= 50:
                 color = "#f7f6f3"
             else:
                 color = "rgba(247,246,243,0.75)"
-            return f'<span style="color:{color};font-variant-numeric:tabular-nums">{pts:.1f}</span>'
+            return f'<span style="color:{color};font-variant-numeric:tabular-nums">{points:.1f}</span>'
 
         def _dot(color):
             return f'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:{color};margin-right:9px;vertical-align:middle"></span>'
-
-        def _th(label):
-            return f'<th>{label}</th>'
 
         def _tr_driver(r):
             suffix = f' <span style="color:rgba(247,246,243,0.45);font-size:11px">x2</span>' if r["suffix"] else ""
             return (
                 f'<tr>'
                 f'<td>{_dot(r["color"])}{r["Driver"]}{suffix}</td>'
-                f'<td>{_pts_html(r["Pts"])}</td>'
+                f'<td>{_points_html(r["points"])}</td>'
                 f'<td>{r["Price"]}</td>'
                 f'</tr>'
             )
@@ -294,40 +366,43 @@ with tab1:
             return (
                 f'<tr>'
                 f'<td>{_dot(r["color"])}{r["Constructor"]}</td>'
-                f'<td>{_pts_html(r["Pts"])}</td>'
+                f'<td>{_points_html(r["points"])}</td>'
                 f'<td>{r["Price"]}</td>'
                 f'</tr>'
             )
 
-        table_html = """
-        <style>
-        .team-table { width:100%; border-collapse:collapse; font-family:'DM Sans',sans-serif; font-size:13px; color:#f7f6f3; }
-        .team-table th { color:rgba(247,246,243,0.35); font-size:10px; font-weight:400; letter-spacing:0.1em; text-transform:uppercase; padding:6px 12px 8px 12px; text-align:left; border-bottom:1px solid rgba(247,246,243,0.12); }
-        .team-table td { padding:10px 12px; border-bottom:1px solid rgba(247,246,243,0.06); }
-        .team-table tr:last-child td { border-bottom:1px solid rgba(247,246,243,0.12); }
-        .team-table tbody tr:hover td { background:rgba(247,246,243,0.04); }
-        .team-table col.name { width:55%; }
-        .team-table col.stat { width:22%; }
-        .team-table .gap td { height:20px; border:none; }
-        </style>
-        <table class="team-table">
-          <colgroup><col class="name"><col class="stat"><col class="stat"></colgroup>
-          <thead><tr>""" + _th("Driver") + _th("Pts") + _th("Price") + """</tr></thead>
-          <tbody>""" + "".join(_tr_driver(r) for r in driver_rows) + """
-            <tr class="gap"><td colspan="3"></td></tr>
-          </tbody>
-          <thead><tr>""" + _th("Constructor") + _th("Pts") + _th("Price") + """</tr></thead>
-          <tbody>""" + "".join(_tr_constructor(r) for r in constructor_rows) + """
-          </tbody>
-        </table>
-        <div style="height:1.5rem"></div>
-        """
-        st.markdown(table_html, unsafe_allow_html=True)
-
+        driver_rows_html = "".join(_tr_driver(r) for r in driver_rows)
+        constructor_rows_html = "".join(_tr_constructor(r) for r in constructor_rows)
         extra = team["transfer_penalty"]
         penalty_note = f' <span style="font-size:1rem;color:rgba(247,246,243,0.45);font-family:\'DM Sans\',sans-serif;font-weight:300">(-{extra * 10}pt, {extra} extra transfer{"s" if extra != 1 else ""})</span>' if state and extra > 0 else ""
-        st.markdown(f'<p style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(247,246,243,0.4);margin-bottom:4px">Projected points</p><p style="font-family:\'Cormorant Garamond\',serif;font-size:2.4rem;font-weight:300;color:#f7f6f3;margin:0 0 1rem 0">{total_points:.1f}{penalty_note}</p>', unsafe_allow_html=True)
-        st.markdown(f'<p style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(247,246,243,0.4);margin-bottom:4px">Total cost</p><p style="font-family:\'Cormorant Garamond\',serif;font-size:2.4rem;font-weight:300;color:#f7f6f3;margin:0 0 1rem 0">£{total_cost:.1f}M <span style="font-size:1rem;color:rgba(247,246,243,0.45);font-family:\'DM Sans\',sans-serif;font-weight:300">/ £{budget:.1f}M</span></p>', unsafe_allow_html=True)
+
+        table_height = 32 + len(driver_rows) * 41 + 16 + 32 + len(constructor_rows) * 41 + 216
+
+        _col_group = '<col class="name"><col class="stat"><col class="stat">'
+        table_html = (
+            "<!DOCTYPE html><html><head><style>"
+            "@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300&family=DM+Sans&display=swap');"
+            + _TABLE_CSS
+            + "col.name { width:55%; } col.stat { width:22%; }"
+            " .stat-label { font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:rgba(247,246,243,0.4); margin:1.8rem 0 4px 0; }"
+            " .stat-value { font-family:'Cormorant Garamond',serif; font-size:2.4rem; font-weight:300; margin:0 0 0 0; }"
+            "</style></head><body>"
+            f'<table id="tbl-drivers"><colgroup>{_col_group}</colgroup>'
+            f"<thead><tr><th>Driver</th><th>Pts</th><th>Price</th></tr></thead>"
+            f"<tbody>{driver_rows_html}</tbody></table>"
+            '<div style="height:1rem"></div>'
+            f'<table id="tbl-constructors"><colgroup>{_col_group}</colgroup>'
+            f"<thead><tr><th>Constructor</th><th>Pts</th><th>Price</th></tr></thead>"
+            f"<tbody>{constructor_rows_html}</tbody></table>"
+            f'<p class="stat-label" style="margin-top:3rem">Projected points</p>'
+            f'<p class="stat-value">{total_points:.1f}{penalty_note}</p>'
+            f'<p class="stat-label">Total cost</p>'
+            f'<p class="stat-value">\u00a3{total_cost:.1f}M <span style="font-size:1rem;color:rgba(247,246,243,0.45);'
+            f"font-family:'DM Sans',sans-serif;font-weight:300\">/ \u00a3{budget:.1f}M</span></p>"
+            f"<script>{_sort_js('tbl-drivers')}{_sort_js('tbl-constructors')}</script>"
+            "</body></html>"
+        )
+        st_components.html(table_html, height=table_height, scrolling=False)
 
     with col_right:
         if not _vw_known:
@@ -368,22 +443,16 @@ with tab1:
             )
             fig_drivers.update_traces(
                 marker_color=driver_chart["color"].tolist(),
-                hovertemplate="<b>%{y}</b><br>Expected pts: %{x:.1f}<br>Price: £%{customdata[0]:.1f}M<extra></extra>",
+                hovertemplate="<b>%{y}</b><br>Expected points: %{x:.1f}<br>Price: £%{customdata[0]:.1f}M<extra></extra>",
             )
             fig_drivers.update_layout(
+                **_PLOTLY_THEME,
                 showlegend=False, height=500, margin=dict(l=_chart_l, r=0, t=36, b=0),
-                paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
-                font=dict(family="DM Sans", color="#f7f6f3"),
                 title=dict(text="Drivers", font=dict(size=11, color="rgba(247,246,243,0.4)", family="DM Sans"), x=0),
-                xaxis=dict(gridcolor="rgba(247,246,243,0.08)", range=driver_x_range, fixedrange=True,
-                           title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
-                           tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-                yaxis=dict(automargin=False, fixedrange=True,
-                           tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-                hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
-                                font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+                xaxis=dict(gridcolor=_GRID_COLOR, range=driver_x_range, fixedrange=True,
+                           title_font=_TICK_FONT, tickfont=_TICK_FONT),
+                yaxis=dict(automargin=False, fixedrange=True, tickfont=_TICK_FONT),
                 hovermode="closest",
-                dragmode=False,
                 clickmode="none",
             )
             st.plotly_chart(fig_drivers, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
@@ -405,22 +474,16 @@ with tab1:
             )
             fig_constructors.update_traces(
                 marker_color=constructor_chart["color"].tolist(),
-                hovertemplate="<b>%{y}</b><br>Expected pts: %{x:.1f}<br>Price: £%{customdata[0]:.1f}M<extra></extra>",
+                hovertemplate="<b>%{y}</b><br>Expected points: %{x:.1f}<br>Price: £%{customdata[0]:.1f}M<extra></extra>",
             )
             fig_constructors.update_layout(
+                **_PLOTLY_THEME,
                 showlegend=False, height=300, margin=dict(l=_chart_l, r=0, t=36, b=0),
-                paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
-                font=dict(family="DM Sans", color="#f7f6f3"),
                 title=dict(text="Constructors", font=dict(size=11, color="rgba(247,246,243,0.4)", family="DM Sans"), x=0),
-                xaxis=dict(gridcolor="rgba(247,246,243,0.08)", range=constructor_x_range, fixedrange=True,
-                           title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
-                           tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-                yaxis=dict(automargin=False, fixedrange=True,
-                           tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-                hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
-                                font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+                xaxis=dict(gridcolor=_GRID_COLOR, range=constructor_x_range, fixedrange=True,
+                           title_font=_TICK_FONT, tickfont=_TICK_FONT),
+                yaxis=dict(automargin=False, fixedrange=True, tickfont=_TICK_FONT),
                 hovermode="closest",
-                dragmode=False,
                 clickmode="none",
             )
             st.plotly_chart(fig_constructors, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
@@ -466,14 +529,14 @@ with tab2:
         f'<tr><td>{int(season)}</td><td>{int(row["Model (our prediction)"])}</td><td>{int(row["Oracle (best possible)"])}</td><td>{_pct_bar(row["% of Oracle"])}</td></tr>'
         for season, row in summary.iterrows()
     )
-    st.markdown(f"""
-    <table class="team-table">
-      <colgroup><col style="width:15%"><col style="width:20%"><col style="width:20%"><col style="width:45%"></colgroup>
-      <thead><tr>{''.join(f'<th>{h}</th>' for h in ["Season", "Model (our prediction)", "Oracle (best possible)", "% of Oracle"])}</tr></thead>
-      <tbody>{summary_rows}</tbody>
-    </table>
-    <div style="height:1rem"></div>
-    """, unsafe_allow_html=True)
+    if _is_mobile:
+        _sum_headers = ["Season", "Model", "Oracle", "% Oracle"]
+        _sum_colgroup = '<col style="width:16%"><col style="width:18%"><col style="width:18%"><col style="width:48%">'
+    else:
+        _sum_headers = ["Season", "Model (our prediction)", "Oracle (best possible)", "% of Oracle"]
+        _sum_colgroup = '<col style="width:15%"><col style="width:20%"><col style="width:20%"><col style="width:45%">'
+    _sortable_table("stbl", "".join(f'<th>{h}</th>' for h in _sum_headers),
+                    summary_rows, _sum_colgroup, 32 + len(summary) * 41 + 2)
 
     st.subheader("Cumulative points by strategy")
     season_options = sorted(all_data["season"].unique())
@@ -488,12 +551,12 @@ with tab2:
     cumulative_melted = season_data.melt(id_vars=id_vars, value_vars=["Model (our prediction)", "Oracle (best possible)"],
                                          var_name="Strategy", value_name="Cumulative Points")
     round_melted = season_data.melt(id_vars=["round"], value_vars=["model", "oracle"],
-                                    var_name="_s", value_name="round_pts")
+                                    var_name="_s", value_name="round_points")
     round_melted["Strategy"] = round_melted["_s"].map({"model": "Model (our prediction)", "oracle": "Oracle (best possible)"})
     round_melted["short_name"] = round_melted["_s"].str.capitalize()
-    melted = cumulative_melted.merge(round_melted[["round", "Strategy", "round_pts", "short_name"]], on=["round", "Strategy"])
+    melted = cumulative_melted.merge(round_melted[["round", "Strategy", "round_points", "short_name"]], on=["round", "Strategy"])
 
-    custom = (["location", "round_pts", "short_name"] if has_location else ["round_pts", "short_name"])
+    custom = (["location", "round_points", "short_name"] if has_location else ["round_points", "short_name"])
     fig2 = px.line(
         melted,
         x="round",
@@ -506,26 +569,18 @@ with tab2:
     )
     fig2.update_traces(
         hovertemplate=(
-            "<b>%{customdata[0]}</b><br>%{customdata[2]}: %{y:,.0f} pts (+%{customdata[1]:.0f} this round)<extra></extra>"
+            "<b>%{customdata[0]}</b><br>%{customdata[2]}: %{y:,.0f} points (+%{customdata[1]:.0f} this round)<extra></extra>"
             if has_location else
-            "%{customdata[1]}: %{y:,.0f} pts (+%{customdata[0]:.0f} this round)<extra></extra>"
+            "%{customdata[1]}: %{y:,.0f} points (+%{customdata[0]:.0f} this round)<extra></extra>"
         )
     )
     fig2.update_layout(
-        paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
-        font=dict(family="DM Sans", color="#f7f6f3"),
-        xaxis=dict(gridcolor="rgba(247,246,243,0.08)", tickmode="linear", dtick=1,
-                   title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
-                   tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-        yaxis=dict(gridcolor="rgba(247,246,243,0.08)",
-                   title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
-                   tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-        hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
-                        font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+        **_PLOTLY_THEME,
+        xaxis=dict(gridcolor=_GRID_COLOR, tickmode="linear", dtick=1,
+                   title_font=_TICK_FONT, tickfont=_TICK_FONT),
+        yaxis=dict(gridcolor=_GRID_COLOR, title_font=_TICK_FONT, tickfont=_TICK_FONT),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5,
-                    title_text="",
-                    font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-        dragmode=False,
+                    title_text="", font=_TICK_FONT),
     )
     st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
 
@@ -541,9 +596,9 @@ with tab2:
         title="% of oracle achieved per round",
     )
     hover = (
-        "<b>%{customdata[0]}</b><br>% of Oracle: %{y:.1f}%<br>Model pts: %{customdata[1]}<br>Oracle pts: %{customdata[2]}<extra></extra>"
+        "<b>%{customdata[0]}</b><br>% of Oracle: %{y:.1f}%<br>Model points: %{customdata[1]}<br>Oracle points: %{customdata[2]}<extra></extra>"
         if has_location else
-        "% of Oracle: %{y:.1f}%<br>Model pts: %{customdata[0]}<br>Oracle pts: %{customdata[1]}<extra></extra>"
+        "% of Oracle: %{y:.1f}%<br>Model points: %{customdata[0]}<br>Oracle points: %{customdata[1]}<extra></extra>"
     )
     fig3.update_traces(marker_color="#c8401a", hovertemplate=hover)
     fig3.add_hline(y=season_data["pct_of_oracle"].mean(), line_dash="dash", line_color="rgba(247,246,243,0.3)",
@@ -552,19 +607,335 @@ with tab2:
     fig3.update_yaxes(range=[0, 105])
     fig3.update_xaxes(range=[0.5, max_round + 0.5], tickmode="linear", dtick=1)
     fig3.update_layout(
+        **_PLOTLY_THEME,
         margin=dict(t=40),
-        paper_bgcolor="#0e0e0d", plot_bgcolor="#0e0e0d",
-        font=dict(family="DM Sans", color="#f7f6f3"),
-        xaxis=dict(gridcolor="rgba(247,246,243,0.08)", fixedrange=True,
-                   title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
-                   tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-        yaxis=dict(gridcolor="rgba(247,246,243,0.08)", fixedrange=True,
-                   title_font=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)"),
-                   tickfont=dict(family="DM Sans", size=11, color="rgba(247,246,243,0.6)")),
-        hoverlabel=dict(bgcolor="#1c1c1a", bordercolor="rgba(247,246,243,0.12)",
-                        font=dict(family="DM Sans", size=12, color="#f7f6f3")),
+        xaxis=dict(gridcolor=_GRID_COLOR, fixedrange=True,
+                   title_font=_TICK_FONT, tickfont=_TICK_FONT),
+        yaxis=dict(gridcolor=_GRID_COLOR, fixedrange=True,
+                   title_font=_TICK_FONT, tickfont=_TICK_FONT),
         hovermode="closest",
-        dragmode=False,
         clickmode="none",
     )
     st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
+
+
+# driver breakdown tab
+with tab3:
+    # collect all versioned prediction files e.g. predictions_2024_01.json
+    versioned = sorted(PREDICTIONS_DIR.glob("predictions_????_??.json"))
+
+    if versioned:
+        # build {season: [(round, circuit), ...]} index — read circuit from each file header
+        _pred_index: dict[int, list[tuple[int, str]]] = {}
+        for _p in versioned:
+            _parts = _p.stem.split("_")  # ['predictions', 'YYYY', 'RR']
+            _s, _r = int(_parts[1]), int(_parts[2])
+            _meta = json.loads(_p.read_text())
+            _circuit = _meta.get("circuit", f"Round {_r}")
+            _pred_index.setdefault(_s, []).append((_r, _circuit))
+        for _s in _pred_index:
+            _pred_index[_s].sort(key=lambda x: x[0])
+
+        _seasons = sorted(_pred_index.keys(), reverse=True)
+        _col1, _col2 = st.columns(2)
+        with _col1:
+            _sel_season = st.selectbox("Season", _seasons, index=0)
+        with _col2:
+            _round_options = _pred_index[_sel_season]
+            _round_labels = [f"R{r}: {c}" for r, c in _round_options]
+            _round_idx = st.selectbox("Round", range(len(_round_options)), index=len(_round_options) - 1, format_func=lambda i: _round_labels[i])
+            _sel_round = _round_options[_round_idx][0]
+
+        pred_path = PREDICTIONS_DIR / f"predictions_{_sel_season}_{_sel_round:02d}.json"
+    else:
+        # fall back to latest if no versioned files exist yet
+        pred_path = PREDICTIONS_DIR / "predictions_latest.json"
+
+    if not pred_path.exists():
+        st.info("No predictions available yet. Run `generate-reports` to create them.")
+        st.stop()
+
+    data = json.loads(pred_path.read_text())
+
+    # skip if JSON predates breakdown support
+    if not data["drivers"] or "points_breakdown" not in data["drivers"][0]:
+        st.info("No breakdown data available. Re-run `generate-reports` to include it.")
+        st.stop()
+
+    _BREAKDOWN_KEYS = ["finish", "quali", "positions_gained", "overtakes", "prob_fl", "prob_dotd", "sprint"]
+
+    breakdown_rows = []
+    for d in data["drivers"]:
+        bd = d.get("points_breakdown", {})
+        breakdown_rows.append({
+            "driver_id": d["driver_id"],
+            "constructor_id": d["constructor_id"],
+            "name": format_name(d["driver_id"]),
+            "price": d.get("price", 0.0),
+            "total": d["expected_points"],
+            "quali_pos": d["predicted_quali_position"],
+            "finish_pos": d["predicted_finish_position"],
+            **{k: bd.get(k, 0.0) for k in _BREAKDOWN_KEYS},
+        })
+
+    breakdown_df = pd.DataFrame(breakdown_rows).sort_values("total", ascending=False)
+
+    # parallel coordinates chart (desktop only)
+    # axes: Grid pos, Finish pos, Pos gain, FL prob, Expected points
+    # positional axes are inverted so "better" (lower number) is always at the top
+    _PC_DIMS = [
+        ("quali_pos",        "Qualifying",    True,  lambda v: f"P{int(v)}"),
+        ("finish_pos",       "Finish",        True,  lambda v: f"P{int(v)}"),
+        ("positions_gained", "Pos \u00b1",    False, lambda v: f"{int(v):+d}"),
+        ("overtakes",        "Overtakes",     False, lambda v: f"{int(v)}"),
+        ("prob_fl",          "FL (prob)",     False, lambda v: f"{v:.1%}"),
+        ("prob_dotd",        "DOTD (prob)",   False, lambda v: f"{v:.1%}"),
+        ("total",            "Pts",           False, lambda v: f"{v:.1f}"),
+    ]
+
+    def _norm_fn(mn, mx, invert):
+        if mx == mn:
+            return lambda _: 0.5
+        if invert:
+            return lambda x, _mn=mn, _mx=mx: 1.0 - (float(x) - _mn) / (_mx - _mn)
+        return lambda x, _mn=mn, _mx=mx: (float(x) - _mn) / (_mx - _mn)
+
+    col_stats = {}
+    for col, _, invert, _ in _PC_DIMS:
+        vals = breakdown_df[col].astype(float)
+        mn, mx = float(vals.min()), float(vals.max())
+        col_stats[col] = (mn, mx, _norm_fn(mn, mx, invert), invert)
+
+    top_ids = set(breakdown_df.nlargest(6, "total")["driver_id"])
+    n_axes = len(_PC_DIMS)
+
+    # cheaper driver per team gets a dashed line (proxy for secondary driver)
+    _team_drivers: dict = {}
+    for _, row in breakdown_df.iterrows():
+        cid = row["constructor_id"]
+        _team_drivers.setdefault(cid, []).append((row["price"], row["driver_id"]))
+    dashed_drivers = {
+        min(drivers, key=lambda x: x[0])[1]
+        for drivers in _team_drivers.values()
+        if len(drivers) == 2
+    }
+
+    # per-segment smoothstep (cubic Hermite, horizontal tangents at every axis)
+    # this is the classic parallel-coordinates curve: lines ease in/out at each axis
+    # with zero slope, so they never overshoot - unlike Catmull-Rom which can loop
+    # wildly when adjacent axes have the same value (e.g. all-zero Overtakes).
+    _points_PER_SEG = 20
+    _INTERP_points = (n_axes - 1) * _points_PER_SEG + 1
+    def _smoothstep_spline(y_ctrl):
+        xs, ys = [], []
+        for i in range(n_axes - 1):
+            t = np.linspace(0, 1, _points_PER_SEG, endpoint=False)
+            s = 3*t**2 - 2*t**3          # smoothstep: 0→1, zero derivative at both ends
+            xs.extend((i + t).tolist())
+            ys.extend(np.clip(y_ctrl[i] + (y_ctrl[i + 1] - y_ctrl[i]) * s, 0.0, 1.0).tolist())
+        xs.append(float(n_axes - 1))
+        ys.append(float(np.clip(y_ctrl[-1], 0.0, 1.0)))
+        return xs, ys
+
+    fig_pc = go.Figure()
+
+    # non-top drivers drawn first so top drivers render on top
+    draw_order = breakdown_df.copy()
+    draw_order["_top"] = draw_order["driver_id"].isin(top_ids).astype(int)
+    draw_order = draw_order.sort_values("_top")
+
+    # team color for every trace in draw order (used by hover JS)
+    trace_team_colors = []
+
+    for _, row in draw_order.iterrows():
+        is_top = row["driver_id"] in top_ids
+        color = TEAM_COLORS.get(row["constructor_id"], "#888888") if is_top else "rgba(247,246,243,0.1)"
+        width = 2.5 if is_top else 1
+        dash = "dash" if row["driver_id"] in dashed_drivers else "solid"
+        trace_team_colors.append(TEAM_COLORS.get(row["constructor_id"], "#888888"))
+
+        y_vals = [col_stats[col][2](row[col]) for col, _, _, _ in _PC_DIMS]
+        x_interp, y_interp = _smoothstep_spline(y_vals)
+
+        pg = int(row["positions_gained"])
+        pg_color = "#4ade80" if pg > 0 else ("#f87171" if pg < 0 else "rgba(247,246,243,0.35)")
+        _dim = "color:rgba(247,246,243,0.4)"
+        hover_html = (
+            f"<b style='font-size:13px'>{row['name']}</b>"
+            f"<br><span style='{_dim}'>Quali</span>&nbsp;P{int(row['quali_pos'])}"
+            f"&nbsp;<span style='{_dim}'>→</span>&nbsp;"
+            f"<span style='{_dim}'>Finish</span>&nbsp;P{int(row['finish_pos'])}"
+            f"&nbsp;<span style='color:{pg_color}'>({pg:+d})</span>"
+            f"<br><span style='{_dim}'>OT</span>&nbsp;{row['overtakes']:.1f}"
+            f"&nbsp;&nbsp;<span style='{_dim}'>FL</span>&nbsp;{row['prob_fl']:.1%}"
+            f"&nbsp;&nbsp;<span style='{_dim}'>DOTD</span>&nbsp;{row['prob_dotd']:.1%}"
+            f"<br><b style='font-size:13px'>{row['total']:.1f} points</b>"
+        )
+        custom = [[hover_html]] * _INTERP_points
+
+        fig_pc.add_trace(go.Scatter(
+            x=x_interp,
+            y=y_interp,
+            mode="lines+markers",
+            marker=dict(size=12, color="rgba(0,0,0,0)", line=dict(width=0)),
+            line=dict(color=color, width=width, shape="linear", dash=dash),
+            name=row["name"],
+            customdata=custom,
+            hovertemplate="%{customdata[0]}<extra></extra>",
+            showlegend=False,
+        ))
+
+    # axis lines, labels, and tick values
+    _INT_COLS = {"quali_pos", "finish_pos", "positions_gained", "overtakes"}
+
+    for i, (col, label, _, fmt) in enumerate(_PC_DIMS):
+        mn, mx, _, inv = col_stats[col]
+        top_val = mn if inv else mx   # value at y=1 (best)
+        bot_val = mx if inv else mn   # value at y=0 (worst)
+
+        if col in _INT_COLS:
+            # inverted axes: top is minimum (best position), so floor; bottom is maximum, so ceil
+            # normal axes: top is maximum (best value), so ceil; bottom is minimum, so floor
+            top_text = fmt(int(np.floor(top_val)) if inv else int(np.ceil(top_val)))
+            bot_text = fmt(int(np.ceil(bot_val)) if inv else int(np.floor(bot_val)))
+        else:
+            top_text = fmt(top_val)
+            bot_text = fmt(bot_val)
+
+        fig_pc.add_shape(
+            type="line", x0=i, y0=-0.02, x1=i, y1=1.02,
+            line=dict(color="rgba(247,246,243,0.2)", width=1),
+        )
+        _lbl_size = 10
+        _tick_size = 9
+        fig_pc.add_annotation(
+            x=i, y=1.18, text=label.upper(), showarrow=False, xanchor="center",
+            font=dict(family="DM Sans", size=_lbl_size, color="rgba(247,246,243,0.4)"),
+        )
+        fig_pc.add_annotation(
+            x=i, y=1.07, text=top_text, showarrow=False, xanchor="center",
+            font=dict(family="DM Sans", size=_tick_size, color="rgba(247,246,243,0.28)"),
+        )
+        fig_pc.add_annotation(
+            x=i, y=-0.09, text=bot_text, showarrow=False, xanchor="center",
+            font=dict(family="DM Sans", size=_tick_size, color="rgba(247,246,243,0.28)"),
+        )
+
+    _pc_height = 700
+    fig_pc.update_layout(
+        **_PLOTLY_THEME,
+        height=_pc_height,
+        margin=dict(l=10, r=20, t=4, b=30),
+        xaxis=dict(showgrid=False, showticklabels=False, zeroline=False,
+                   range=[-0.3, n_axes - 0.7], fixedrange=True),
+        yaxis=dict(showgrid=False, showticklabels=False, zeroline=False,
+                   range=[-0.22, 1.28], fixedrange=True),
+        hovermode="closest",
+    )
+
+    if not _is_mobile:
+        st.subheader("Performance profiles")
+        fig_json = fig_pc.to_json()
+        trace_colors_js = json.dumps(trace_team_colors)
+        pc_html = f"""<!DOCTYPE html>
+<html>
+<head>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+* {{ font-family:'DM Sans',system-ui,sans-serif; }}
+body {{ margin:0; padding:0; background:#0e0e0d; }}
+#pc {{ width:100%; height:{_pc_height}px; opacity:0; transition:opacity 0.15s; }}
+</style>
+</head>
+<body>
+<div id="pc"></div>
+<script>
+var fig = {fig_json};
+var teamColors = {trace_colors_js};
+Plotly.newPlot('pc', fig.data, fig.layout, {{displayModeBar:false, scrollZoom:false, responsive:true}});
+var div = document.getElementById('pc');
+window.addEventListener('load', function() {{
+    window.dispatchEvent(new Event('resize'));
+    setTimeout(function() {{ div.style.opacity = '1'; }}, 120);
+}});
+var origColors = fig.data.map(function(t) {{ return t.line ? t.line.color : 'rgba(247,246,243,0.1)'; }});
+var origWidths = fig.data.map(function(t) {{ return (t.line && t.line.width) ? t.line.width : 1; }});
+div.on('plotly_hover', function(evt) {{
+    var idx = evt.points[0].curveNumber;
+    var nc = origColors.map(function(c, i) {{ return i === idx ? teamColors[i] : 'rgba(247,246,243,0.04)'; }});
+    var nw = origWidths.map(function(w, i) {{ return i === idx ? 2.5 : 0.5; }});
+    Plotly.restyle(div, {{'line.color': nc, 'line.width': nw}});
+}});
+div.on('plotly_unhover', function() {{
+    Plotly.restyle(div, {{'line.color': origColors, 'line.width': origWidths}});
+}});
+</script>
+</body>
+</html>"""
+
+        top_rows = breakdown_df[breakdown_df["driver_id"].isin(top_ids)].sort_values("total", ascending=False)
+        legend_html_items = []
+        for _, r in top_rows.iterrows():
+            tc = TEAM_COLORS.get(r["constructor_id"], "#888888")
+            dash_attr = 'stroke-dasharray="4 3"' if r["driver_id"] in dashed_drivers else ""
+            swatch = (
+                f'<svg width="22" height="10" style="vertical-align:middle;margin-right:5px">'
+                f'<line x1="0" y1="5" x2="22" y2="5" stroke="{tc}" stroke-width="2" {dash_attr}/>'
+                f'</svg>'
+            )
+            legend_html_items.append(
+                f'<span style="display:inline-flex;align-items:center">{swatch}{r["name"]}</span>'
+            )
+        legend_div = (
+            '<div style="display:flex;justify-content:center;align-items:center;gap:22px;'
+            'padding:4px 0 0 0;font-family:\'DM Sans\',system-ui,sans-serif;'
+            'font-size:12px;color:rgba(247,246,243,0.55)">'
+            + "".join(legend_html_items)
+            + "</div>"
+        )
+        pc_html = pc_html.replace('<div id="pc">', legend_div + '\n<div id="pc">')
+        st_components.html(pc_html, height=_pc_height + 38, scrolling=False)
+
+    # detail table
+    st.subheader("Predictions breakdown")
+    has_sprint_col = any(d.get("points_breakdown", {}).get("sprint", 0) != 0 for d in data["drivers"])
+    table_rows = ""
+    for _, row in breakdown_df.sort_values("total", ascending=False).iterrows():
+        team_color = TEAM_COLORS.get(row["constructor_id"], "#888")
+        sprint_cell = f'<td>{row["sprint"]:.1f}</td>' if has_sprint_col else ""
+        pos_gained = row["positions_gained"]
+        pos_color = "#27ae60" if pos_gained > 0 else ("#e05252" if pos_gained < 0 else "rgba(247,246,243,0.4)")
+        driver_label = last_name(row["driver_id"]) if _is_mobile else row["name"]
+        table_rows += (
+            f'<tr>'
+            f'<td>{_dot(team_color)}{driver_label}</td>'
+            f'<td style="color:rgba(247,246,243,0.6)">{row["quali_pos"]}</td>'
+            f'<td style="color:rgba(247,246,243,0.6)">{row["finish_pos"]}</td>'
+            f'<td style="color:{pos_color}">{pos_gained:+.0f}</td>'
+            f'<td style="color:rgba(247,246,243,0.55)">{row["overtakes"]:.1f}</td>'
+            f'<td style="color:rgba(247,246,243,0.55)">{row["prob_fl"]:.1%}</td>'
+            f'<td style="color:rgba(247,246,243,0.55)">{row["prob_dotd"]:.1%}</td>'
+            f'{sprint_cell}'
+            f'<td style="font-weight:500">{row["total"]:.1f}</td>'
+            f'</tr>'
+        )
+
+    sprint_header = "<th>Sprint</th>" if has_sprint_col else ""
+    _detail_css = "" if _is_mobile else "td, th { white-space:nowrap; } "
+    if _is_mobile:
+        _detail_css += (
+            "table { border-collapse:separate !important; border-spacing:0; min-width:0; } "
+            "th, td { white-space:nowrap; min-width:55px; overflow:hidden; } "
+            "th:first-child, td:first-child { min-width:86px; max-width:86px; width:86px; position:-webkit-sticky; position:sticky; left:0; z-index:2; background:#0e0e0d; padding-left:8px !important; padding-right:4px; } "
+            "th:last-child, td:last-child { min-width:42px; max-width:42px; width:42px; position:-webkit-sticky; position:sticky; right:0; z-index:2; background:#0e0e0d; text-align:right; padding-left:4px; padding-right:8px; box-shadow:-2px 0 0 0 #0e0e0d; } "
+            "tbody tr:hover td:first-child, tbody tr:hover td:last-child { background:#0e0e0d !important; } "
+        )
+    _detail_headers = (
+        '<th>Driver</th><th>Qualifying</th><th>Finish</th>'
+        f'<th>Pos <span style="font-size:13px;line-height:1">\u00b1</span></th><th>Overtakes</th>'
+        f'<th>FL (prob)</th><th>DOTD (prob)</th>{sprint_header}<th>Pts</th>'
+    )
+    _sortable_table("dtbl", _detail_headers, table_rows,
+                    '<col>' * (8 + has_sprint_col),
+                    36 + len(breakdown_df) * 41 + 24, _detail_css)

@@ -25,8 +25,8 @@ from app.features.build_practice_features import build_practice_features
 from app.features.build_circuit_features import build_circuit_features
 
 from app.models.configs import FINISH_POSITION_MODEL, QUALI_POSITION_MODEL
-from app.models.train import main as train_main, prod as train_prod
-from app.models.predict import load_model, predict as run_predict
+from app.models.train import main as train_main, load as load_model, load_data_upto, train_walk_forward, save_season
+from app.models.predict import load_season_model, predict as run_predict
 from app.models.compose import compose_drivers, compose_constructor
 from app.data.overtakes import build_overtake_predictor
 from app.data.dotd import build_dotd_predictor
@@ -255,33 +255,35 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
             build_circuit_features(race_results, quali_results, events, race_laps_all, fp3_all, overtake_history, s, round_num)
 
 
-# train the race finish and quali position models for DEV or PROD
+# train models - without --season runs dev training with eval metrics; with --season trains walk-forward season artifacts
 @app.command()
-def train_model(prod: bool = typer.Option(False)):
+def train_model(season: int = typer.Option(None)):
+    if season is not None:
+        typer.echo(f"Training season {season} model on all data before season {season}...")
 
-    if not prod:
+        X_quali, y_quali = load_data_upto(QUALI_POSITION_MODEL, season, 1)
+        quali_model = train_walk_forward(QUALI_POSITION_MODEL, X_quali, y_quali)
+
+        X_finish, y_finish = load_data_upto(FINISH_POSITION_MODEL, season, 1, quali_model=quali_model, quali_config=QUALI_POSITION_MODEL)
+        finish_model = train_walk_forward(FINISH_POSITION_MODEL, X_finish, y_finish)
+
+        save_season(quali_model, QUALI_POSITION_MODEL, season)
+        save_season(finish_model, FINISH_POSITION_MODEL, season)
+
+        typer.echo(f"Saved season {season} artifacts.")
+    else:
         typer.echo(f"Training quali position model...")
         train_main(QUALI_POSITION_MODEL)
 
         typer.echo(f"\nTraining finish position model...")
-
         quali_model = load_model(QUALI_POSITION_MODEL)
         train_main(FINISH_POSITION_MODEL, quali_model, QUALI_POSITION_MODEL)
 
-    else:
-        # train production models on all historical data using best_iteration from dev artifacts
-        typer.echo("Retraining quali position model (prod)...")
-        quali_model = train_prod(QUALI_POSITION_MODEL)
-
-        typer.echo("Retraining finish position model (prod)...")
-        train_prod(FINISH_POSITION_MODEL, quali_model=quali_model, quali_config=QUALI_POSITION_MODEL)
-
-        typer.echo("Done.")
 
 
 # generate reports/predictions_latest.json for the Streamlit app
 @app.command()
-def generate_reports(season: int = typer.Option(...), round: int = typer.Option(...), prod: bool = typer.Option(False)):
+def generate_reports(season: int = typer.Option(...), round: int = typer.Option(...)):
     from datetime import datetime
 
     prices_path = FANTASY_PRICES_DIR / f"{season}_{round:02d}.csv"
@@ -292,11 +294,11 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
     prices = pd.read_csv(prices_path)
     prices_index = prices.set_index("asset_id")["price"]
 
-    quali_model = load_model(QUALI_POSITION_MODEL, prod=prod)
-    finish_model = load_model(FINISH_POSITION_MODEL, prod=prod)
-
     events_path = INTERIM_EVENTS_DIR / f"{season}_{round:02d}.parquet"
     circuit = pd.read_parquet(events_path)["location"].iloc[0] if events_path.exists() else f"Round {round}"
+
+    quali_model = load_season_model(QUALI_POSITION_MODEL, season)
+    finish_model = load_season_model(FINISH_POSITION_MODEL, season)
 
     typer.echo(f"Generating reports for season {season}, round {round:02d} - {circuit}...")
 
@@ -358,8 +360,6 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
 def backfill_predictions(from_season: int = typer.Option(2024), prod: bool = typer.Option(True), overwrite: bool = typer.Option(False)):
     from datetime import datetime
 
-    quali_model = load_model(QUALI_POSITION_MODEL, prod=prod)
-    finish_model = load_model(FINISH_POSITION_MODEL, prod=prod)
     predict_overtakes = build_overtake_predictor()
     predict_dotd = build_dotd_predictor()
 
@@ -368,6 +368,8 @@ def backfill_predictions(from_season: int = typer.Option(2024), prod: bool = typ
 
     PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
     skipped, saved = 0, 0
+    _current_season = None
+    walk_quali = walk_finish = None
 
     for prices_path in prices_files:
         stem = prices_path.stem  # e.g. 2024_01
@@ -379,15 +381,23 @@ def backfill_predictions(from_season: int = typer.Option(2024), prod: bool = typ
             skipped += 1
             continue
 
+        # load season artifact once per season (run train-model --season S first)
+        if s != _current_season:
+            typer.echo(f"Loading season {s} model artifacts...")
+            walk_quali = load_season_model(QUALI_POSITION_MODEL, s)
+            walk_finish = load_season_model(FINISH_POSITION_MODEL, s)
+            _current_season = s
+
         events_path = INTERIM_EVENTS_DIR / f"{s}_{r:02d}.parquet"
         circuit = pd.read_parquet(events_path)["location"].iloc[0] if events_path.exists() else f"Round {r}"
 
         typer.echo(f"Generating {s} R{r:02d} - {circuit}...")
         try:
+
             prices = pd.read_csv(prices_path)
             prices_index = prices.set_index("asset_id")["price"]
 
-            predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, s, r)
+            predictions = run_predict(walk_quali, QUALI_POSITION_MODEL, walk_finish, FINISH_POSITION_MODEL, s, r)
             driver_pts = compose_drivers(predictions, location=circuit, season=s, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
             constructor_pts = compose_constructor(driver_pts)
 
@@ -431,14 +441,14 @@ def backfill_predictions(from_season: int = typer.Option(2024), prod: bool = typ
         except Exception as e:
             typer.echo(f"  skipped ({e})")
 
-    typer.echo(f"\nDone — {saved} saved, {skipped} already existed (use --overwrite to regenerate).")
+    typer.echo(f"\nDone - {saved} saved, {skipped} already existed (use --overwrite to regenerate).")
 
 
 # load the trained model, predict finish positions, and print expected fantasy points for drivers and constructors
 @app.command()
-def predict_race(season: int = typer.Option(...), round: int = typer.Option(...), prod: bool = typer.Option(False)):
-    quali_model = load_model(QUALI_POSITION_MODEL, prod)
-    finish_model = load_model(FINISH_POSITION_MODEL, prod)
+def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)):
+    quali_model = load_season_model(QUALI_POSITION_MODEL, season)
+    finish_model = load_season_model(FINISH_POSITION_MODEL, season)
 
     events_path = INTERIM_EVENTS_DIR / f"{season}_{round:02d}.parquet"
     location = pd.read_parquet(events_path)["location"].iloc[0] if events_path.exists() else None
@@ -462,12 +472,12 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
 # loads team state from data/team_state.json if it exists; saves updated state after each run unless --no-state is passed
 # dropped/inactive assets are sold at last known price and warned to the user
 @app.command()
-def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP), no_state: bool = typer.Option(False), prod: bool = typer.Option(False)):
+def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP), no_state: bool = typer.Option(False)):
     prices = pd.read_csv(FANTASY_PRICES_DIR / f"{season}_{round:02d}.csv")
     state = None if no_state else load_state(TEAM_STATE_FILE)
 
-    quali_model = load_model(QUALI_POSITION_MODEL, prod)
-    finish_model = load_model(FINISH_POSITION_MODEL, prod)
+    quali_model = load_season_model(QUALI_POSITION_MODEL, season)
+    finish_model = load_season_model(FINISH_POSITION_MODEL, season)
 
     events_path = INTERIM_EVENTS_DIR / f"{season}_{round:02d}.parquet"
     location = pd.read_parquet(events_path)["location"].iloc[0] if events_path.exists() else None
@@ -535,8 +545,6 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 # model and oracle are transfer-constrained with state carried forward each round; random is unconstrained
 @app.command()
 def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP)):
-    quali_model = load_model(QUALI_POSITION_MODEL)
-    finish_model = load_model(FINISH_POSITION_MODEL)
     predict_overtakes = build_overtake_predictor()
     predict_dotd = build_dotd_predictor()
 
@@ -545,6 +553,10 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
 
         model_state = None
         oracle_state = None  # reset at start of each season - no carry-over between seasons
+
+        typer.echo(f"Loading season {s} model artifacts (run train-model --season {s} first if missing)...")
+        quali_model = load_season_model(QUALI_POSITION_MODEL, s)
+        finish_model = load_season_model(FINISH_POSITION_MODEL, s)
 
         schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0]
