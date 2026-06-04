@@ -1,4 +1,4 @@
-"""Overtake prediction model — expected overtake points per driver for a given race."""
+"""Overtake prediction model - expected overtake points per driver for a given race."""
 
 import pandas as pd
 
@@ -17,15 +17,10 @@ def _load_overtake_history() -> pd.DataFrame:
     return pd.concat(frames).reset_index(drop=True)
 
 
+# uses a multiplicative model: driver_index * circuit_index * grid_factor * season_mean.
+# all indices are season-normalised (1.0 = season average), defaults to 1.0 for
+# unknown drivers, circuits, or grid positions
 def build_overtake_predictor():
-    """
-    Returns a predict_overtakes(driver_id, location, season) function built from
-    historical overtake data.
-
-    Uses a multiplicative model: driver_index × circuit_index × season_mean.
-    Both indices are season-normalised (1.0 = season average). Defaults to 1.0 for
-    unknown drivers or circuits.
-    """
     ot = _load_overtake_history()
 
     # season baselines
@@ -41,7 +36,7 @@ def build_overtake_predictor():
         .query("races >= 10")["avg_index"]
     )
 
-    # per-circuit index (min 2 races) — requires events parquets for location names
+    # per-circuit index (min 2 races) -- requires events parquets for location names
     events = pd.concat([
         pd.read_parquet(f) for f in sorted(INTERIM_EVENTS_DIR.glob("*.parquet"))
     ])[["season", "round", "location"]].drop_duplicates()
@@ -61,11 +56,24 @@ def build_overtake_predictor():
         .query("races >= 2")["avg_index"]
     )
 
-    def predict_overtakes(driver_id: str, location: str, season: int) -> float:
+    # per-grid-position factor -- drivers starting further back overtake more
+    # merge quali positions onto overtake history to compute grid factor
+    quali_frames = []
+    for f in sorted(INTERIM_EVENTS_DIR.parent.glob("quali/*.parquet")):
+        quali_frames.append(pd.read_parquet(f)[["season", "round", "driver_id", "quali_position"]])
+    all_quali = pd.concat(quali_frames)
+    ot_with_grid = ot.merge(all_quali, on=["season", "round", "driver_id"], how="left")
+    ot_with_grid = ot_with_grid.dropna(subset=["quali_position"])
+    ot_with_grid["quali_position"] = ot_with_grid["quali_position"].astype(int)
+
+    grid_factor = ot_with_grid.groupby("quali_position")["overtake_index"].mean()
+
+    def predict_overtakes(driver_id: str, location: str, season: int, quali_position: int = None) -> float:
         """Expected overtakes for a driver at a circuit in a given season."""
         d = driver_index.get(driver_id, 1.0)
         c = circuit_index.get(location, 1.0)
+        g = grid_factor.get(quali_position, 1.0) if quali_position is not None else 1.0
         s = season_means.get(season, season_means[max(season_means)])
-        return round(d * c * s, 2)
+        return round(d * c * g * s, 2)
 
     return predict_overtakes
