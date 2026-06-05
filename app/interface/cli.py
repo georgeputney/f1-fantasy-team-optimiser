@@ -34,7 +34,7 @@ from app.data.dotd import build_dotd_predictor
 from app.optimiser.optimiser import optimiser
 from app.optimiser.state import load_state, save_state
 
-from app.backtest import get_actual_team_points, oracle_baseline, random_baseline, lagged_baseline
+from app.backtest import get_actual_team_points, oracle_baseline, random_baseline, lagged_baseline, mean_prior_baseline
 
 from app.config import (
     ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, FANTASY_POINTS_DIR,
@@ -529,6 +529,8 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
 
         model_state = None
         oracle_state = None  # reset at start of each season - no carry-over between seasons
+        mean_state = None
+
 
         typer.echo(f"Loading season {s} model artifacts (run train-model --season {s} first if missing)...")
         quali_model = load_season_model(QUALI_POSITION_MODEL, s)
@@ -573,20 +575,28 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             lagged_team = lagged_baseline(s, round_num, prices, budget)
             lagged_points = get_actual_team_points(lagged_team, s, round_num) if lagged_team else None
 
-            results.append({"season": s, "round": round_num, "location": location, "model": model_points, "oracle": oracle_points, "random": random_points, "lagged": lagged_points})
+            mean_team = mean_prior_baseline(s, round_num, prices, budget, mean_state)
+            if mean_team:
+                mean_points = get_actual_team_points(mean_team, s, round_num, mean_team["transfer_penalty"])
+                mean_state = _build_state(mean_team, mean_state, asset_prices_index, budget)
+            else:
+                mean_points = None
+
+            results.append({"season": s, "round": round_num, "location": location, "model": model_points, "oracle": oracle_points, "random": random_points, "lagged": lagged_points, "mean": mean_points})
 
         df = pd.DataFrame(results)
 
-        typer.echo(f"\n{'Round':<6} {'Location':<18} {'Model':>8} {'Oracle':>8} {'Lagged':>8} {'Random':>8}")
+        typer.echo(f"\n{'Round':<6} {'Location':<18} {'Model':>8} {'Oracle':>8} {'Mean':>8} {'Lagged':>8} {'Random':>8}")
         for _, row in df.iterrows():
             lagged_str = f"{row['lagged']:>8.1f}" if pd.notna(row["lagged"]) else f"{'N/A':>8}"
-            typer.echo(f"  {int(row['round']):<4} {row['location']:<18} {row['model']:>8.1f} {row['oracle']:>8.1f} {lagged_str} {row['random']:>8.1f}")
+            mean_str = f"{row['mean']:>8.1f}" if pd.notna(row["mean"]) else f"{'N/A':>8}"
+            typer.echo(f"  {int(row['round']):<4} {row['location']:<18} {row['model']:>8.1f} {row['oracle']:>8.1f} {mean_str} {lagged_str} {row['random']:>8.1f}")
 
-        typer.echo(f"\n{'Total':<8} {df['model'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['lagged'].sum():>8.1f} {df['random'].sum():>8.1f}")
+        typer.echo(f"\n{'Total':<8} {df['model'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['mean'].sum():>8.1f} {df['lagged'].sum():>8.1f} {df['random'].sum():>8.1f}")
 
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-        df[["model", "oracle", "lagged", "random"]].cumsum().plot(title="Cumulative fantasy points by strategy", color=["blue", "orange", "red", "green"])
+        df[["model", "oracle", "mean", "lagged", "random"]].cumsum().plot(title="Cumulative fantasy points by strategy", color=["blue", "orange", "purple", "red", "green"])
 
         plt.xlabel("Round")
         plt.ylabel("Cumulative points")

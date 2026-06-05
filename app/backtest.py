@@ -71,6 +71,49 @@ def lagged_baseline(season, round_num, prices, budget):
     return optimiser(driver_points, constructor_points, prices, budget, state=None)
 
 
+# uses expanding-window mean of each asset's actual fantasy points from prior rounds as the optimiser objective.
+# represents a "pick whoever's been scoring well" strategy - no model, just recency.
+# for round 1, falls back to previous season's averages.
+def mean_prior_baseline(season, round_num, prices, budget, state=None):
+    from app.config import FANTASY_POINTS_DIR
+
+    # collect all prior rounds in the season
+    prior_frames = []
+    for r in range(1, round_num):
+        path = FANTASY_POINTS_DIR / f"{season}_{r:02d}.csv"
+        if path.exists():
+            prior_frames.append(load_fantasy_targets(season, r))
+
+    # fall back to previous season if no prior rounds yet
+    if not prior_frames:
+        prev_files = sorted(FANTASY_POINTS_DIR.glob(f"{season - 1}_*.csv"))
+        for f in prev_files:
+            _, rnd = f.stem.split("_")
+            prior_frames.append(load_fantasy_targets(season - 1, int(rnd)))
+
+    if not prior_frames:
+        return None
+
+    prior = pd.concat(prior_frames)
+    means = prior.groupby(["asset_id", "asset_type"])["actual_fantasy_points"].mean().reset_index()
+
+    available_assets = set(prices["asset_id"])
+
+    drivers = means[(means["asset_type"] == "driver") & (means["asset_id"].isin(available_assets))]
+    driver_points = drivers[["asset_id", "actual_fantasy_points"]].rename(columns={
+        "asset_id": "driver_id",
+        "actual_fantasy_points": "expected_fantasy_points",
+    })
+
+    constructors = means[(means["asset_type"] == "constructor") & (means["asset_id"].isin(available_assets))]
+    constructor_points = constructors[["asset_id", "actual_fantasy_points"]].rename(columns={
+        "asset_id": "constructor_id",
+        "actual_fantasy_points": "expected_fantasy_points",
+    })
+
+    return optimiser(driver_points, constructor_points, prices, budget, state)
+
+
 # estimates the expected fantasy points for a random valid team by averaging over N random selections under budget constraints
 def random_baseline(season, round_num, prices, budget, n=1000):
     drivers = prices[prices["asset_type"] == "driver"]
