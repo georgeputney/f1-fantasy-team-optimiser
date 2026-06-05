@@ -4,12 +4,12 @@ import pandas as pd
 import app.data.schemas as schemas
 
 from app.config import (
-    RAW_RACES_DIR, RAW_RACE_LAPS_DIR, RAW_QUALI_DIR, 
-    RAW_SPRINT_DIR, RAW_SPRINT_LAPS_DIR, RAW_SPRINT_QUALIFYING_DIR, 
-    RAW_EVENTS_DIR, RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR,
-    INTERIM_RACES_DIR, INTERIM_RACE_LAPS_DIR, INTERIM_QUALI_DIR, 
-    INTERIM_SPRINT_DIR, INTERIM_SPRINT_LAPS_DIR, INTERIM_SPRINT_QUALIFYING_DIR, 
-    INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR, INTERIM_FP1_DIR,
+    RAW_RACES_DIR, RAW_RACE_LAPS_DIR, RAW_QUALI_DIR,
+    RAW_SPRINT_DIR, RAW_SPRINT_LAPS_DIR, RAW_SPRINT_QUALIFYING_DIR,
+    RAW_EVENTS_DIR, RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR, RAW_PITSTOPS_DIR,
+    INTERIM_RACES_DIR, INTERIM_RACE_LAPS_DIR, INTERIM_QUALI_DIR,
+    INTERIM_SPRINT_DIR, INTERIM_SPRINT_LAPS_DIR, INTERIM_SPRINT_QUALIFYING_DIR,
+    INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR, INTERIM_FP1_DIR, INTERIM_PITSTOPS_DIR,
     DNF_PATCH_FILE,
 )
 
@@ -341,3 +341,27 @@ def clean_race_results(season, round_num):
     results.to_parquet(INTERIM_RACES_DIR / f"{season}_{round_num:02d}.parquet")
 
     return results
+
+
+# DHL team name -> constructor_id (lowercase + underscore, then apply rebrands)
+_DHL_TEAM_NORMALISATION = {
+    "rb": "racing_bulls",
+    "sauber": "kick_sauber",
+}
+
+
+# read raw DHL pitstop data from data/raw/pitstops/, normalise constructor names,
+# write to data/interim/pitstops/
+def clean_pitstops(season, round_num):
+    df = pd.read_parquet(RAW_PITSTOPS_DIR / f"{season}_{round_num:02d}.parquet")
+
+    df["constructor_id"] = df["team"].str.lower().str.replace(" ", "_")
+    df["constructor_id"] = df["constructor_id"].replace(_DHL_TEAM_NORMALISATION)
+    df = df.drop(columns=["team"])
+
+    df["race_id"] = f"{season}_{round_num:02d}"
+
+    INTERIM_PITSTOPS_DIR.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(INTERIM_PITSTOPS_DIR / f"{season}_{round_num:02d}.parquet")
+
+    return df

@@ -18,6 +18,7 @@ RAW_SPRINT_QUALIFYING_DIR           = RAW_DIR / "sprint_qualifying"
 RAW_FP3_DIR                         = RAW_DIR / "fp3"
 RAW_FP2_DIR                         = RAW_DIR / "fp2"
 RAW_FP1_DIR                         = RAW_DIR / "fp1"
+RAW_PITSTOPS_DIR                    = RAW_DIR / "pitstops"
 FASTF1_CACHE_DIR                    = RAW_DIR / "fastf1_cache"
 
 MANUAL_DIR                          = DATA_DIR / "manual"       # manually maintained inputs
@@ -38,6 +39,7 @@ INTERIM_SPRINT_QUALIFYING_DIR       = INTERIM_DIR / "sprint_qualifying"
 INTERIM_FP3_DIR                     = INTERIM_DIR / "fp3"
 INTERIM_FP2_DIR                     = INTERIM_DIR / "fp2"
 INTERIM_FP1_DIR                     = INTERIM_DIR / "fp1"
+INTERIM_PITSTOPS_DIR                = INTERIM_DIR / "pitstops"
 
 PROCESSED_DIR                       = DATA_DIR / "processed"    # feature store, model-ready datasets
 PROCESSED_HISTORIC_FEATURES_DIR     = PROCESSED_DIR / "historic_features"

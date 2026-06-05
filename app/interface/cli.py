@@ -10,13 +10,15 @@ import matplotlib.pyplot as plt
 
 from app.data.ingest import (
     get_event_metadata, get_practice_results,
-    get_race_laps, get_race_results, get_qualifying_results, 
-    get_sprint_laps, get_sprint_results, get_sprint_qualifying_results, 
+    get_race_laps, get_race_results, get_qualifying_results,
+    get_sprint_laps, get_sprint_results, get_sprint_qualifying_results,
+    get_dhl_pitstops,
 )
 from app.data.clean import (
     clean_events, clean_practice_results,
-    clean_race_laps, clean_race_results, clean_qualifying_results, 
-    clean_sprint_laps, clean_sprint_results, clean_sprint_qualifying_results, 
+    clean_race_laps, clean_race_results, clean_qualifying_results,
+    clean_sprint_laps, clean_sprint_results, clean_sprint_qualifying_results,
+    clean_pitstops,
 )
 from app.data.targets import load_all_fantasy_targets
 
@@ -83,6 +85,11 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
                 typer.echo(f"  Skipping round {round_num:02d}: data not available ({e})")
                 continue
 
+            try:
+                get_dhl_pitstops(s, round_num)
+            except Exception:
+                pass  # DHL data may not be available yet for recent/future races
+
             for session_name in ["FP2", "FP3"]:
                 try:
                     get_practice_results(s, round_num, session_name)
@@ -143,6 +150,11 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
             except FileNotFoundError:
                 typer.echo(f"  Skipping round {round_num:02d}: raw data not found (run ingest-data first)")
                 continue
+
+            try:
+                clean_pitstops(s, round_num)
+            except Exception:
+                pass  # DHL data may not be available for all races
 
             for session_name in ["FP2", "FP3"]:
                 try:
