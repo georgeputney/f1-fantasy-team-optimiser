@@ -10,15 +10,18 @@ import matplotlib.pyplot as plt
 
 from app.data.ingest import (
     get_event_metadata, get_practice_results,
-    get_race_laps, get_race_results, get_qualifying_results, 
-    get_sprint_laps, get_sprint_results, get_sprint_qualifying_results, 
+    get_race_laps, get_race_results, get_qualifying_results,
+    get_sprint_laps, get_sprint_results, get_sprint_qualifying_results,
+    get_dhl_pitstops,
 )
 from app.data.clean import (
     clean_events, clean_practice_results,
-    clean_race_laps, clean_race_results, clean_qualifying_results, 
-    clean_sprint_laps, clean_sprint_results, clean_sprint_qualifying_results, 
+    clean_race_laps, clean_race_results, clean_qualifying_results,
+    clean_sprint_laps, clean_sprint_results, clean_sprint_qualifying_results,
+    clean_pitstops,
 )
-from app.data.targets import load_all_fantasy_targets
+from app.data.targets import compute_targets
+from app.data.prices import compute_prices
 
 from app.features.build_historic_features import build_historic_features
 from app.features.build_practice_features import build_practice_features
@@ -37,11 +40,11 @@ from app.optimiser.state import load_state, save_state
 from app.backtest import get_actual_team_points, oracle_baseline, random_baseline, lagged_baseline, mean_prior_baseline
 
 from app.config import (
-    ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, FANTASY_PRICES_DIR, FANTASY_POINTS_DIR,
+    ALL_SEASONS, VAL_SEASONS, BUDGET_CAP,
     INTERIM_EVENTS_DIR, INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR,
     INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR,
     INTERIM_RACE_LAPS_DIR,
-    PROCESSED_HISTORIC_FEATURES_DIR,
+    PROCESSED_TARGETS_DIR, PROCESSED_PRICES_DIR, PROCESSED_HISTORIC_FEATURES_DIR,
     RACE_OVERTAKES_DIR,
     REPORTS_DIR, PREDICTIONS_DIR, TEAM_STATE_FILE
 )
@@ -82,6 +85,11 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
             except Exception as e:
                 typer.echo(f"  Skipping round {round_num:02d}: data not available ({e})")
                 continue
+
+            try:
+                get_dhl_pitstops(s, round_num)
+            except Exception:
+                pass  # DHL data may not be available yet for recent/future races
 
             for session_name in ["FP2", "FP3"]:
                 try:
@@ -144,6 +152,11 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
                 typer.echo(f"  Skipping round {round_num:02d}: raw data not found (run ingest-data first)")
                 continue
 
+            try:
+                clean_pitstops(s, round_num)
+            except Exception:
+                pass  # DHL data may not be available for all races
+
             for session_name in ["FP2", "FP3"]:
                 try:
                     clean_practice_results(s, round_num, session_name)
@@ -173,6 +186,42 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
                     pass  # non-sprint weekends
 
 
+# compute actual fantasy points from cleaned results and write to data/processed/targets/
+@app.command()
+def build_targets(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] = typer.Option(None)):
+    for s in season:
+
+        schedule = fastf1.get_event_schedule(s)
+        schedule = schedule[schedule["RoundNumber"] > 0] # exclude testing events (round 0) (for now)
+
+        if round:
+            schedule = schedule[schedule["RoundNumber"].isin(round)]
+
+        for _, event in schedule.iterrows():
+            round_num = int(event["RoundNumber"])
+            location = event.get("Location", str(round_num))
+
+            typer.echo(f"Building targets for season {s}, round {round_num:02d} - {location}...")
+
+            try:
+                compute_targets(s, round_num)
+            except (FileNotFoundError, ValueError):
+                typer.echo(f"  Skipping round {round_num:02d}: cleaned data not found or incomplete (run clean-data first)")
+                continue
+
+
+# compute fantasy prices from starting prices and targets using rolling PPM rule, write to data/processed/prices/
+@app.command()
+def build_prices(season: list[int] = typer.Option(ALL_SEASONS)):
+    for s in season:
+        typer.echo(f"Computing prices for season {s}...")
+        try:
+            frames = compute_prices(s)
+            typer.echo(f"  {len(frames)} rounds computed")
+        except FileNotFoundError as e:
+            typer.echo(f"  Skipping season {s}: {e}")
+
+
 # build historic rolling features and practice session features for the given seasons and write to data/processed/
 @app.command()
 def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] = typer.Option(None)):
@@ -180,7 +229,7 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
     race_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_RACES_DIR.glob("*.parquet"))])
     quali_results = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_QUALI_DIR.glob("*.parquet"))])
     events = pd.concat([pd.read_parquet(f) for f in sorted(INTERIM_EVENTS_DIR.glob("*.parquet"))])
-    fantasy_targets = load_all_fantasy_targets()
+    fantasy_targets = pd.concat([pd.read_parquet(f) for f in sorted(PROCESSED_TARGETS_DIR.glob("*.parquet"))])
 
     race_laps_files = sorted(INTERIM_RACE_LAPS_DIR.glob("*.parquet"))
     race_laps_all = pd.concat([pd.read_parquet(f) for f in race_laps_files]) if race_laps_files else None
@@ -218,7 +267,7 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
             try:
                 result = build_historic_features(race_results, quali_results, fantasy_targets, events, overtake_history, s, round_num)
             except FileNotFoundError:
-                typer.echo(f"  Skipping round {round_num:02d}: data not found (run clean-data first)")
+                typer.echo(f"  Skipping round {round_num:02d}: processed data not found (run build-targets first)")
                 continue
 
             if result is None:
@@ -262,12 +311,12 @@ def train_model(season: int = typer.Option(None)):
 def generate_reports(season: int = typer.Option(...), round: int = typer.Option(...)):
     from datetime import datetime
 
-    prices_path = FANTASY_PRICES_DIR / f"{season}_{round:02d}.csv"
+    prices_path = PROCESSED_PRICES_DIR / f"{season}_{round:02d}.parquet"
     if not prices_path.exists():
-        typer.echo(f"No prices file found: {prices_path}")
+        typer.echo(f"No prices file found: {prices_path} (run build-prices first)")
         raise typer.Exit(1)
 
-    prices = pd.read_csv(prices_path)
+    prices = pd.read_parquet(prices_path)
     prices_index = prices.set_index("asset_id")["price"]
 
     events_path = INTERIM_EVENTS_DIR / f"{season}_{round:02d}.parquet"
@@ -339,7 +388,7 @@ def backfill_predictions(from_season: int = typer.Option(2024), prod: bool = typ
     predict_overtakes = build_overtake_predictor()
     predict_dotd = build_dotd_predictor()
 
-    prices_files = sorted(FANTASY_PRICES_DIR.glob("*.csv"))
+    prices_files = sorted(PROCESSED_PRICES_DIR.glob("*.parquet"))
     prices_files = [p for p in prices_files if int(p.stem.split("_")[0]) >= from_season]
 
     PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -370,7 +419,7 @@ def backfill_predictions(from_season: int = typer.Option(2024), prod: bool = typ
         typer.echo(f"Generating {s} R{r:02d} - {circuit}...")
         try:
 
-            prices = pd.read_csv(prices_path)
+            prices = pd.read_parquet(prices_path)
             prices_index = prices.set_index("asset_id")["price"]
 
             predictions = run_predict(walk_quali, QUALI_POSITION_MODEL, walk_finish, FINISH_POSITION_MODEL, s, r)
@@ -449,7 +498,7 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
 # dropped/inactive assets are sold at last known price and warned to the user
 @app.command()
 def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP), no_state: bool = typer.Option(False)):
-    prices = pd.read_csv(FANTASY_PRICES_DIR / f"{season}_{round:02d}.csv")
+    prices = pd.read_parquet(PROCESSED_PRICES_DIR / f"{season}_{round:02d}.parquet")
     state = None if no_state else load_state(TEAM_STATE_FILE)
 
     quali_model = load_season_model(QUALI_POSITION_MODEL, season)
@@ -542,16 +591,16 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
         for _, event in schedule.iterrows():
             round_num = event["RoundNumber"]
             location = event.get("Location", str(round_num))
-            prices_path = FANTASY_PRICES_DIR / f"{s}_{round_num:02d}.csv"
+            prices_path = PROCESSED_PRICES_DIR / f"{s}_{round_num:02d}.parquet"
             features_path = PROCESSED_HISTORIC_FEATURES_DIR / f"{s}_{round_num:02d}.parquet"
-            targets_path = FANTASY_POINTS_DIR / f"{s}_{round_num:02d}.csv"
+            targets_path = PROCESSED_TARGETS_DIR / f"{s}_{round_num:02d}.parquet"
 
             if not (prices_path.exists() and features_path.exists() and targets_path.exists()):
                 continue
 
             typer.echo(f"Backtesting season {s}, round {round_num:02d} - {location}...")
 
-            prices = pd.read_csv(prices_path)
+            prices = pd.read_parquet(prices_path)
             asset_prices_index = prices.set_index("asset_id")["price"]
 
             events_path = INTERIM_EVENTS_DIR / f"{s}_{round_num:02d}.parquet"

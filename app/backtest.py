@@ -3,12 +3,12 @@
 import pandas as pd
 
 from app.optimiser.optimiser import optimiser
-from app.data.targets import load_fantasy_targets
+from app.config import PROCESSED_TARGETS_DIR
 
 
 # looks up actual fantasy points scored by a selected team from historical targets, applying x2 to the doubled driver
 def get_actual_team_points(team, season, round_num, transfer_penalty=0):
-    targets = load_fantasy_targets(season, round_num).set_index("asset_id")["actual_fantasy_points"]
+    targets = pd.read_parquet(PROCESSED_TARGETS_DIR / f"{season}_{round_num:02d}.parquet").set_index("asset_id")["actual_fantasy_points"]
     points = 0
 
     for driver in team["drivers"]:
@@ -23,7 +23,7 @@ def get_actual_team_points(team, season, round_num, transfer_penalty=0):
 
 # selects the optimal team using actual race points as the objective - the theoretical ceiling for any strategy
 def oracle_baseline(season, round_num, prices, budget, state=None):
-    targets = load_fantasy_targets(season, round_num)
+    targets = pd.read_parquet(PROCESSED_TARGETS_DIR / f"{season}_{round_num:02d}.parquet")
 
     drivers = targets[targets["asset_type"] == "driver"][["asset_id", "actual_fantasy_points"]].dropna(subset=["asset_id"])
     driver_points = drivers.rename(columns={
@@ -45,13 +45,12 @@ def oracle_baseline(season, round_num, prices, budget, state=None):
 # represents a "momentum" strategy: assume last week's best performers will repeat
 # returns None for round 1 of a season (no prior round available)
 def lagged_baseline(season, round_num, prices, budget):
-    from app.config import FANTASY_POINTS_DIR
-
-    prev_path = FANTASY_POINTS_DIR / f"{season}_{(round_num - 1):02d}.csv"
+    # find the previous round's targets file
+    prev_path = PROCESSED_TARGETS_DIR / f"{season}_{(round_num - 1):02d}.parquet"
     if not prev_path.exists():
         return None
 
-    targets = load_fantasy_targets(season, round_num - 1)
+    targets = pd.read_parquet(prev_path)
 
     # only keep assets available in this round's prices - handles team/driver changes between seasons
     available_assets = set(prices["asset_id"])
@@ -75,21 +74,18 @@ def lagged_baseline(season, round_num, prices, budget):
 # represents a "pick whoever's been scoring well" strategy - no model, just recency.
 # for round 1, falls back to previous season's averages.
 def mean_prior_baseline(season, round_num, prices, budget, state=None):
-    from app.config import FANTASY_POINTS_DIR
-
     # collect all prior rounds in the season
     prior_frames = []
     for r in range(1, round_num):
-        path = FANTASY_POINTS_DIR / f"{season}_{r:02d}.csv"
+        path = PROCESSED_TARGETS_DIR / f"{season}_{r:02d}.parquet"
         if path.exists():
-            prior_frames.append(load_fantasy_targets(season, r))
+            prior_frames.append(pd.read_parquet(path))
 
     # fall back to previous season if no prior rounds yet
     if not prior_frames:
-        prev_files = sorted(FANTASY_POINTS_DIR.glob(f"{season - 1}_*.csv"))
+        prev_files = sorted(PROCESSED_TARGETS_DIR.glob(f"{season - 1}_*.parquet"))
         for f in prev_files:
-            _, rnd = f.stem.split("_")
-            prior_frames.append(load_fantasy_targets(season - 1, int(rnd)))
+            prior_frames.append(pd.read_parquet(f))
 
     if not prior_frames:
         return None
