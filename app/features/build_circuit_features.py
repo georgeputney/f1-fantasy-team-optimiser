@@ -12,7 +12,7 @@ def circuit_data_n_seasons(circuit_races):
 
 
 # mean ratio of F1 Fantasy overtakes at this circuit vs the season average, season-normalised
-# uses manual race_overtakes data; circuit_race_ids already enforces the temporal cutoff
+# uses race_overtakes data; circuit_race_ids already enforces the temporal cutoff
 def circuit_overtake_index(overtake_history, circuit_race_ids):
     if overtake_history.empty:
         return {"circuit_overtake_index": float("nan")}

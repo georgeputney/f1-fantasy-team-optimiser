@@ -12,13 +12,13 @@ from app.data.ingest import (
     get_event_metadata, get_practice_results,
     get_race_laps, get_race_results, get_qualifying_results,
     get_sprint_laps, get_sprint_results, get_sprint_qualifying_results,
-    get_dhl_pitstops,
+    get_dhl_pitstops, get_overtakes,
 )
 from app.data.clean import (
     clean_events, clean_practice_results,
     clean_race_laps, clean_race_results, clean_qualifying_results,
     clean_sprint_laps, clean_sprint_results, clean_sprint_qualifying_results,
-    clean_pitstops,
+    clean_pitstops, clean_race_overtakes, clean_sprint_overtakes,
 )
 from app.data.targets import compute_targets
 from app.data.prices import compute_prices
@@ -43,9 +43,9 @@ from app.config import (
     ALL_SEASONS, VAL_SEASONS, BUDGET_CAP,
     INTERIM_EVENTS_DIR, INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR,
     INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR,
-    INTERIM_RACE_LAPS_DIR,
+    INTERIM_RACE_LAPS_DIR, INTERIM_RACE_OVERTAKES_DIR,
+    RAW_RACE_OVERTAKES_DIR, RAW_SPRINT_OVERTAKES_DIR,
     PROCESSED_TARGETS_DIR, PROCESSED_PRICES_DIR, PROCESSED_HISTORIC_FEATURES_DIR,
-    RACE_OVERTAKES_DIR,
     REPORTS_DIR, PREDICTIONS_DIR, TEAM_STATE_FILE
 )
 
@@ -128,6 +128,13 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
                 except Exception:
                     pass  # non-sprint weekends
 
+        # overtakes are scraped per-season (single page load for all rounds)
+        try:
+            typer.echo(f"Ingesting overtakes for season {s}...")
+            get_overtakes(s)
+        except Exception as e:
+            typer.echo(f"  Warning: could not fetch overtakes ({e})")
+
 
 # clean raw parquet files for the given seasons and write validated tables to data/interim/
 @app.command()
@@ -162,6 +169,11 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
             except Exception:
                 pass  # DHL data may not be available for all races
 
+            try:
+                clean_race_overtakes(s, round_num)
+            except Exception:
+                pass  # overtakes may not be available for all races
+
             for session_name in ["FP2", "FP3"]:
                 try:
                     clean_practice_results(s, round_num, session_name)
@@ -189,6 +201,11 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
                     clean_sprint_results(s, round_num)
                 except Exception:
                     pass  # non-sprint weekends
+
+                try:
+                    clean_sprint_overtakes(s, round_num)
+                except Exception:
+                    pass  # sprint overtakes may not be available
 
 
 # compute actual fantasy points from cleaned results and write to data/processed/targets/
@@ -242,16 +259,9 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
     fp3_files = sorted(INTERIM_FP3_DIR.glob("*.parquet"))
     fp3_all = pd.concat([pd.read_parquet(f) for f in fp3_files]) if fp3_files else None
 
-    overtake_files = sorted(RACE_OVERTAKES_DIR.glob("*.csv"))
+    overtake_files = sorted(INTERIM_RACE_OVERTAKES_DIR.glob("*.parquet"))
     if overtake_files:
-        _ot_frames = []
-        for _f in overtake_files:
-            _s, _r = _f.stem.split("_")
-            _df = pd.read_csv(_f)
-            _df["season"] = int(_s)
-            _df["round"] = int(_r)
-            _ot_frames.append(_df)
-        overtake_history = pd.concat(_ot_frames).reset_index(drop=True)
+        overtake_history = pd.concat([pd.read_parquet(f) for f in overtake_files]).reset_index(drop=True)
     else:
         overtake_history = pd.DataFrame(columns=["driver_id", "race_overtakes", "season", "round"])
 

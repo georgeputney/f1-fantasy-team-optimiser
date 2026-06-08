@@ -7,9 +7,11 @@ from app.config import (
     RAW_RACES_DIR, RAW_RACE_LAPS_DIR, RAW_QUALI_DIR,
     RAW_SPRINT_DIR, RAW_SPRINT_LAPS_DIR, RAW_SPRINT_QUALIFYING_DIR,
     RAW_EVENTS_DIR, RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR, RAW_PITSTOPS_DIR,
+    RAW_RACE_OVERTAKES_DIR, RAW_SPRINT_OVERTAKES_DIR,
     INTERIM_RACES_DIR, INTERIM_RACE_LAPS_DIR, INTERIM_QUALI_DIR,
     INTERIM_SPRINT_DIR, INTERIM_SPRINT_LAPS_DIR, INTERIM_SPRINT_QUALIFYING_DIR,
     INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR, INTERIM_FP1_DIR, INTERIM_PITSTOPS_DIR,
+    INTERIM_RACE_OVERTAKES_DIR, INTERIM_SPRINT_OVERTAKES_DIR,
     MANUAL_DIR,
 )
 
@@ -378,5 +380,41 @@ def clean_pitstops(season, round_num):
 
     INTERIM_PITSTOPS_DIR.mkdir(parents=True, exist_ok=True)
     df.to_parquet(INTERIM_PITSTOPS_DIR / f"{season}_{round_num:02d}.parquet")
+
+    return df
+
+
+# read raw race overtakes CSV from data/raw/race_overtakes/, validate columns,
+# write to data/interim/race_overtakes/
+def clean_race_overtakes(season, round_num):
+    raw_path = RAW_RACE_OVERTAKES_DIR / f"{season}_{round_num:02d}.csv"
+    df = pd.read_csv(raw_path)
+
+    df = df[["driver_id", "race_overtakes"]].copy()
+    df["race_overtakes"] = pd.to_numeric(df["race_overtakes"], errors="coerce").fillna(0).astype(int)
+    df["season"] = season
+    df["round"] = round_num
+    df["race_id"] = f"{season}_{round_num:02d}"
+
+    INTERIM_RACE_OVERTAKES_DIR.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(INTERIM_RACE_OVERTAKES_DIR / f"{season}_{round_num:02d}.parquet", index=False)
+
+    return df
+
+
+# read raw sprint overtakes CSV from data/raw/sprint_overtakes/, validate columns,
+# write to data/interim/sprint_overtakes/
+def clean_sprint_overtakes(season, round_num):
+    raw_path = RAW_SPRINT_OVERTAKES_DIR / f"{season}_{round_num:02d}.csv"
+    df = pd.read_csv(raw_path)
+
+    df = df[["driver_id", "sprint_overtakes"]].copy()
+    df["sprint_overtakes"] = pd.to_numeric(df["sprint_overtakes"], errors="coerce").fillna(0).astype(int)
+    df["season"] = season
+    df["round"] = round_num
+    df["race_id"] = f"{season}_{round_num:02d}"
+
+    INTERIM_SPRINT_OVERTAKES_DIR.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(INTERIM_SPRINT_OVERTAKES_DIR / f"{season}_{round_num:02d}.parquet", index=False)
 
     return df

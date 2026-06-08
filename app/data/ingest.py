@@ -13,6 +13,7 @@ from app.config import (
     RAW_RACES_DIR, RAW_RACE_LAPS_DIR, RAW_QUALI_DIR,
     RAW_SPRINT_DIR, RAW_SPRINT_LAPS_DIR, RAW_SPRINT_QUALIFYING_DIR,
     RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR, RAW_PITSTOPS_DIR,
+    RAW_RACE_OVERTAKES_DIR, RAW_SPRINT_OVERTAKES_DIR,
 )
 
 fastf1.Cache.enable_cache(FASTF1_CACHE_DIR)
@@ -280,3 +281,10 @@ def get_dhl_pitstops(season, round_num):
     out.to_parquet(RAW_PITSTOPS_DIR / f"{season}_{round_num:02d}.parquet", index=False)
 
     return out
+
+
+# scrape race and sprint overtakes from f1fantasytools.com for a full season
+# writes CSVs to data/raw/race_overtakes/ and data/raw/sprint_overtakes/
+def get_overtakes(season):
+    from scraping.scrape_overtakes import scrape_season
+    return scrape_season(season)

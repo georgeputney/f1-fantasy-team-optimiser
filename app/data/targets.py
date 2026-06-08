@@ -4,17 +4,17 @@ import pandas as pd
 import app.data.schemas as schemas
 import app.data.scoring_rules as scoring_rules
 
-from app.config import INTERIM_RACES_DIR, INTERIM_QUALI_DIR, INTERIM_SPRINT_DIR, INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_PITSTOPS_DIR, PROCESSED_TARGETS_DIR, RACE_OVERTAKES_DIR, SPRINT_OVERTAKES_DIR
+from app.config import INTERIM_RACES_DIR, INTERIM_QUALI_DIR, INTERIM_SPRINT_DIR, INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_PITSTOPS_DIR, PROCESSED_TARGETS_DIR, INTERIM_RACE_OVERTAKES_DIR, INTERIM_SPRINT_OVERTAKES_DIR
 
 
 # returns fantasy points for all drivers and constructors for a single sprint weekend
 def compute_sprint_targets(season, round_num):
     results = pd.read_parquet(INTERIM_SPRINT_DIR / f"{season}_{round_num:02d}.parquet")
 
-    # merge in manual sprint overtake counts (0 if file not yet available)
-    sprint_overtakes_path = SPRINT_OVERTAKES_DIR / f"{season}_{round_num:02d}.csv"
+    # merge in sprint overtake counts (0 if file not yet available)
+    sprint_overtakes_path = INTERIM_SPRINT_OVERTAKES_DIR / f"{season}_{round_num:02d}.parquet"
     if sprint_overtakes_path.exists():
-        sprint_overtakes = pd.read_csv(sprint_overtakes_path)[["driver_id", "sprint_overtakes"]]
+        sprint_overtakes = pd.read_parquet(sprint_overtakes_path)[["driver_id", "sprint_overtakes"]]
         results = results.merge(sprint_overtakes, on="driver_id", how="left")
         results["sprint_overtakes"] = results["sprint_overtakes"].fillna(0).astype(int)
     else:
@@ -113,10 +113,10 @@ def compute_qualifying_targets(season, round_num):
 def compute_race_targets(season, round_num):
     results = pd.read_parquet(INTERIM_RACES_DIR / f"{season}_{round_num:02d}.parquet")
 
-    # merge in manual overtake counts (0 if file not yet available)
-    overtakes_path = RACE_OVERTAKES_DIR / f"{season}_{round_num:02d}.csv"
+    # merge in overtake counts (0 if file not yet available)
+    overtakes_path = INTERIM_RACE_OVERTAKES_DIR / f"{season}_{round_num:02d}.parquet"
     if overtakes_path.exists():
-        overtakes = pd.read_csv(overtakes_path)[["driver_id", "race_overtakes"]]
+        overtakes = pd.read_parquet(overtakes_path)[["driver_id", "race_overtakes"]]
         results = results.merge(overtakes, on="driver_id", how="left")
         results["race_overtakes"] = results["race_overtakes"].fillna(0).astype(int)
     else:

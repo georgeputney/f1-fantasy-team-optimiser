@@ -2,18 +2,13 @@
 
 import pandas as pd
 
-from app.config import RACE_OVERTAKES_DIR, INTERIM_EVENTS_DIR
+from app.config import INTERIM_RACE_OVERTAKES_DIR, INTERIM_EVENTS_DIR, INTERIM_QUALI_DIR
 
 
 def _load_overtake_history() -> pd.DataFrame:
-    # swap this for a processed/overtakes/ parquet glob once overtakes are derived from telemetry
     frames = []
-    for f in sorted(RACE_OVERTAKES_DIR.glob("*.csv")):
-        season, round_ = f.stem.split("_")
-        df = pd.read_csv(f)
-        df["season"] = int(season)
-        df["round"] = int(round_)
-        frames.append(df)
+    for f in sorted(INTERIM_RACE_OVERTAKES_DIR.glob("*.parquet")):
+        frames.append(pd.read_parquet(f))
     return pd.concat(frames).reset_index(drop=True)
 
 
@@ -59,7 +54,7 @@ def build_overtake_predictor():
     # per-grid-position factor -- drivers starting further back overtake more
     # merge quali positions onto overtake history to compute grid factor
     quali_frames = []
-    for f in sorted(INTERIM_EVENTS_DIR.parent.glob("quali/*.parquet")):
+    for f in sorted(INTERIM_QUALI_DIR.glob("*.parquet")):
         quali_frames.append(pd.read_parquet(f)[["season", "round", "driver_id", "quali_position"]])
     all_quali = pd.concat(quali_frames)
     ot_with_grid = ot.merge(all_quali, on=["season", "round", "driver_id"], how="left")

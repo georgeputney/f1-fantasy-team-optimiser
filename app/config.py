@@ -9,16 +9,18 @@ DATA_DIR                            = ROOT_DIR / "data"
 
 RAW_DIR                             = DATA_DIR / "raw"          # fastf1 API downloads
 RAW_EVENTS_DIR                      = RAW_DIR / "events"
-RAW_RACES_DIR                       = RAW_DIR / "races"
+RAW_RACES_DIR                       = RAW_DIR / "race"
 RAW_RACE_LAPS_DIR                   = RAW_DIR / "race_laps"
-RAW_QUALI_DIR                       = RAW_DIR / "quali"
+RAW_QUALI_DIR                       = RAW_DIR / "qualifying"
 RAW_SPRINT_DIR                      = RAW_DIR / "sprint"
 RAW_SPRINT_LAPS_DIR                 = RAW_DIR / "sprint_laps"
 RAW_SPRINT_QUALIFYING_DIR           = RAW_DIR / "sprint_qualifying"
 RAW_FP3_DIR                         = RAW_DIR / "fp3"
 RAW_FP2_DIR                         = RAW_DIR / "fp2"
 RAW_FP1_DIR                         = RAW_DIR / "fp1"
-RAW_PITSTOPS_DIR                    = RAW_DIR / "pitstops"
+RAW_PITSTOPS_DIR                    = RAW_DIR / "race_pitstops"
+RAW_RACE_OVERTAKES_DIR              = RAW_DIR / "race_overtakes"
+RAW_SPRINT_OVERTAKES_DIR            = RAW_DIR / "sprint_overtakes"
 FASTF1_CACHE_DIR                    = RAW_DIR / "fastf1_cache"
 
 MANUAL_DIR                          = DATA_DIR / "manual"       # manually maintained inputs
@@ -29,16 +31,18 @@ SPRINT_OVERTAKES_DIR                = MANUAL_DIR / "sprint_overtakes"
 
 INTERIM_DIR                         = DATA_DIR / "interim"      # cleaned tables, before feature engineering
 INTERIM_EVENTS_DIR                  = INTERIM_DIR / "events"
-INTERIM_RACES_DIR                   = INTERIM_DIR / "races"
+INTERIM_RACES_DIR                   = INTERIM_DIR / "race"
 INTERIM_RACE_LAPS_DIR               = INTERIM_DIR / "race_laps"
-INTERIM_QUALI_DIR                   = INTERIM_DIR / "quali"
+INTERIM_QUALI_DIR                   = INTERIM_DIR / "qualifying"
 INTERIM_SPRINT_DIR                  = INTERIM_DIR / "sprint"
 INTERIM_SPRINT_LAPS_DIR             = INTERIM_DIR / "sprint_laps"
 INTERIM_SPRINT_QUALIFYING_DIR       = INTERIM_DIR / "sprint_qualifying"
 INTERIM_FP3_DIR                     = INTERIM_DIR / "fp3"
 INTERIM_FP2_DIR                     = INTERIM_DIR / "fp2"
 INTERIM_FP1_DIR                     = INTERIM_DIR / "fp1"
-INTERIM_PITSTOPS_DIR                = INTERIM_DIR / "pitstops"
+INTERIM_PITSTOPS_DIR                = INTERIM_DIR / "race_pitstops"
+INTERIM_RACE_OVERTAKES_DIR          = INTERIM_DIR / "race_overtakes"
+INTERIM_SPRINT_OVERTAKES_DIR        = INTERIM_DIR / "sprint_overtakes"
 
 PROCESSED_DIR                       = DATA_DIR / "processed"    # feature store, model-ready datasets
 PROCESSED_TARGETS_DIR               = PROCESSED_DIR / "targets"
