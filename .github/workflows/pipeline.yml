@@ -55,6 +55,7 @@ jobs:
           python -m app.interface.cli ingest-data   --season ${{ inputs.season }} --round $PREV || true
           python -m app.interface.cli clean-data    --season ${{ inputs.season }} --round $PREV || true
           python -m app.interface.cli build-targets --season ${{ inputs.season }} --round $PREV || true
+          python -m app.interface.cli build-prices  --season ${{ inputs.season }} || true
           python -m app.interface.cli build-features --season ${{ inputs.season }} --round $PREV || true
 
       - name: Ingest current round
@@ -75,10 +76,13 @@ jobs:
             --season ${{ inputs.season }} \
             --round  ${{ inputs.round }}
 
-      # skip if prices file not yet committed for this round
+      - name: Build prices
+        run: |
+          python -m app.interface.cli build-prices --season ${{ inputs.season }}
+
       - name: Generate reports
         run: |
-          PRICES="data/manual/fantasy_prices/${{ inputs.season }}_$(printf '%02d' ${{ inputs.round }}).csv"
+          PRICES="data/processed/prices/${{ inputs.season }}_$(printf '%02d' ${{ inputs.round }}).parquet"
           if [ -f "$PRICES" ]; then
             python -m app.interface.cli generate-reports \
               --season ${{ inputs.season }} \

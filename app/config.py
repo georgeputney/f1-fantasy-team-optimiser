@@ -43,6 +43,7 @@ INTERIM_PITSTOPS_DIR                = INTERIM_DIR / "pitstops"
 
 PROCESSED_DIR                       = DATA_DIR / "processed"    # feature store, model-ready datasets
 PROCESSED_TARGETS_DIR               = PROCESSED_DIR / "targets"
+PROCESSED_PRICES_DIR                = PROCESSED_DIR / "prices"
 PROCESSED_HISTORIC_FEATURES_DIR     = PROCESSED_DIR / "historic_features"
 PROCESSED_PRACTICE_FEATURES_DIR     = PROCESSED_DIR / "practice_features"
 PROCESSED_CIRCUIT_FEATURES_DIR      = PROCESSED_DIR / "circuit_features"
@@ -58,13 +59,16 @@ TEAM_STATE_FILE                     = DATA_DIR / "team_state_file.json"
 TRAIN_SEASONS                       = [2018, 2019, 2020, 2021, 2022, 2023]  # earliest data with stable telemetry
 VAL_SEASONS                         = [2024]
 TEST_SEASONS                        = [2025]
-ALL_SEASONS                         = TRAIN_SEASONS + VAL_SEASONS + TEST_SEASONS
+LIVE_SEASONS                         = [2026]
+ALL_SEASONS                         = TRAIN_SEASONS + VAL_SEASONS + TEST_SEASONS + LIVE_SEASONS
 
 
 # fantasy constraints
 BUDGET_CAP                          = 100.0     # total budget (at the start of the season)
 DRIVER_ROSTER_SIZE                  = 5         # no. drivers to pick
 CONSTRUCTOR_ROSTER_SIZE             = 2         # no. constructors to pick
+STARTING_PRICES_DIR                 = MANUAL_DIR / "starting_prices"  # round 1 prices per season
+PRICE_FLOOR                         = {2025: 4.5, 2026: 3.5}         # minimum asset price by season
 
 
 # targets
