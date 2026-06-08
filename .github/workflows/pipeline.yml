@@ -120,4 +120,11 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/processed/ reports/
-          git diff --staged --quiet || git commit -m "Pipeline run: ${{ steps.detect.outputs.season }} round ${{ steps.detect.outputs.round }}" && git push
+          SEASON=${{ steps.detect.outputs.season }}
+          ROUND=${{ steps.detect.outputs.round }}
+          if [ "${{ steps.detect.outputs.has_race }}" = "true" ]; then
+            MSG="Processed round $ROUND + preliminary round $(( ROUND + 1 )) predictions"
+          else
+            MSG="Updated round $ROUND predictions"
+          fi
+          git diff --staged --quiet || git commit -m "$MSG" && git push
