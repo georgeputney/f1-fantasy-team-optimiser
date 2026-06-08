@@ -86,8 +86,7 @@ jobs:
           if [ -f "$PRICES" ]; then
             python -m app.interface.cli generate-reports \
               --season ${{ inputs.season }} \
-              --round  ${{ inputs.round }} \
-              --prod
+              --round  ${{ inputs.round }}
           else
             echo "No prices file at $PRICES - skipping generate-reports"
           fi
