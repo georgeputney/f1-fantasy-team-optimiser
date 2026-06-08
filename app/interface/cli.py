@@ -382,7 +382,7 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
 
 # generate versioned predictions for all historical races that have prices but no saved file yet
 @app.command()
-def backfill_predictions(from_season: int = typer.Option(2024), prod: bool = typer.Option(True), overwrite: bool = typer.Option(False)):
+def backfill_predictions(from_season: int = typer.Option(2026), prod: bool = typer.Option(True), overwrite: bool = typer.Option(False)):
     from datetime import datetime
 
     predict_overtakes = build_overtake_predictor()

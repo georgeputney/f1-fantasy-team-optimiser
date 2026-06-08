@@ -15,10 +15,30 @@ data/team_state*.json
 data/artifacts/finish_position.joblib
 data/artifacts/quali_position.joblib
 data/artifacts/dnf_model.joblib
+data/manual/fantasy_prices/
+data/manual/fantasy_points/2023_*
+data/manual/fantasy_points/2024_*
+data/manual/fantasy_points/2025_*
+data/manual/starting_prices/2025.csv
+data/processed/prices/2025_*
+data/processed/targets/2018_*
+data/processed/targets/2019_*
+data/processed/targets/2020_*
+data/processed/targets/2021_*
+data/processed/targets/2022_*
+data/processed/targets/2023_*
+data/processed/targets/2024_*
+data/processed/targets/2025_*
 
 # visualisations
 reports/*/*.png
 reports/*.png
+
+# pre-2026 reports
+reports/backtest_2024.*
+reports/backtest_2025.*
+reports/predictions/predictions_2024_*
+reports/predictions/predictions_2025_*
 
 # virtual env
 .venv/
