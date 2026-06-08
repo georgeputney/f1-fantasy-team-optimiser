@@ -1,13 +1,16 @@
-"""Check whether the trigger session for the current race weekend has completed.
+"""Check whether the pipeline should run for prediction generation.
 
-Trigger session by weekend type:
-  conventional  ->  Practice 3       (Saturday morning)
-  sprint        ->  Sprint Qualifying (Friday evening)
+Two trigger conditions:
+  1. Post-race: race just finished for round N -> trigger pipeline for round N+1
+     (premature prediction using historical features only, no practice data)
+  2. Pre-race: trigger session finished for round N -> trigger pipeline for round N
+     Trigger session by weekend type:
+       conventional  ->  Practice 3       (Saturday morning)
+       sprint        ->  Sprint Qualifying (Friday evening)
 
 Writes should_run, season, round to GITHUB_OUTPUT when the pipeline should run.
 """
 
-import json
 import os
 import sys
 from datetime import date, datetime, timedelta, timezone
@@ -20,15 +23,32 @@ Path("/tmp/fastf1_check_cache").mkdir(parents=True, exist_ok=True)
 fastf1.Cache.enable_cache("/tmp/fastf1_check_cache")
 
 
-def _already_predicted(year: int, round_num: int) -> bool:
-    pred_path = Path("reports/predictions_latest.json")
-    if not pred_path.exists():
-        return False
+def _session_finished(event, session_name, now):
+    """check if a session has finished (scheduled start + 2h buffer) and has lap data."""
     try:
-        data = json.loads(pred_path.read_text())
-        return data.get("season") == year and data.get("round") == round_num
+        session_start = event.get_session_date(session_name, utc=True)
+        if now < session_start + timedelta(hours=2):
+            return False
     except Exception:
         return False
+
+    try:
+        session = fastf1.get_session(int(event["RoundNumber"]), session_name)
+        session.load(laps=True, telemetry=False, weather=False, messages=False)
+        return session.laps is not None and len(session.laps) > 0
+    except Exception:
+        return False
+
+
+def _set_output(year, round_num, label):
+    output = f"should_run=true\nseason={year}\nround={round_num}\n"
+    output_file = os.environ.get("GITHUB_OUTPUT", "")
+    if output_file:
+        with open(output_file, "a") as f:
+            f.write(output)
+    else:
+        print(output)
+    print(f"{label}: {year} round {round_num}")
 
 
 def main():
@@ -37,7 +57,40 @@ def main():
     year = today.year
 
     schedule = fastf1.get_event_schedule(year, include_testing=False)
+    total_rounds = len(schedule)
 
+    # check if a race just finished -> premature prediction for next round
+    for _, event in schedule.iterrows():
+        race_date = event["EventDate"].date()
+        if not (race_date <= today <= race_date + timedelta(days=1)):
+            continue
+
+        round_num = int(event["RoundNumber"])
+        next_round = round_num + 1
+        if next_round > total_rounds:
+            continue
+
+        # check race session has finished
+        try:
+            race_start = event.get_session_date("Race", utc=True)
+            if now < race_start + timedelta(hours=3):
+                continue
+        except Exception:
+            continue
+
+        # confirm race lap data is available
+        try:
+            session = fastf1.get_session(year, round_num, "Race")
+            session.load(laps=True, telemetry=False, weather=False, messages=False)
+            if session.laps is None or len(session.laps) == 0:
+                continue
+        except Exception:
+            continue
+
+        _set_output(year, next_round, "Post-race premature prediction")
+        return
+
+    # check if trigger session finished -> full prediction for current round
     for _, event in schedule.iterrows():
         race_date = event["EventDate"].date()
         if not (race_date - timedelta(days=3) <= today <= race_date):
@@ -46,10 +99,6 @@ def main():
         round_num = int(event["RoundNumber"])
         is_sprint = "sprint" in str(event.get("EventFormat", "")).lower()
         trigger_session = "Sprint Qualifying" if is_sprint else "Practice 3"
-
-        if _already_predicted(year, round_num):
-            print(f"Predictions already exist for {year} round {round_num}, skipping.")
-            return
 
         # check trigger session has finished (scheduled start + 2h buffer)
         try:
@@ -72,15 +121,7 @@ def main():
             print(f"{trigger_session} data not available: {e}", file=sys.stderr)
             return
 
-        output = f"should_run=true\nseason={year}\nround={round_num}\n"
-        output_file = os.environ.get("GITHUB_OUTPUT", "")
-        if output_file:
-            with open(output_file, "a") as f:
-                f.write(output)
-        else:
-            print(output)
-
-        print(f"Ready: {year} round {round_num} — {event['EventName']}")
+        _set_output(year, round_num, f"Post-{trigger_session} prediction")
         return
 
     print("No active race weekend or trigger session data not available.")

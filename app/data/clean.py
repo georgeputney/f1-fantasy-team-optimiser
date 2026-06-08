@@ -10,7 +10,7 @@ from app.config import (
     INTERIM_RACES_DIR, INTERIM_RACE_LAPS_DIR, INTERIM_QUALI_DIR,
     INTERIM_SPRINT_DIR, INTERIM_SPRINT_LAPS_DIR, INTERIM_SPRINT_QUALIFYING_DIR,
     INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR, INTERIM_FP1_DIR, INTERIM_PITSTOPS_DIR,
-    MANUAL_DIR, DNF_PATCH_FILE,
+    MANUAL_DIR,
 )
 
 RAW_PRACTICE_DIRS = {"FP1": RAW_FP1_DIR, "FP2": RAW_FP2_DIR, "FP3": RAW_FP3_DIR}
@@ -311,14 +311,6 @@ def clean_race_results(season, round_num):
     )
     results["dsq_flag"] = results["status"].eq("disqualified")
     results["crash_dnf_flag"] = results["status"].str.contains("accident|collision|damage|spun off", na=False)
-
-    # apply manual patch for 2023+ seasons where FastF1 returns generic "Retired"
-    if DNF_PATCH_FILE.exists():
-        patch = pd.read_csv(DNF_PATCH_FILE, comment="#")
-        crash_keys = patch[patch["dnf_type"] == "crash"]["race_id"] + "|" + patch[patch["dnf_type"] == "crash"]["driver_id"]
-        result_keys = results["race_id"] + "|" + results["driver_id"]
-        results["crash_dnf_flag"] = results["crash_dnf_flag"] | result_keys.isin(crash_keys.values)
-
     results["mechanical_dnf_flag"] = results["dnf_flag"] & ~results["crash_dnf_flag"]
     results["positions_gained"] = results["grid_position"] - results["finish_position"]
 
