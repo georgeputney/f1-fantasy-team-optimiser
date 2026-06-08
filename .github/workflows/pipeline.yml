@@ -38,6 +38,9 @@ jobs:
       - name: Install package
         run: pip install -e . --quiet
 
+      - name: Create FastF1 cache directory
+        run: mkdir -p data/raw/fastf1_cache
+
       - name: Detect season and round from pushed data
         id: detect
         run: |
@@ -45,10 +48,10 @@ jobs:
             echo "season=${{ inputs.season }}" >> "$GITHUB_OUTPUT"
             echo "round=${{ inputs.round }}" >> "$GITHUB_OUTPUT"
           else
-            # find the latest interim race file to determine season/round
-            LATEST=$(ls -1 data/interim/races/*.parquet 2>/dev/null | sort | tail -1)
+            # find the latest changed interim race file in this push
+            LATEST=$(git diff --name-only HEAD~1 -- 'data/interim/races/*.parquet' | sort | tail -1)
             if [ -z "$LATEST" ]; then
-              echo "No interim race data found"
+              echo "No new interim race data in this push"
               exit 1
             fi
             STEM=$(basename "$LATEST" .parquet)
