@@ -25,6 +25,22 @@ PRACTICE_DIRS = {"FP1": RAW_FP1_DIR, "FP2": RAW_FP2_DIR, "FP3": RAW_FP3_DIR}
 PRACTICE_COLUMNS = {"FP1": FP1_COLUMNS, "FP2": FP2_COLUMNS, "FP3": FP3_COLUMNS}
 PRACTICE_BEST_LAP_ONLY = {"FP1": True, "FP2": False, "FP3": True}
 
+# fallback mapping from live timing team names to Ergast-style TeamId,
+# used when Ergast hasn't indexed the session yet
+_TEAM_DISPLAY_TO_ID = {
+    "Alpine": "alpine",
+    "Aston Martin": "aston_martin",
+    "Audi": "audi",
+    "Cadillac": "cadillac",
+    "Ferrari": "ferrari",
+    "Haas F1 Team": "haas",
+    "McLaren": "mclaren",
+    "Mercedes": "mercedes",
+    "Racing Bulls": "rb",
+    "Red Bull Racing": "red_bull",
+    "Williams": "williams",
+}
+
 
 # fetch event metadata for a single round from FastF1 and write to data/raw/events/
 # returns the raw DataFrame
@@ -47,12 +63,19 @@ def get_practice_results(season, round_num, session_name):
     session = fastf1.get_session(season, round_num, session_name)
     session.load(laps=True, telemetry=False, weather=False, messages=False)
 
-    laps = session.laps[PRACTICE_COLUMNS[session_name]].copy()
+    cols = PRACTICE_COLUMNS[session_name] + ["Team"]
+    laps = session.laps[cols].copy()
 
     driver_info = session.results[["Abbreviation", "FirstName", "LastName", "TeamId"]]
-    laps = laps.merge(driver_info, left_on="Driver", right_on="Abbreviation")  # join driver name/team onto laps via 3-letter code
 
-    laps = laps.drop(columns=["Driver", "Abbreviation"])
+    # when Ergast hasn't indexed the session yet, TeamId is empty - fall back to
+    # the Team column from laps (populated by live timing)
+    if driver_info["TeamId"].eq("").all():
+        laps["TeamId"] = laps["Team"].map(_TEAM_DISPLAY_TO_ID)
+        driver_info = driver_info[["Abbreviation", "FirstName", "LastName"]]
+
+    laps = laps.merge(driver_info, left_on="Driver", right_on="Abbreviation")
+    laps = laps.drop(columns=["Driver", "Abbreviation", "Team"])
 
     if PRACTICE_BEST_LAP_ONLY[session_name]:
         laps = laps[laps["IsPersonalBest"] == True].copy()
