@@ -78,6 +78,12 @@ def main():
         except Exception:
             continue
 
+        # skip if premature prediction already exists for next round
+        pred_path = Path(f"reports/predictions/predictions_{year}_{next_round:02d}.json")
+        if pred_path.exists():
+            print(f"Premature prediction already exists for {year} round {next_round}, skipping.")
+            continue
+
         # confirm race lap data is available
         try:
             session = fastf1.get_session(year, round_num, "Race")
