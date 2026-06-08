@@ -1,14 +1,10 @@
 name: F1 Fantasy Pipeline
 
 on:
-  workflow_call:
-    inputs:
-      season:
-        type: string
-        required: true
-      round:
-        type: string
-        required: true
+  push:
+    branches: [main]
+    paths:
+      - 'data/interim/**'
   workflow_dispatch:
     inputs:
       season:
@@ -28,12 +24,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: pip
@@ -42,49 +38,50 @@ jobs:
       - name: Install package
         run: pip install -e . --quiet
 
-      - name: Create FastF1 cache directory
-        run: mkdir -p data/raw/fastf1_cache
-
-      # process previous round's race results - always re-ingest to pick up data that may have been unavailable earlier
-      - name: Process previous round
+      - name: Detect season and round from pushed data
+        id: detect
         run: |
-          PREV=$(( ${{ inputs.round }} - 1 ))
-          if [ $PREV -lt 1 ]; then exit 0; fi
-          python -m app.interface.cli ingest-data   --season ${{ inputs.season }} --round $PREV || true
-          python -m app.interface.cli clean-data    --season ${{ inputs.season }} --round $PREV || true
-          python -m app.interface.cli build-targets --season ${{ inputs.season }} --round $PREV || true
-          python -m app.interface.cli build-prices  --season ${{ inputs.season }} || true
-          python -m app.interface.cli build-features --season ${{ inputs.season }} --round $PREV || true
+          if [ -n "${{ inputs.season }}" ] && [ -n "${{ inputs.round }}" ]; then
+            echo "season=${{ inputs.season }}" >> "$GITHUB_OUTPUT"
+            echo "round=${{ inputs.round }}" >> "$GITHUB_OUTPUT"
+          else
+            # find the latest interim race file to determine season/round
+            LATEST=$(ls -1 data/interim/races/*.parquet 2>/dev/null | sort | tail -1)
+            if [ -z "$LATEST" ]; then
+              echo "No interim race data found"
+              exit 1
+            fi
+            STEM=$(basename "$LATEST" .parquet)
+            echo "season=${STEM%%_*}" >> "$GITHUB_OUTPUT"
+            echo "round=$(echo ${STEM##*_} | sed 's/^0*//')" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Ingest current round
+      - name: Build targets
         run: |
-          python -m app.interface.cli ingest-data \
-            --season ${{ inputs.season }} \
-            --round  ${{ inputs.round }} || true
+          python -m app.interface.cli build-targets \
+            --season ${{ steps.detect.outputs.season }} \
+            --round  ${{ steps.detect.outputs.round }}
 
-      - name: Clean current round
+      - name: Build prices
         run: |
-          python -m app.interface.cli clean-data \
-            --season ${{ inputs.season }} \
-            --round  ${{ inputs.round }} || true
+          python -m app.interface.cli build-prices \
+            --season ${{ steps.detect.outputs.season }}
 
       - name: Build features
         run: |
           python -m app.interface.cli build-features \
-            --season ${{ inputs.season }} \
-            --round  ${{ inputs.round }}
-
-      - name: Build prices
-        run: |
-          python -m app.interface.cli build-prices --season ${{ inputs.season }}
+            --season ${{ steps.detect.outputs.season }} \
+            --round  ${{ steps.detect.outputs.round }}
 
       - name: Generate reports
         run: |
-          PRICES="data/processed/prices/${{ inputs.season }}_$(printf '%02d' ${{ inputs.round }}).parquet"
+          SEASON=${{ steps.detect.outputs.season }}
+          ROUND=${{ steps.detect.outputs.round }}
+          PRICES="data/processed/prices/${SEASON}_$(printf '%02d' $ROUND).parquet"
           if [ -f "$PRICES" ]; then
             python -m app.interface.cli generate-reports \
-              --season ${{ inputs.season }} \
-              --round  ${{ inputs.round }}
+              --season $SEASON \
+              --round  $ROUND
           else
             echo "No prices file at $PRICES - skipping generate-reports"
           fi
@@ -93,5 +90,5 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/interim/ data/processed/ reports/
-          git diff --staged --quiet || git commit -m "Pipeline run: ${{ inputs.season }} round ${{ inputs.round }}" && git push
+          git add data/processed/ reports/
+          git diff --staged --quiet || git commit -m "Pipeline run: ${{ steps.detect.outputs.season }} round ${{ steps.detect.outputs.round }}" && git push
