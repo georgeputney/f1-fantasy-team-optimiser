@@ -10,7 +10,7 @@ from app.config import (
     INTERIM_RACES_DIR, INTERIM_RACE_LAPS_DIR, INTERIM_QUALI_DIR,
     INTERIM_SPRINT_DIR, INTERIM_SPRINT_LAPS_DIR, INTERIM_SPRINT_QUALIFYING_DIR,
     INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR, INTERIM_FP1_DIR, INTERIM_PITSTOPS_DIR,
-    DNF_PATCH_FILE,
+    MANUAL_DIR, DNF_PATCH_FILE,
 )
 
 RAW_PRACTICE_DIRS = {"FP1": RAW_FP1_DIR, "FP2": RAW_FP2_DIR, "FP3": RAW_FP3_DIR}
@@ -323,15 +323,38 @@ def clean_race_results(season, round_num):
     results["positions_gained"] = results["grid_position"] - results["finish_position"]
 
     results["fastest_lap_flag"] = False  # overridden below if race laps are available
-    
-    # derive fastest_lap_flag from race laps if available
+
+    # derive fastest_lap_flag and fix NC misclassification from race laps if available
     laps_path = INTERIM_RACE_LAPS_DIR / f"{season}_{round_num:02d}.parquet"
     if laps_path.exists():
         race_laps = pd.read_parquet(laps_path)
         fastest_driver = race_laps.loc[race_laps["lap_time"].idxmin(), "driver_id"]
         results["fastest_lap_flag"] = results["driver_id"] == fastest_driver
 
-    results["dotd_flag"] = False            # TODO: derive probability from historic data
+        # apply FIA 90% classification rule using lap counts
+        leader_laps = race_laps.groupby("driver_id")["lap_number"].max().max()
+        driver_laps = race_laps.groupby("driver_id")["lap_number"].max()
+        pct_completed = results["driver_id"].map(driver_laps).div(leader_laps)
+
+        # "lapped" drivers who completed <90% are actually NC -> DNF
+        nc_mask = results["status"].eq("lapped") & pct_completed.lt(0.9)
+        results.loc[nc_mask, "dnf_flag"] = True
+        results.loc[nc_mask, "mechanical_dnf_flag"] = True
+
+        # "retired" drivers who completed >=90% are classified -> not DNF
+        classified_mask = results["status"].eq("retired") & pct_completed.ge(0.9)
+        results.loc[classified_mask, "dnf_flag"] = False
+        results.loc[classified_mask, "crash_dnf_flag"] = False
+        results.loc[classified_mask, "mechanical_dnf_flag"] = False
+
+    # derive dotd_flag from manual DOTD data if available
+    dotd_file = MANUAL_DIR / "driver_of_the_day.csv"
+    results["dotd_flag"] = False
+    if dotd_file.exists():
+        dotd = pd.read_csv(dotd_file)
+        race_dotd = dotd[dotd["race_id"] == f"{season}_{round_num:02d}"]
+        if len(race_dotd) > 0:
+            results["dotd_flag"] = results["driver_id"].isin(race_dotd["driver_id"].values)
 
     results = results.drop(columns=[c for c in ["DriverId", "FirstName", "LastName", "DriverNumber"] if c in results.columns])
 

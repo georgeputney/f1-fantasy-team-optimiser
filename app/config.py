@@ -42,6 +42,7 @@ INTERIM_FP1_DIR                     = INTERIM_DIR / "fp1"
 INTERIM_PITSTOPS_DIR                = INTERIM_DIR / "pitstops"
 
 PROCESSED_DIR                       = DATA_DIR / "processed"    # feature store, model-ready datasets
+PROCESSED_TARGETS_DIR               = PROCESSED_DIR / "targets"
 PROCESSED_HISTORIC_FEATURES_DIR     = PROCESSED_DIR / "historic_features"
 PROCESSED_PRACTICE_FEATURES_DIR     = PROCESSED_DIR / "practice_features"
 PROCESSED_CIRCUIT_FEATURES_DIR      = PROCESSED_DIR / "circuit_features"
