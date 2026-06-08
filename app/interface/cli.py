@@ -76,15 +76,20 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
             try:
                 get_event_metadata(s, round_num)
                 time.sleep(0.5)
-                get_race_laps(s, round_num)
-                time.sleep(0.5)
-                get_race_results(s, round_num)
-                time.sleep(0.5)
-                get_qualifying_results(s, round_num)
-                time.sleep(0.5)
             except Exception as e:
-                typer.echo(f"  Skipping round {round_num:02d}: data not available ({e})")
+                typer.echo(f"  Skipping round {round_num:02d}: event metadata not available ({e})")
                 continue
+
+            for fetch_fn, label in [
+                (lambda: get_race_results(s, round_num), "race results"),
+                (lambda: get_race_laps(s, round_num), "race laps"),
+                (lambda: get_qualifying_results(s, round_num), "qualifying"),
+            ]:
+                try:
+                    fetch_fn()
+                    time.sleep(0.5)
+                except Exception as e:
+                    typer.echo(f"  Warning: could not fetch {label} ({e})")
 
             try:
                 get_dhl_pitstops(s, round_num)

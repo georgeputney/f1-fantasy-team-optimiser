@@ -45,13 +45,11 @@ jobs:
       - name: Create FastF1 cache directory
         run: mkdir -p data/raw/fastf1_cache
 
-      # process previous round's race results if targets are missing - keeps rolling averages current
-      - name: Process previous round (if race targets missing)
+      # process previous round's race results - always re-ingest to pick up data that may have been unavailable earlier
+      - name: Process previous round
         run: |
           PREV=$(( ${{ inputs.round }} - 1 ))
           if [ $PREV -lt 1 ]; then exit 0; fi
-          TARGETS="data/processed/targets/${{ inputs.season }}_$(printf '%02d' $PREV).parquet"
-          if [ -f "$TARGETS" ]; then exit 0; fi
           python -m app.interface.cli ingest-data   --season ${{ inputs.season }} --round $PREV || true
           python -m app.interface.cli clean-data    --season ${{ inputs.season }} --round $PREV || true
           python -m app.interface.cli build-targets --season ${{ inputs.season }} --round $PREV || true
@@ -96,4 +94,4 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/interim/ data/processed/ reports/
-          git diff --staged --quiet || git commit -m "Added ${{ inputs.season }} round ${{ inputs.round }} data + predictions" && git push
+          git diff --staged --quiet || git commit -m "Pipeline run: ${{ inputs.season }} round ${{ inputs.round }}" && git push
