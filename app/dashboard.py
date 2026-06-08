@@ -505,6 +505,7 @@ with tab2:
         dfs.append(df_bt)
 
     all_data = pd.concat(dfs).reset_index(drop=True)
+    all_data = all_data[all_data["season"] >= 2026]
 
     summary = (
         all_data.groupby("season")[["model", "oracle"]]
@@ -539,8 +540,8 @@ with tab2:
                     summary_rows, _sum_colgroup, 32 + len(summary) * 41 + 2)
 
     st.subheader("Cumulative points by strategy")
-    season_options = sorted(all_data["season"].unique())
-    selected_season = st.selectbox("Season", season_options, index=len(season_options) - 1)
+    season_options = sorted(s for s in all_data["season"].unique() if s >= 2026)
+    selected_season = st.selectbox("Season", season_options, index=len(season_options) - 1, key="backtest_season")
 
     season_data = all_data[all_data["season"] == selected_season].copy()
     season_data["Model (our prediction)"] = season_data["model"].cumsum()
@@ -639,7 +640,7 @@ with tab3:
         _seasons = sorted(_pred_index.keys(), reverse=True)
         _col1, _col2 = st.columns(2)
         with _col1:
-            _sel_season = st.selectbox("Season", _seasons, index=0)
+            _sel_season = st.selectbox("Season", _seasons, index=0, key="breakdown_season")
         with _col2:
             _round_options = _pred_index[_sel_season]
             _round_labels = [f"R{r}: {c}" for r, c in _round_options]
