@@ -47,46 +47,72 @@ jobs:
           if [ -n "${{ inputs.season }}" ] && [ -n "${{ inputs.round }}" ]; then
             echo "season=${{ inputs.season }}" >> "$GITHUB_OUTPUT"
             echo "round=${{ inputs.round }}" >> "$GITHUB_OUTPUT"
+            echo "has_race=true" >> "$GITHUB_OUTPUT"
           else
-            # find the latest changed interim race file in this push
-            LATEST=$(git diff --name-only HEAD~1 -- 'data/interim/races/*.parquet' | sort | tail -1)
-            if [ -z "$LATEST" ]; then
-              echo "No new interim race data in this push"
-              exit 1
+            # check if race data was pushed
+            RACE_FILE=$(git diff --name-only HEAD~1 -- 'data/interim/races/*.parquet' | sort | tail -1)
+            if [ -n "$RACE_FILE" ]; then
+              STEM=$(basename "$RACE_FILE" .parquet)
+              echo "season=${STEM%%_*}" >> "$GITHUB_OUTPUT"
+              echo "round=$(echo ${STEM##*_} | sed 's/^0*//')" >> "$GITHUB_OUTPUT"
+              echo "has_race=true" >> "$GITHUB_OUTPUT"
+            else
+              # practice data only - find from any changed interim file
+              LATEST=$(git diff --name-only HEAD~1 -- 'data/interim/**/*.parquet' | sort | tail -1)
+              if [ -z "$LATEST" ]; then
+                echo "No new interim data in this push"
+                exit 1
+              fi
+              STEM=$(basename "$LATEST" .parquet)
+              echo "season=${STEM%%_*}" >> "$GITHUB_OUTPUT"
+              echo "round=$(echo ${STEM##*_} | sed 's/^0*//')" >> "$GITHUB_OUTPUT"
+              echo "has_race=false" >> "$GITHUB_OUTPUT"
             fi
-            STEM=$(basename "$LATEST" .parquet)
-            echo "season=${STEM%%_*}" >> "$GITHUB_OUTPUT"
-            echo "round=$(echo ${STEM##*_} | sed 's/^0*//')" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build targets
+        if: steps.detect.outputs.has_race == 'true'
         run: |
           python -m app.interface.cli build-targets \
             --season ${{ steps.detect.outputs.season }} \
             --round  ${{ steps.detect.outputs.round }}
 
       - name: Build prices
+        if: steps.detect.outputs.has_race == 'true'
         run: |
           python -m app.interface.cli build-prices \
             --season ${{ steps.detect.outputs.season }}
 
       - name: Build features
         run: |
-          python -m app.interface.cli build-features \
-            --season ${{ steps.detect.outputs.season }} \
-            --round  ${{ steps.detect.outputs.round }}
+          SEASON=${{ steps.detect.outputs.season }}
+          ROUND=${{ steps.detect.outputs.round }}
+          if [ "${{ steps.detect.outputs.has_race }}" = "true" ]; then
+            # race data pushed: build features for this round, then predict next round
+            python -m app.interface.cli build-features --season $SEASON --round $ROUND
+            NEXT=$(( ROUND + 1 ))
+            python -m app.interface.cli build-features --season $SEASON --round $NEXT || true
+          else
+            # practice data pushed: build features for this round
+            python -m app.interface.cli build-features --season $SEASON --round $ROUND
+          fi
 
       - name: Generate reports
         run: |
           SEASON=${{ steps.detect.outputs.season }}
           ROUND=${{ steps.detect.outputs.round }}
-          PRICES="data/processed/prices/${SEASON}_$(printf '%02d' $ROUND).parquet"
+          if [ "${{ steps.detect.outputs.has_race }}" = "true" ]; then
+            PREDICT_ROUND=$(( ROUND + 1 ))
+          else
+            PREDICT_ROUND=$ROUND
+          fi
+          PRICES="data/processed/prices/${SEASON}_$(printf '%02d' $PREDICT_ROUND).parquet"
           if [ -f "$PRICES" ]; then
             python -m app.interface.cli generate-reports \
               --season $SEASON \
-              --round  $ROUND
+              --round  $PREDICT_ROUND
           else
-            echo "No prices file at $PRICES - skipping generate-reports"
+            echo "No prices file for round $PREDICT_ROUND - skipping predictions"
           fi
 
       - name: Commit results
