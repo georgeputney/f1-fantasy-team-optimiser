@@ -76,6 +76,8 @@ def main():
         # check race session has finished
         try:
             race_start = event.get_session_date("Race", utc=True)
+            if race_start.tzinfo is None:
+                race_start = race_start.replace(tzinfo=timezone.utc)
             if now < race_start + timedelta(hours=3):
                 print(f"Race not finished yet (start {race_start}, need +3h).")
                 continue
@@ -116,6 +118,8 @@ def main():
         # check trigger session has finished (scheduled start + 2h buffer)
         try:
             session_start = event.get_session_date(trigger_session, utc=True)
+            if session_start.tzinfo is None:
+                session_start = session_start.replace(tzinfo=timezone.utc)
             if now < session_start + timedelta(hours=2):
                 print(f"{trigger_session} not finished yet.")
                 return
