@@ -6,32 +6,52 @@ Manually maintained inputs - files that cannot be derived from the FastF1 API an
 
 | File/Directory | Updated | Description |
 |---|---|---|
-| `fantasy_prices/` | Each race weekend | F1 Fantasy asset prices per round |
+| `fantasy_points/` | Each race weekend | Official F1 Fantasy points per round (2026+) |
+| `starting_prices/` | Start of season | Round 1 asset prices for price computation |
 | `race_overtakes/` | Each race weekend | Per-driver race overtake counts (2023+) |
-| `dnf_classification_patch.csv` | Each race weekend (if a crash DNF occurred) | Crash vs mechanical DNF overrides for 2023+ |
+| `sprint_overtakes/` | Sprint race weekends | Per-driver sprint overtake counts |
 
 ---
 
-## fantasy_prices/
+## fantasy_points/
 
-One CSV per race weekend, named `{year}_{round:02d}.csv` (e.g. `2025_03.csv`).
+One CSV per race weekend, named `{year}_{round:02d}.csv` (e.g. `2026_03.csv`).
 
 ### Schema
 
 ```
-race_id, asset_id, asset_type, price
+asset_id, asset_type, actual_fantasy_points
 ```
 
-- `race_id`: `{season}_{round:02d}`, e.g. `2025_03`
 - `asset_id`: canonical, season-stable identifier (see ID conventions below)
 - `asset_type`: `driver` or `constructor`
-- `price`: fantasy game price for that race (float, in millions)
+- `actual_fantasy_points`: official F1 Fantasy points for that round (integer)
 
 Sort order: drivers first (alphabetical `asset_id`), then constructors (alphabetical `asset_id`). Header always present. LF line endings.
 
 ### Source
 
-F1 Fantasy price PDFs, available on the F1 Fantasy website each race weekend.
+F1 Fantasy website, after each race weekend.
+
+---
+
+## starting_prices/
+
+One CSV per season, named `{year}.csv` (e.g. `2026.csv`). Contains round 1 prices used by the automatic price computation pipeline.
+
+### Schema
+
+```
+asset_id, asset_type, price
+```
+
+- `asset_id`: canonical identifier
+- `asset_type`: `driver` or `constructor`
+- `price`: round 1 fantasy price (float, in millions)
+
+### Source
+
+F1 Fantasy website, at the start of each season.
 
 ---
 
@@ -52,33 +72,25 @@ Sort order: no required order. Header always present. LF line endings.
 
 ### Source
 
-F1 Fantasy statistics page, scraped after each race weekend. Sprint overtake counts are **not** included here — they are tracked separately if needed.
+F1 Fantasy statistics page, scraped after each race weekend. Sprint overtake counts are **not** included here.
 
 ### Coverage
 
-2023–2026 (ongoing). All rounds for completed seasons; current season updated race by race.
+2023-2026 (ongoing). All rounds for completed seasons; current season updated race by race.
 
 ---
 
-## dnf_classification_patch.csv
+## sprint_overtakes/
 
-FastF1 returns a generic `"Retired"` status for all DNFs in 2023+, making it impossible to distinguish crashes from mechanical failures automatically. This file lists confirmed crash DNFs so `clean.py` can set `crash_dnf_flag` correctly. All other DNFs default to mechanical.
+One CSV per sprint race weekend, named `{year}_{round:02d}.csv`.
 
 ### Schema
 
 ```
-race_id, driver_id, dnf_type
+driver_id, sprint_overtakes
 ```
 
-- `race_id`: `{season}_{round:02d}`
-- `driver_id`: canonical driver identifier (see ID conventions below)
-- `dnf_type`: always `crash` (only crash entries are listed)
-
-Lines beginning with `#` are comments and are ignored by the pipeline.
-
-### Source
-
-Wikipedia race result tables.
+Same conventions as `race_overtakes/`.
 
 ---
 
@@ -102,7 +114,7 @@ Short canonical team name in snake_case, following current season branding:
 | 2024 | `rb` |
 | 2025+ | `racing_bulls` |
 | 2023 | `alfa_romeo` |
-| 2024–25 | `kick_sauber` |
+| 2024-25 | `kick_sauber` |
 | 2026+ | `audi` |
 | 2026+ | `cadillac` |
 

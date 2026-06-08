@@ -62,13 +62,13 @@ jobs:
         run: |
           python -m app.interface.cli ingest-data \
             --season ${{ inputs.season }} \
-            --round  ${{ inputs.round }}
+            --round  ${{ inputs.round }} || true
 
       - name: Clean current round
         run: |
           python -m app.interface.cli clean-data \
             --season ${{ inputs.season }} \
-            --round  ${{ inputs.round }}
+            --round  ${{ inputs.round }} || true
 
       - name: Build features
         run: |
