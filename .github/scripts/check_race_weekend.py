@@ -67,15 +67,20 @@ def main():
 
         round_num = int(event["RoundNumber"])
         next_round = round_num + 1
+        print(f"Post-race check: round {round_num}, next {next_round}, race_date {race_date}")
+
         if next_round > total_rounds:
+            print(f"Round {next_round} exceeds total rounds ({total_rounds}), skipping.")
             continue
 
         # check race session has finished
         try:
             race_start = event.get_session_date("Race", utc=True)
             if now < race_start + timedelta(hours=3):
+                print(f"Race not finished yet (start {race_start}, need +3h).")
                 continue
-        except Exception:
+        except Exception as e:
+            print(f"Could not get Race session date: {e}", file=sys.stderr)
             continue
 
         # skip if premature prediction already exists for next round
@@ -89,8 +94,10 @@ def main():
             session = fastf1.get_session(year, round_num, "Race")
             session.load(laps=True, telemetry=False, weather=False, messages=False)
             if session.laps is None or len(session.laps) == 0:
+                print(f"Race laps not yet available for round {round_num}.")
                 continue
-        except Exception:
+        except Exception as e:
+            print(f"Race data not available for round {round_num}: {e}", file=sys.stderr)
             continue
 
         _set_output(year, next_round, "Post-race premature prediction")
