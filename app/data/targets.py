@@ -113,6 +113,22 @@ def compute_qualifying_targets(season, round_num):
 def compute_race_targets(season, round_num):
     results = pd.read_parquet(INTERIM_RACES_DIR / f"{season}_{round_num:02d}.parquet")
 
+    # add DNS drivers from qualifying entry list (they get DNF penalty)
+    quali_path = INTERIM_QUALI_DIR / f"{season}_{round_num:02d}.parquet"
+    if quali_path.exists():
+        quali = pd.read_parquet(quali_path)[["driver_id", "constructor_id"]].drop_duplicates()
+        missing = quali[~quali["driver_id"].isin(results["driver_id"])]
+        if len(missing) > 0:
+            missing = missing.assign(
+                race_id=f"{season}_{round_num:02d}", season=season, round=round_num,
+                grid_position=float("nan"), finish_position=float("nan"),
+                positions_gained=float("nan"), status="dns",
+                dnf_flag=True, dsq_flag=False, crash_dnf_flag=False,
+                mechanical_dnf_flag=False, fastest_lap_flag=False, dotd_flag=False,
+                points=0.0,
+            )
+            results = pd.concat([results, missing], ignore_index=True)
+
     # merge in overtake counts (0 if file not yet available)
     overtakes_path = INTERIM_RACE_OVERTAKES_DIR / f"{season}_{round_num:02d}.parquet"
     if overtakes_path.exists():
@@ -141,12 +157,13 @@ def compute_race_targets(season, round_num):
         race_overtakes=("race_overtakes", list),
     ).reset_index()
 
-    # compute pitstop points per constructor from DHL stationary times
+    # compute pitstop points per constructor
     pitstop_path = INTERIM_PITSTOPS_DIR / f"{season}_{round_num:02d}.parquet"
     pitstop_scores = {}
     if pitstop_path.exists():
         pitstops = pd.read_parquet(pitstop_path)
         best_per_constructor = pitstops.loc[pitstops.groupby("constructor_id")["stationary_s"].idxmin()]
+        # time-bracket scoring: under 2s=20, 2.00-2.19=10, etc. + race-fastest bonus
         race_fastest = best_per_constructor["stationary_s"].min()
         for _, row in best_per_constructor.iterrows():
             is_race_fastest = row["stationary_s"] == race_fastest

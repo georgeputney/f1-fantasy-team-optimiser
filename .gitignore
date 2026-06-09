@@ -15,11 +15,8 @@ data/team_state*.json
 data/artifacts/finish_position.joblib
 data/artifacts/quali_position.joblib
 data/artifacts/dnf_model.joblib
-data/manual/fantasy_prices/
-data/manual/fantasy_points/2023_*
-data/manual/fantasy_points/2024_*
-data/manual/fantasy_points/2025_*
-data/manual/starting_prices/2025.csv
+data/manual/*
+!data/manual/starting_prices/
 data/processed/prices/2025_*
 data/processed/targets/2018_*
 data/processed/targets/2019_*

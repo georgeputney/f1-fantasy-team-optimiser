@@ -167,13 +167,22 @@ def clean_sprint_results(season, round_num):
     results["dsq_flag"] = results["status"].eq("disqualified")
     results["positions_gained"] = results["grid_position"] - results["finish_position"]
 
-        # derive fastest_lap_flag from sprint laps if available - loaded separately since results has one row per driver
+    # derive fastest_lap_flag from sprint laps if available
     results["fastest_lap_flag"] = False
     laps_path = INTERIM_SPRINT_LAPS_DIR / f"{season}_{round_num:02d}.parquet"
     if laps_path.exists():
         sprint_laps = pd.read_parquet(laps_path)
         fastest_driver = sprint_laps.loc[sprint_laps["lap_time"].idxmin(), "driver_id"]
         results["fastest_lap_flag"] = results["driver_id"] == fastest_driver
+
+        # classified retirements: "retired" drivers who completed >=85% of sprint laps (pre-2026)
+        if season < 2026:
+            valid_laps = sprint_laps[sprint_laps["lap_time"].notna()]
+            driver_lap_counts = valid_laps.groupby("driver_id").size()
+            leader_laps = driver_lap_counts.max()
+            pct_completed = results["driver_id"].map(driver_lap_counts).div(leader_laps)
+            classified_mask = results["status"].eq("retired") & pct_completed.ge(0.85)
+            results.loc[classified_mask, "dnf_flag"] = False
 
     results = results.drop(columns=[c for c in ["DriverId", "FirstName", "LastName"] if c in results.columns])
     results["race_id"] = f"{season}_{round_num:02d}"
@@ -314,6 +323,10 @@ def clean_race_results(season, round_num):
     results["dsq_flag"] = results["status"].eq("disqualified")
     results["crash_dnf_flag"] = results["status"].str.contains("accident|collision|damage|spun off", na=False)
     results["mechanical_dnf_flag"] = results["dnf_flag"] & ~results["crash_dnf_flag"]
+
+    # pit lane starts (grid=0) count as starting from the back of the grid
+    grid_size = len(results)
+    results["grid_position"] = results["grid_position"].replace(0, grid_size)
     results["positions_gained"] = results["grid_position"] - results["finish_position"]
 
     results["fastest_lap_flag"] = False  # overridden below if race laps are available
@@ -322,7 +335,13 @@ def clean_race_results(season, round_num):
     laps_path = INTERIM_RACE_LAPS_DIR / f"{season}_{round_num:02d}.parquet"
     if laps_path.exists():
         race_laps = pd.read_parquet(laps_path)
-        fastest_driver = race_laps.loc[race_laps["lap_time"].idxmin(), "driver_id"]
+        # exclude DSQ'd drivers from fastest lap eligibility
+        dsq_drivers = results.loc[results["dsq_flag"], "driver_id"].values
+        eligible_laps = race_laps[~race_laps["driver_id"].isin(dsq_drivers)]
+        if len(eligible_laps) > 0:
+            fastest_driver = eligible_laps.loc[eligible_laps["lap_time"].idxmin(), "driver_id"]
+        else:
+            fastest_driver = race_laps.loc[race_laps["lap_time"].idxmin(), "driver_id"]
         results["fastest_lap_flag"] = results["driver_id"] == fastest_driver
 
         # apply FIA 90% classification rule using lap counts
@@ -335,11 +354,12 @@ def clean_race_results(season, round_num):
         results.loc[nc_mask, "dnf_flag"] = True
         results.loc[nc_mask, "mechanical_dnf_flag"] = True
 
-        # "retired" drivers who completed >=90% are classified -> not DNF
-        classified_mask = results["status"].eq("retired") & pct_completed.ge(0.9)
-        results.loc[classified_mask, "dnf_flag"] = False
-        results.loc[classified_mask, "crash_dnf_flag"] = False
-        results.loc[classified_mask, "mechanical_dnf_flag"] = False
+        # "retired" drivers who completed >=85% are classified -> not DNF (pre-2026 only)
+        if season < 2026:
+            classified_mask = results["status"].eq("retired") & pct_completed.ge(0.85)
+            results.loc[classified_mask, "dnf_flag"] = False
+            results.loc[classified_mask, "crash_dnf_flag"] = False
+            results.loc[classified_mask, "mechanical_dnf_flag"] = False
 
     # derive dotd_flag from interim DOTD data if available
     results["dotd_flag"] = False

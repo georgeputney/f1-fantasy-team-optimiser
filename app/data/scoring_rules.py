@@ -1,4 +1,9 @@
-"""Scoring rules and point lookup tables for F1 fantasy, converts race outcomes to fantasy points."""
+"""Scoring rules and point lookup tables for F1 fantasy, converts race outcomes to fantasy points.
+
+NOTE: these rules reflect the 2026 season onwards. Earlier seasons had different penalties,
+pitstop scoring, and DSQ handling - targets computed for pre-2026 data will not match exactly.
+Use manual fantasy point CSVs for historical seasons.
+"""
 
 import pandas as pd
 
@@ -6,7 +11,8 @@ import pandas as pd
 # sprint
 DRIVER_SPRINT_POSITION_POINTS = {1: 8, 2: 7, 3: 6, 4: 5, 5: 4, 6: 3, 7: 2, 8: 1}
 SPRINT_FASTEST_LAP_POINTS = 5
-SPRINT_PENALTY = -10
+SPRINT_DNF_PENALTY = -10
+SPRINT_DSQ_PENALTY = -10
 SPRINT_POSITION_GAINED_POINTS = 1
 SPRINT_MAX_POSITION_LOSS_PENALTY = -10
 SPRINT_OVERTAKE_MADE_POINTS = 1
@@ -22,7 +28,7 @@ CONSTRUCTOR_QUALI_BONUS = {
     (2, 1): 5,
     (2, 2): 10,
 }
-QUALI_PENALTY = -5
+QUALI_PENALTY = -5  # DNS / not classified in qualifying
 CONSTRUCTOR_QUALI_DSQ_PENALTY = -5  # additional per-driver constructor penalty for qualifying DSQ
 
 
@@ -32,9 +38,12 @@ FASTEST_LAP_POINTS = 10
 DOTD_POINTS = 10
 POSITION_GAINED_POINTS = 1
 OVERTAKE_MADE_POINTS = 1
-RACE_PENALTY = -20
+RACE_DNF_PENALTY = -20
+RACE_DSQ_DRIVER_PENALTY = -20  # driver gets flat penalty, no bonuses (FL/DOTD/overtakes stripped)
+RACE_DSQ_CONSTRUCTOR_PENALTY = -20  # additional per-driver constructor penalty for race DSQ
+RACE_PENALTY = RACE_DNF_PENALTY  # alias used by compose.py prediction pipeline
 
-# constructor pitstop scoring (per best stop)
+# constructor pitstop scoring - time-bracket-based
 PITSTOP_WORLD_RECORD = 1.80  # McLaren, Qatar 2023
 PITSTOP_WORLD_RECORD_BONUS = 15
 PITSTOP_BRACKETS = [
@@ -50,8 +59,10 @@ PITSTOP_RACE_FASTEST_BONUS = 5
 # DNF/DSQ replaces position and positions-gained with a flat penalty,
 # but overtakes and fastest lap still count
 def score_driver_sprint(position, positions_gained, dnf_flag, dsq_flag, fastest_lap_flag, sprint_overtakes=0):
-    if dnf_flag or dsq_flag:
-        score = SPRINT_PENALTY
+    if dsq_flag:
+        score = SPRINT_DSQ_PENALTY
+    elif dnf_flag:
+        score = SPRINT_DNF_PENALTY
     else:
         score = DRIVER_SPRINT_POSITION_POINTS.get(position, 0)
         if pd.isna(positions_gained):
@@ -78,7 +89,7 @@ def score_constructor_sprint(positions, positions_gained, dnf_flags, dsq_flags, 
             positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags, sprint_overtakes
         )
     )
-    score += sum(SPRINT_PENALTY for dsq in dsq_flags if dsq)
+    score += sum(SPRINT_DSQ_PENALTY for dsq in dsq_flags if dsq)
     return score
 
 
@@ -86,7 +97,7 @@ def score_constructor_sprint(positions, positions_gained, dnf_flags, dsq_flags, 
 def score_driver_qualifying(position, q1_time):
     if pd.isna(q1_time):
         return QUALI_PENALTY
-    
+
     return DRIVER_QUALI_POSITION_POINTS.get(position, 0)
 
 
@@ -95,7 +106,7 @@ def score_driver_qualifying(position, q1_time):
 # Q2/Q3 bonus based on reaching each session: Q2 cutoff depends on grid size, Q3 is always P1-10
 def score_constructor_qualifying(positions, q1_times, q2_times, q3_times, q2_cutoff=15):
     score = sum(
-        score_driver_qualifying(p, t) for p, t in zip(positions, q1_times)
+        score_driver_qualifying(p, q1) for p, q1 in zip(positions, q1_times)
     )
 
     # DSQ = no Q1 time but has Q2 or Q3 (set times before disqualification)
@@ -119,11 +130,15 @@ def score_constructor_qualifying(positions, q1_times, q2_times, q3_times, q2_cut
 
 
 # calculate fantasy points for a driver's race result
-# DNF/DSQ replaces position and positions-gained points with a flat penalty,
+# DSQ'd driver gets flat penalty, no bonuses
+# DNF replaces position and positions-gained with a flat penalty,
 # but overtakes, fastest lap, and DOTD still count
 def score_driver_race(position, positions_gained, dnf_flag, dsq_flag, fastest_lap_flag, dotd_flag, race_overtakes=0):
-    if dnf_flag or dsq_flag:
-        score = RACE_PENALTY
+    if dsq_flag:
+        return RACE_DSQ_DRIVER_PENALTY
+
+    if dnf_flag:
+        score = RACE_DNF_PENALTY
     else:
         score = DRIVER_RACE_POSITION_POINTS.get(position, 0)
         if pd.isna(positions_gained):
@@ -171,7 +186,7 @@ def score_constructor_race(positions, positions_gained, dnf_flags, dsq_flags, fa
             positions, positions_gained, dnf_flags, dsq_flags, fastest_lap_flags, race_overtakes
         )
     )
-    score += sum(RACE_PENALTY for dsq in dsq_flags if dsq)
+    score += sum(RACE_DSQ_CONSTRUCTOR_PENALTY for dsq in dsq_flags if dsq)
     score += pitstop_points
 
     return score
