@@ -9,6 +9,10 @@ on:
       round:
         type: string
         required: true
+      trigger:
+        type: string
+        required: false
+        default: ''
   workflow_dispatch:
     inputs:
       season:
@@ -19,6 +23,11 @@ on:
         description: 'Round number'
         required: true
         type: string
+      trigger:
+        description: 'Trigger type (pre-race or post-race)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -40,7 +49,9 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Install package
-        run: pip install -e . --quiet
+        run: |
+          pip install -e . --quiet
+          playwright install chromium --with-deps
 
       - name: Setup Cloudflare WARP
         run: |
@@ -111,4 +122,15 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/interim/ data/processed/ reports/
-          git diff --staged --quiet || git commit -m "Pipeline run: ${{ inputs.season }} round ${{ inputs.round }}" && git push
+          SEASON=${{ inputs.season }}
+          ROUND=${{ inputs.round }}
+          TRIGGER="${{ inputs.trigger }}"
+          if [ "$TRIGGER" = "pre-race" ]; then
+            MSG="Ingested practice data and final predictions for $SEASON round $ROUND"
+          elif [ "$TRIGGER" = "post-race" ]; then
+            PREV=$(( ROUND - 1 ))
+            MSG="Ingested round $PREV results and initial predictions for $SEASON round $ROUND"
+          else
+            MSG="Pipeline run: $SEASON round $ROUND"
+          fi
+          git diff --staged --quiet || git commit -m "$MSG" && git push

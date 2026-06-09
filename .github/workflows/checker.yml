@@ -2,7 +2,7 @@ name: Race Weekend Checker
 
 on:
   schedule:
-    - cron: '0 * * * *'   # every hour
+    - cron: '0 * * * 1,5,6'   # every hour on Fri-Sat-Mon
   workflow_dispatch: {}   # manual trigger for testing
 
 permissions:
@@ -15,6 +15,7 @@ jobs:
       should_run: ${{ steps.check.outputs.should_run }}
       season:     ${{ steps.check.outputs.season }}
       round:      ${{ steps.check.outputs.round }}
+      trigger:    ${{ steps.check.outputs.trigger }}
 
     steps:
       - uses: actions/checkout@v5
@@ -48,6 +49,7 @@ jobs:
     if: needs.check.outputs.should_run == 'true'
     uses: ./.github/workflows/pipeline.yml
     with:
-      season: ${{ needs.check.outputs.season }}
-      round:  ${{ needs.check.outputs.round }}
+      season:  ${{ needs.check.outputs.season }}
+      round:   ${{ needs.check.outputs.round }}
+      trigger: ${{ needs.check.outputs.trigger }}
     secrets: inherit

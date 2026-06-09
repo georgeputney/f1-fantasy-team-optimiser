@@ -18,6 +18,7 @@ dependencies = [
     "typer",
     "plotly>=5.0",
     "streamlit>=1.32",
+    "playwright>=1.40",
 ]
 
 [project.optional-dependencies]
