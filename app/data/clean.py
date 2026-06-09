@@ -7,11 +7,11 @@ from app.config import (
     RAW_RACES_DIR, RAW_RACE_LAPS_DIR, RAW_QUALI_DIR,
     RAW_SPRINT_DIR, RAW_SPRINT_LAPS_DIR, RAW_SPRINT_QUALIFYING_DIR,
     RAW_EVENTS_DIR, RAW_FP3_DIR, RAW_FP2_DIR, RAW_FP1_DIR, RAW_PITSTOPS_DIR,
-    RAW_RACE_OVERTAKES_DIR, RAW_SPRINT_OVERTAKES_DIR,
+    RAW_RACE_OVERTAKES_DIR, RAW_SPRINT_OVERTAKES_DIR, RAW_DOTD_DIR,
     INTERIM_RACES_DIR, INTERIM_RACE_LAPS_DIR, INTERIM_QUALI_DIR,
     INTERIM_SPRINT_DIR, INTERIM_SPRINT_LAPS_DIR, INTERIM_SPRINT_QUALIFYING_DIR,
     INTERIM_EVENTS_DIR, INTERIM_FP3_DIR, INTERIM_FP2_DIR, INTERIM_FP1_DIR, INTERIM_PITSTOPS_DIR,
-    INTERIM_RACE_OVERTAKES_DIR, INTERIM_SPRINT_OVERTAKES_DIR,
+    INTERIM_RACE_OVERTAKES_DIR, INTERIM_SPRINT_OVERTAKES_DIR, INTERIM_DOTD_DIR,
     MANUAL_DIR,
 )
 
@@ -341,11 +341,11 @@ def clean_race_results(season, round_num):
         results.loc[classified_mask, "crash_dnf_flag"] = False
         results.loc[classified_mask, "mechanical_dnf_flag"] = False
 
-    # derive dotd_flag from manual DOTD data if available
-    dotd_file = MANUAL_DIR / "driver_of_the_day.csv"
+    # derive dotd_flag from interim DOTD data if available
     results["dotd_flag"] = False
-    if dotd_file.exists():
-        dotd = pd.read_csv(dotd_file)
+    dotd_path = INTERIM_DOTD_DIR / f"{season}.csv"
+    if dotd_path.exists():
+        dotd = pd.read_csv(dotd_path)
         race_dotd = dotd[dotd["race_id"] == f"{season}_{round_num:02d}"]
         if len(race_dotd) > 0:
             results["dotd_flag"] = results["driver_id"].isin(race_dotd["driver_id"].values)
@@ -416,5 +416,21 @@ def clean_sprint_overtakes(season, round_num):
 
     INTERIM_SPRINT_OVERTAKES_DIR.mkdir(parents=True, exist_ok=True)
     df.to_parquet(INTERIM_SPRINT_OVERTAKES_DIR / f"{season}_{round_num:02d}.parquet", index=False)
+
+    return df
+
+
+# read raw DOTD CSV from data/raw/race_dotd/{season}.csv, validate columns,
+# write to data/interim/race_dotd/{season}.csv
+def clean_dotd(season):
+    raw_path = RAW_DOTD_DIR / f"{season}.csv"
+    df = pd.read_csv(raw_path)
+
+    df = df[["race_id", "driver_id"]].copy()
+    df = df.dropna(subset=["driver_id"])
+    df = df[df["driver_id"].str.strip() != ""]
+
+    INTERIM_DOTD_DIR.mkdir(parents=True, exist_ok=True)
+    df.to_csv(INTERIM_DOTD_DIR / f"{season}.csv", index=False)
 
     return df

@@ -21,6 +21,7 @@ RAW_FP1_DIR                         = RAW_DIR / "fp1"
 RAW_PITSTOPS_DIR                    = RAW_DIR / "race_pitstops"
 RAW_RACE_OVERTAKES_DIR              = RAW_DIR / "race_overtakes"
 RAW_SPRINT_OVERTAKES_DIR            = RAW_DIR / "sprint_overtakes"
+RAW_DOTD_DIR                        = RAW_DIR / "race_dotd"
 FASTF1_CACHE_DIR                    = RAW_DIR / "fastf1_cache"
 
 MANUAL_DIR                          = DATA_DIR / "manual"       # manually maintained inputs
@@ -43,6 +44,7 @@ INTERIM_FP1_DIR                     = INTERIM_DIR / "fp1"
 INTERIM_PITSTOPS_DIR                = INTERIM_DIR / "race_pitstops"
 INTERIM_RACE_OVERTAKES_DIR          = INTERIM_DIR / "race_overtakes"
 INTERIM_SPRINT_OVERTAKES_DIR        = INTERIM_DIR / "sprint_overtakes"
+INTERIM_DOTD_DIR                    = INTERIM_DIR / "race_dotd"
 
 PROCESSED_DIR                       = DATA_DIR / "processed"    # feature store, model-ready datasets
 PROCESSED_TARGETS_DIR               = PROCESSED_DIR / "targets"

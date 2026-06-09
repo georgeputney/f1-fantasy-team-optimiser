@@ -286,5 +286,5 @@ def get_dhl_pitstops(season, round_num):
 # scrape race and sprint overtakes from f1fantasytools.com for a full season
 # writes CSVs to data/raw/race_overtakes/ and data/raw/sprint_overtakes/
 def get_overtakes(season):
-    from scraping.scrape_overtakes import scrape_season
+    from scraping.scrape_overtakes_and_dotd import scrape_season
     return scrape_season(season)

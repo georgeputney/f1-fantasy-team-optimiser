@@ -2,9 +2,7 @@
 
 import pandas as pd
 
-from app.config import MANUAL_DIR, INTERIM_RACES_DIR
-
-DOTD_FILE = MANUAL_DIR / "driver_of_the_day.csv"
+from app.config import INTERIM_DOTD_DIR, INTERIM_RACES_DIR
 
 # laplace smoothing weight - equivalent to this many races at the global mean rate.
 # higher = shrinks new drivers faster toward the mean; 5 means ~5 races before personal rate dominates.
@@ -17,7 +15,7 @@ _SMOOTHING = 5.0
 # driver with 3 wins in 10 races gets ~27% rather than 3/177 from dividing by the
 # full dataset size. probabilities are normalised to sum to 1.0 across the field
 def build_dotd_predictor():
-    dotd = pd.read_csv(DOTD_FILE)
+    dotd = pd.concat([pd.read_csv(f) for f in sorted(INTERIM_DOTD_DIR.glob("*.csv"))])
     dotd = dotd.dropna(subset=["driver_id"])
     dotd = dotd[dotd["driver_id"].str.strip() != ""]
 

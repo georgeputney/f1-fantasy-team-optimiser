@@ -1,29 +1,29 @@
 """
-Scrape race and sprint overtakes from f1fantasytools.com/statistics.
+Scrape race/sprint overtakes and DOTD from f1fantasytools.com/statistics.
 
 The site is a Next.js SPA that embeds all data in the initial page load.
 Uses Playwright to render the page, select the stat type from a combobox
-dropdown, and extract the overtake tables from the DOM. Writes one CSV
-per round to data/raw/race_overtakes/ and data/raw/sprint_overtakes/.
+dropdown, and extract the tables from the DOM. Writes per-round CSVs to
+data/raw/race_overtakes/, data/raw/sprint_overtakes/, and a per-season
+DOTD CSV to data/raw/race_dotd/.
 
 Usage:
-    python scraping/scrape_overtakes.py                    # scrape current season (2026)
-    python scraping/scrape_overtakes.py --season 2025      # scrape a specific season
-    python scraping/scrape_overtakes.py --force             # overwrite existing files
+    python scraping/scrape_overtakes_and_dotd.py                    # scrape current season (2026)
+    python scraping/scrape_overtakes_and_dotd.py --season 2025      # scrape a specific season
+    python scraping/scrape_overtakes_and_dotd.py --force             # overwrite existing files
 
 Requires: playwright (pip install playwright && playwright install chromium)
 """
 
 import argparse
 import time
-from pathlib import Path
 
 import fastf1
 import pandas as pd
 from playwright.sync_api import sync_playwright
 
 from app.config import (
-    FASTF1_CACHE_DIR, RAW_RACE_OVERTAKES_DIR, RAW_SPRINT_OVERTAKES_DIR,
+    FASTF1_CACHE_DIR, RAW_RACE_OVERTAKES_DIR, RAW_SPRINT_OVERTAKES_DIR, RAW_DOTD_DIR,
 )
 
 fastf1.Cache.enable_cache(FASTF1_CACHE_DIR)
@@ -213,10 +213,58 @@ def _save_overtakes(
     return written
 
 
+def _save_dotd(
+    data: list[dict],
+    season: int,
+    abbrev_map: dict[str, str],
+    force: bool,
+) -> int:
+    """save DOTD winners from the checkmark table to a single per-season CSV. returns rounds written."""
+    RAW_DOTD_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = RAW_DOTD_DIR / f"{season}.csv"
+
+    if out_path.exists() and not force:
+        return 0
+
+    if not data:
+        return 0
+
+    sample_keys = list(data[0].keys())
+    round_cols = sorted(
+        [k for k in sample_keys if k.startswith("R") and k[1:].isdigit()],
+        key=lambda x: int(x[1:]),
+    )
+
+    rows = []
+    dr_key = sample_keys[0]
+    for rcol in round_cols:
+        round_num = int(rcol[1:])
+        for row in data:
+            cell = row.get(rcol, "").strip()
+            # checkmark indicates DOTD winner
+            if "\u2713" in cell or "✓" in cell:
+                abbrev = row[dr_key].strip().upper()
+                driver_id = abbrev_map.get(abbrev)
+                if driver_id is None:
+                    print(f"    warning: unknown abbreviation '{abbrev}' for DOTD, skipping")
+                    continue
+                rows.append({
+                    "race_id": f"{season}_{round_num:02d}",
+                    "driver_id": driver_id,
+                })
+
+    if rows:
+        df = pd.DataFrame(rows)
+        df.to_csv(out_path, index=False)
+        print(f"    wrote {out_path.name} ({len(rows)} rounds)")
+
+    return len(rows)
+
+
 def scrape_season(season: int, force: bool = False) -> dict[str, int]:
-    """scrape race and sprint overtakes for a full season."""
+    """scrape race/sprint overtakes and DOTD for a full season."""
     abbrev_map = _build_abbrev_map(season)
-    counts = {"race": 0, "sprint": 0}
+    counts = {"race": 0, "sprint": 0, "dotd": 0}
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -246,6 +294,15 @@ def scrape_season(season: int, force: bool = False) -> dict[str, int]:
         if sprint_data:
             counts["sprint"] = _save_overtakes(sprint_data, season, abbrev_map, "sprint", force)
 
+        # --- driver of the day ---
+        print(f"  selecting 'Race Driver of the Day'...")
+        _select_stat_type(page, "Race Driver of the Day")
+        time.sleep(0.5)
+
+        dotd_data = _extract_driver_table(page)
+        if dotd_data:
+            counts["dotd"] = _save_dotd(dotd_data, season, abbrev_map, force)
+
         browser.close()
 
     return counts
@@ -258,7 +315,7 @@ def main():
     args = parser.parse_args()
 
     counts = scrape_season(args.season, force=args.force)
-    print(f"\ndone. wrote {counts['race']} race round(s), {counts['sprint']} sprint round(s).")
+    print(f"\ndone. wrote {counts['race']} race round(s), {counts['sprint']} sprint round(s), {counts['dotd']} DOTD round(s).")
 
 
 if __name__ == "__main__":
