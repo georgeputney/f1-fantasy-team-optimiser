@@ -93,8 +93,8 @@ def ingest_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] 
 
             try:
                 get_dhl_pitstops(s, round_num)
-            except Exception:
-                pass  # DHL data may not be available yet for recent/future races
+            except Exception as e:
+                typer.echo(f"  Warning: could not fetch DHL pitstops ({e})")
 
             for session_name in ["FP2", "FP3"]:
                 try:

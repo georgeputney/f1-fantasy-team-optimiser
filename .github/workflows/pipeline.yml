@@ -117,6 +117,12 @@ jobs:
             echo "No prices file at $PRICES - skipping generate-reports"
           fi
 
+      - name: Run backtest
+        if: inputs.trigger == 'post-race'
+        run: |
+          python -m app.interface.cli backtest \
+            --season ${{ inputs.season }} || true
+
       - name: Commit results
         run: |
           git config user.name  "github-actions[bot]"

@@ -23,8 +23,8 @@ Path("/tmp/fastf1_check_cache").mkdir(parents=True, exist_ok=True)
 fastf1.Cache.enable_cache("/tmp/fastf1_check_cache")
 
 
-def _set_output(year, round_num, label):
-    output = f"should_run=true\nseason={year}\nround={round_num}\n"
+def _set_output(year, round_num, trigger, label):
+    output = f"should_run=true\nseason={year}\nround={round_num}\ntrigger={trigger}\n"
     output_file = os.environ.get("GITHUB_OUTPUT", "")
     if output_file:
         with open(output_file, "a") as f:
@@ -74,7 +74,7 @@ def main():
             print(f"Premature prediction already exists for {year} round {next_round}, skipping.")
             continue
 
-        _set_output(year, next_round, "Post-race premature prediction")
+        _set_output(year, next_round, "post-race", "Post-race premature prediction")
         return
 
     # check if trigger session finished -> full prediction for current round
@@ -99,7 +99,7 @@ def main():
             print(f"Could not get {trigger_session} time: {e}", file=sys.stderr)
             return
 
-        _set_output(year, round_num, f"Post-{trigger_session} prediction")
+        _set_output(year, round_num, "pre-race", f"Post-{trigger_session} prediction")
         return
 
     print("No active race weekend or trigger session data not available.")
