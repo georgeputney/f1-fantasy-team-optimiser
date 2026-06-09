@@ -1,10 +1,14 @@
 name: F1 Fantasy Pipeline
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'data/interim/**'
+  workflow_call:
+    inputs:
+      season:
+        type: string
+        required: true
+      round:
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       season:
@@ -38,93 +42,73 @@ jobs:
       - name: Install package
         run: pip install -e . --quiet
 
+      - name: Setup Cloudflare WARP
+        run: |
+          curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+          sudo apt-get update && sudo apt-get install -y cloudflare-warp
+          sudo warp-cli registration new
+          sudo warp-cli mode warp
+          sudo warp-cli connect
+          sleep 5
+          echo "WARP IP: $(curl -s ifconfig.me)"
+
       - name: Create FastF1 cache directory
         run: mkdir -p data/raw/fastf1_cache
 
-      - name: Detect season and round from pushed data
-        id: detect
+      # re-ingest previous round to pick up data that may have been unavailable earlier
+      - name: Process previous round
         run: |
-          if [ -n "${{ inputs.season }}" ] && [ -n "${{ inputs.round }}" ]; then
-            echo "season=${{ inputs.season }}" >> "$GITHUB_OUTPUT"
-            echo "round=${{ inputs.round }}" >> "$GITHUB_OUTPUT"
-            echo "has_race=true" >> "$GITHUB_OUTPUT"
-          else
-            # check if race data was pushed
-            RACE_FILE=$(git diff --name-only HEAD~1 -- 'data/interim/races/*.parquet' | sort | tail -1)
-            if [ -n "$RACE_FILE" ]; then
-              STEM=$(basename "$RACE_FILE" .parquet)
-              echo "season=${STEM%%_*}" >> "$GITHUB_OUTPUT"
-              echo "round=$(echo ${STEM##*_} | sed 's/^0*//')" >> "$GITHUB_OUTPUT"
-              echo "has_race=true" >> "$GITHUB_OUTPUT"
-            else
-              # practice data only - find from any changed interim file
-              LATEST=$(git diff --name-only HEAD~1 -- 'data/interim/**/*.parquet' | sort | tail -1)
-              if [ -z "$LATEST" ]; then
-                echo "No new interim data in this push"
-                exit 1
-              fi
-              STEM=$(basename "$LATEST" .parquet)
-              echo "season=${STEM%%_*}" >> "$GITHUB_OUTPUT"
-              echo "round=$(echo ${STEM##*_} | sed 's/^0*//')" >> "$GITHUB_OUTPUT"
-              echo "has_race=false" >> "$GITHUB_OUTPUT"
-            fi
-          fi
+          PREV=$(( ${{ inputs.round }} - 1 ))
+          if [ $PREV -lt 1 ]; then exit 0; fi
+          python -m app.interface.cli ingest-data   --season ${{ inputs.season }} --round $PREV || true
+          python -m app.interface.cli clean-data    --season ${{ inputs.season }} --round $PREV || true
+          python -m app.interface.cli build-targets --season ${{ inputs.season }} --round $PREV || true
+          python -m app.interface.cli build-prices  --season ${{ inputs.season }} || true
+          python -m app.interface.cli build-features --season ${{ inputs.season }} --round $PREV || true
+
+      - name: Ingest current round
+        run: |
+          python -m app.interface.cli ingest-data \
+            --season ${{ inputs.season }} \
+            --round  ${{ inputs.round }} || true
+
+      - name: Clean current round
+        run: |
+          python -m app.interface.cli clean-data \
+            --season ${{ inputs.season }} \
+            --round  ${{ inputs.round }} || true
 
       - name: Build targets
-        if: steps.detect.outputs.has_race == 'true'
         run: |
           python -m app.interface.cli build-targets \
-            --season ${{ steps.detect.outputs.season }} \
-            --round  ${{ steps.detect.outputs.round }}
+            --season ${{ inputs.season }} \
+            --round  ${{ inputs.round }} || true
 
       - name: Build prices
-        if: steps.detect.outputs.has_race == 'true'
         run: |
-          python -m app.interface.cli build-prices \
-            --season ${{ steps.detect.outputs.season }}
+          python -m app.interface.cli build-prices --season ${{ inputs.season }}
 
       - name: Build features
         run: |
-          SEASON=${{ steps.detect.outputs.season }}
-          ROUND=${{ steps.detect.outputs.round }}
-          if [ "${{ steps.detect.outputs.has_race }}" = "true" ]; then
-            # race data pushed: build features for this round, then predict next round
-            python -m app.interface.cli build-features --season $SEASON --round $ROUND
-            NEXT=$(( ROUND + 1 ))
-            python -m app.interface.cli build-features --season $SEASON --round $NEXT || true
-          else
-            # practice data pushed: build features for this round
-            python -m app.interface.cli build-features --season $SEASON --round $ROUND
-          fi
+          python -m app.interface.cli build-features \
+            --season ${{ inputs.season }} \
+            --round  ${{ inputs.round }}
 
       - name: Generate reports
         run: |
-          SEASON=${{ steps.detect.outputs.season }}
-          ROUND=${{ steps.detect.outputs.round }}
-          if [ "${{ steps.detect.outputs.has_race }}" = "true" ]; then
-            PREDICT_ROUND=$(( ROUND + 1 ))
-          else
-            PREDICT_ROUND=$ROUND
-          fi
-          PRICES="data/processed/prices/${SEASON}_$(printf '%02d' $PREDICT_ROUND).parquet"
+          PRICES="data/processed/prices/${{ inputs.season }}_$(printf '%02d' ${{ inputs.round }}).parquet"
           if [ -f "$PRICES" ]; then
             python -m app.interface.cli generate-reports \
-              --season $SEASON \
-              --round  $PREDICT_ROUND
+              --season ${{ inputs.season }} \
+              --round  ${{ inputs.round }}
           else
-            echo "No prices file for round $PREDICT_ROUND - skipping predictions"
+            echo "No prices file at $PRICES - skipping generate-reports"
           fi
 
       - name: Commit results
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/processed/ reports/
-          SEASON=${{ steps.detect.outputs.season }}
-          ROUND=${{ steps.detect.outputs.round }}
-          if [ "${{ steps.detect.outputs.has_race }}" = "true" ]; then
-            MSG="Processed round $ROUND + preliminary round $(( ROUND + 1 )) predictions"
-          else
-            MSG="Updated round $ROUND predictions"
-          fi
-          git diff --staged --quiet || git commit -m "$MSG" && git push
+          git add data/interim/ data/processed/ reports/
+          git diff --staged --quiet || git commit -m "Pipeline run: ${{ inputs.season }} round ${{ inputs.round }}" && git push

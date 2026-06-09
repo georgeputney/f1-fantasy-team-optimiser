@@ -1,0 +1,53 @@
+name: Race Weekend Checker
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # every hour
+  workflow_dispatch: {}   # manual trigger for testing
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      season:     ${{ steps.check.outputs.season }}
+      round:      ${{ steps.check.outputs.round }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Setup Cloudflare WARP
+        run: |
+          curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+          sudo apt-get update && sudo apt-get install -y cloudflare-warp
+          sudo warp-cli registration new
+          sudo warp-cli mode warp
+          sudo warp-cli connect
+          sleep 5
+          echo "WARP IP: $(curl -s ifconfig.me)"
+
+      - name: Install FastF1
+        run: pip install fastf1 --quiet
+
+      - name: Check trigger session availability
+        id: check
+        run: python .github/scripts/check_race_weekend.py
+
+  pipeline:
+    needs: check
+    if: needs.check.outputs.should_run == 'true'
+    uses: ./.github/workflows/pipeline.yml
+    with:
+      season: ${{ needs.check.outputs.season }}
+      round:  ${{ needs.check.outputs.round }}
+    secrets: inherit
