@@ -184,7 +184,7 @@ def round_number(round_num):
 
 # builds the full feature row for a single race for all drivers, joins constructor features, validates, and writes to parquet
 # for upcoming races with no results yet, falls back to the most recent prior race for the driver/constructor roster
-def build_historic_features(race_results, quali_results, fantasy_targets, events, overtake_history, season, round_num):
+def build_historic_features(race_results, quali_results, fantasy_targets, events, overtake_history, season, round_num, elo_features=None):
     race_id = f"{season}_{round_num:02d}"
     race_results_round = race_results[race_results["race_id"] == race_id]
 
@@ -194,8 +194,10 @@ def build_historic_features(race_results, quali_results, fantasy_targets, events
             (race_results["season"] < season) |
             ((race_results["season"] == season) & (race_results["round"] < round_num))
         ].sort_values(["season", "round"])
+
         if prior.empty:
             return None
+        
         last = prior.iloc[-1][["season", "round"]]
         race_results_round = prior[(prior["season"] == last["season"]) & (prior["round"] == last["round"])]
 
@@ -229,6 +231,13 @@ def build_historic_features(race_results, quali_results, fantasy_targets, events
         rows.append(features)
 
     features_df = pd.DataFrame(rows)
+
+    # merge elo ratings (pre-computed across all seasons to avoid leakage)
+    if elo_features is not None:
+        elo_round = elo_features[elo_features["race_id"] == race_id]
+        
+        if not elo_round.empty:
+            features_df = features_df.merge(elo_round, on=["race_id", "driver_id"], how="left")
 
     constructor_rows = []
     for constructor_id in features_df["constructor_id"].unique():

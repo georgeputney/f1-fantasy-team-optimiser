@@ -26,6 +26,7 @@ from app.data.prices import compute_prices
 from app.features.build_historic_features import build_historic_features
 from app.features.build_practice_features import build_practice_features
 from app.features.build_circuit_features import build_circuit_features
+from app.features.elo import compute_elo_features
 
 from app.models.configs import FINISH_POSITION_MODEL, QUALI_POSITION_MODEL
 from app.models.train import main as train_main, load as load_model, load_data_upto, train_walk_forward, save_season
@@ -35,7 +36,6 @@ from app.data.overtakes import build_overtake_predictor
 from app.data.dotd import build_dotd_predictor
 
 from app.optimiser.optimiser import optimiser
-from app.optimiser.lookahead import lookahead_optimiser
 from app.optimiser.state import load_state, save_state
 
 from app.backtest import get_actual_team_points, oracle_baseline, random_baseline, lagged_baseline, mean_prior_baseline
@@ -272,6 +272,10 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
     else:
         overtake_history = pd.DataFrame(columns=["driver_id", "race_overtakes", "season", "round"])
 
+    typer.echo("Computing Elo features across all seasons...")
+    elo_features = compute_elo_features()
+    typer.echo(f"  Elo features: {len(elo_features)} rows across {elo_features['race_id'].nunique()} races\n")
+
     for s in season:
 
         schedule = fastf1.get_event_schedule(s)
@@ -287,7 +291,7 @@ def build_features(season: list[int] = typer.Option(ALL_SEASONS), round: list[in
             typer.echo(f"Building features for season {s}, round {round_num:02d} - {location}...")
 
             try:
-                result = build_historic_features(race_results, quali_results, fantasy_targets, events, overtake_history, s, round_num)
+                result = build_historic_features(race_results, quali_results, fantasy_targets, events, overtake_history, s, round_num, elo_features)
             except FileNotFoundError:
                 typer.echo(f"  Skipping round {round_num:02d}: processed data not found (run build-targets first)")
                 continue
@@ -591,7 +595,7 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 # runs walk-forward backtest comparing model, oracle, and random strategies over historical seasons, prints per-round results and saves a cumulative points plot
 # model and oracle are transfer-constrained with state carried forward each round; random is unconstrained
 @app.command()
-def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP), horizon: int = typer.Option(3, help="lookahead horizon (number of future races to consider)"), discount: float = typer.Option(0.85, help="discount factor per lookahead period")):
+def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP)):
     predict_overtakes = build_overtake_predictor()
     predict_dotd = build_dotd_predictor()
 
@@ -599,7 +603,6 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
         results = []
 
         model_state = None
-        lookahead_state = None
         oracle_state = None  # reset at start of each season - no carry-over between seasons
         mean_state = None
 
@@ -611,23 +614,19 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
         schedule = fastf1.get_event_schedule(s)
         schedule = schedule[schedule["RoundNumber"] > 0]
 
-        # build ordered list of rounds with valid data for lookahead indexing
-        valid_rounds = []
         for _, event in schedule.iterrows():
-            rn = event["RoundNumber"]
-            loc = event.get("Location", str(rn))
-            has_data = all(p.exists() for p in [
-                PROCESSED_PRICES_DIR / f"{s}_{rn:02d}.parquet",
-                PROCESSED_HISTORIC_FEATURES_DIR / f"{s}_{rn:02d}.parquet",
-                PROCESSED_TARGETS_DIR / f"{s}_{rn:02d}.parquet",
-            ])
-            if has_data:
-                valid_rounds.append((rn, loc))
+            round_num = event["RoundNumber"]
+            location = event.get("Location", str(round_num))
+            prices_path = PROCESSED_PRICES_DIR / f"{s}_{round_num:02d}.parquet"
+            features_path = PROCESSED_HISTORIC_FEATURES_DIR / f"{s}_{round_num:02d}.parquet"
+            targets_path = PROCESSED_TARGETS_DIR / f"{s}_{round_num:02d}.parquet"
 
-        for idx, (round_num, location) in enumerate(valid_rounds):
+            if not (prices_path.exists() and features_path.exists() and targets_path.exists()):
+                continue
+
             typer.echo(f"Backtesting season {s}, round {round_num:02d} - {location}...")
 
-            prices = pd.read_parquet(PROCESSED_PRICES_DIR / f"{s}_{round_num:02d}.parquet")
+            prices = pd.read_parquet(prices_path)
             asset_prices_index = prices.set_index("asset_id")["price"]
 
             events_path = INTERIM_EVENTS_DIR / f"{s}_{round_num:02d}.parquet"
@@ -638,33 +637,9 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             driver_points = compose_drivers(predictions, location=bt_location, season=s, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
             constructor_points = compose_constructor(driver_points)
 
-            # greedy model (single-round)
             model_team = optimiser(driver_points, constructor_points, prices, budget, model_state)
             model_points = get_actual_team_points(model_team, s, round_num, model_team["transfer_penalty"])
             model_state = _build_state(model_team, model_state, asset_prices_index, budget)
-
-            # lookahead model (multi-period) - generate predictions for future rounds in the horizon
-            period_driver_pts = [driver_points]
-            period_constructor_pts = [constructor_points]
-            for future_offset in range(1, horizon):
-                future_idx = idx + future_offset
-                if future_idx >= len(valid_rounds):
-                    break
-                future_round = valid_rounds[future_idx][0]
-                future_features_path = PROCESSED_HISTORIC_FEATURES_DIR / f"{s}_{future_round:02d}.parquet"
-                if not future_features_path.exists():
-                    break
-                future_preds = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, s, future_round)
-                future_events_path = INTERIM_EVENTS_DIR / f"{s}_{future_round:02d}.parquet"
-                future_location = pd.read_parquet(future_events_path)["location"].iloc[0] if future_events_path.exists() else None
-                future_driver_pts = compose_drivers(future_preds, location=future_location, season=s, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
-                future_constructor_pts = compose_constructor(future_driver_pts)
-                period_driver_pts.append(future_driver_pts)
-                period_constructor_pts.append(future_constructor_pts)
-
-            lookahead_team = lookahead_optimiser(period_driver_pts, period_constructor_pts, prices, budget, lookahead_state, discount)
-            lookahead_points = get_actual_team_points(lookahead_team, s, round_num, lookahead_team["transfer_penalty"])
-            lookahead_state = _build_state(lookahead_team, lookahead_state, asset_prices_index, budget)
 
             oracle_team = oracle_baseline(s, round_num, prices, budget, oracle_state)
             oracle_points = get_actual_team_points(oracle_team, s, round_num, oracle_team["transfer_penalty"])
@@ -682,21 +657,21 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             else:
                 mean_points = None
 
-            results.append({"season": s, "round": round_num, "location": location, "model": model_points, "lookahead": lookahead_points, "oracle": oracle_points, "random": random_points, "lagged": lagged_points, "mean": mean_points})
+            results.append({"season": s, "round": round_num, "location": location, "model": model_points, "oracle": oracle_points, "random": random_points, "lagged": lagged_points, "mean": mean_points})
 
         df = pd.DataFrame(results)
 
-        typer.echo(f"\n{'Round':<6} {'Location':<18} {'Model':>8} {'Look':>8} {'Oracle':>8} {'Mean':>8} {'Lagged':>8} {'Random':>8}")
+        typer.echo(f"\n{'Round':<6} {'Location':<18} {'Model':>8} {'Oracle':>8} {'Mean':>8} {'Lagged':>8} {'Random':>8}")
         for _, row in df.iterrows():
             lagged_str = f"{row['lagged']:>8.1f}" if pd.notna(row["lagged"]) else f"{'N/A':>8}"
             mean_str = f"{row['mean']:>8.1f}" if pd.notna(row["mean"]) else f"{'N/A':>8}"
-            typer.echo(f"  {int(row['round']):<4} {row['location']:<18} {row['model']:>8.1f} {row['lookahead']:>8.1f} {row['oracle']:>8.1f} {mean_str} {lagged_str} {row['random']:>8.1f}")
+            typer.echo(f"  {int(row['round']):<4} {row['location']:<18} {row['model']:>8.1f} {row['oracle']:>8.1f} {mean_str} {lagged_str} {row['random']:>8.1f}")
 
-        typer.echo(f"\n{'Total':<25} {df['model'].sum():>8.1f} {df['lookahead'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['mean'].sum():>8.1f} {df['lagged'].sum():>8.1f} {df['random'].sum():>8.1f}")
+        typer.echo(f"\n{'Total':<8} {df['model'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['mean'].sum():>8.1f} {df['lagged'].sum():>8.1f} {df['random'].sum():>8.1f}")
 
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-        df[["model", "lookahead", "oracle", "mean", "lagged", "random"]].cumsum().plot(title="Cumulative fantasy points by strategy", color=["blue", "cyan", "orange", "purple", "red", "green"])
+        df[["model", "oracle", "mean", "lagged", "random"]].cumsum().plot(title="Cumulative fantasy points by strategy", color=["blue", "orange", "purple", "red", "green"])
 
         plt.xlabel("Round")
         plt.ylabel("Cumulative points")
