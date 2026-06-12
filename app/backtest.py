@@ -13,10 +13,10 @@ def get_actual_team_points(team, season, round_num, transfer_penalty=0):
 
     for driver in team["drivers"]:
         multiplier = 2 if driver == team["doubled_driver"] else 1
-        points += targets[driver] * multiplier
+        points += targets.get(driver, 0) * multiplier
 
     for constructor in team["constructors"]:
-        points += targets[constructor]
+        points += targets.get(constructor, 0)
 
     return points - transfer_penalty
 

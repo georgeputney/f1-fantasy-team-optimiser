@@ -10,10 +10,11 @@ def optimiser(driver_points, constructor_points, prices, budget=BUDGET_CAP, stat
     # objective: maximise total expected fantasy points including doubled driver bonus
     prob = pulp.LpProblem("f1_fantasy", pulp.LpMaximize)
 
-    drivers = driver_points["driver_id"].tolist()
-    constructors = constructor_points["constructor_id"].tolist()
-
     prices_index = prices.set_index("asset_id")["price"]
+    priced_assets = set(prices_index.index)
+
+    drivers = [d for d in driver_points["driver_id"] if d in priced_assets]
+    constructors = [c for c in constructor_points["constructor_id"] if c in priced_assets]
 
     # compute available budget and transfer allowance from previous team state
     if state is not None:

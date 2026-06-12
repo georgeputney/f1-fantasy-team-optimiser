@@ -35,10 +35,9 @@ from app.data.overtakes import build_overtake_predictor
 from app.data.dotd import build_dotd_predictor
 
 from app.optimiser.optimiser import optimiser
-from app.optimiser.lookahead import lookahead_optimiser
 from app.optimiser.state import load_state, save_state
 
-from app.backtest import get_actual_team_points, oracle_baseline, random_baseline, lagged_baseline, mean_prior_baseline
+from app.backtest import get_actual_team_points, oracle_baseline, lagged_baseline, mean_prior_baseline
 
 from app.config import (
     ALL_SEASONS, VAL_SEASONS, BUDGET_CAP,
@@ -588,10 +587,10 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
         typer.echo(f"Free transfers carried to next round: {free_transfers_carried}")
 
 
-# runs walk-forward backtest comparing model, oracle, and random strategies over historical seasons, prints per-round results and saves a cumulative points plot
-# model and oracle are transfer-constrained with state carried forward each round; random is unconstrained
+# runs walk-forward backtest comparing model, oracle, and baseline strategies over historical seasons, prints per-round results and saves a cumulative points plot
+# model and oracle are transfer-constrained with state carried forward each round
 @app.command()
-def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP), horizon: int = typer.Option(3, help="lookahead horizon (number of future races to consider)"), discount: float = typer.Option(0.85, help="discount factor per lookahead period")):
+def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP)):
     predict_overtakes = build_overtake_predictor()
     predict_dotd = build_dotd_predictor()
 
@@ -599,7 +598,6 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
         results = []
 
         model_state = None
-        lookahead_state = None
         oracle_state = None  # reset at start of each season - no carry-over between seasons
         mean_state = None
 
@@ -624,7 +622,7 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             if has_data:
                 valid_rounds.append((rn, loc))
 
-        for idx, (round_num, location) in enumerate(valid_rounds):
+        for round_num, location in valid_rounds:
             typer.echo(f"Backtesting season {s}, round {round_num:02d} - {location}...")
 
             prices = pd.read_parquet(PROCESSED_PRICES_DIR / f"{s}_{round_num:02d}.parquet")
@@ -643,34 +641,9 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             model_points = get_actual_team_points(model_team, s, round_num, model_team["transfer_penalty"])
             model_state = _build_state(model_team, model_state, asset_prices_index, budget)
 
-            # lookahead model (multi-period) - generate predictions for future rounds in the horizon
-            period_driver_pts = [driver_points]
-            period_constructor_pts = [constructor_points]
-            for future_offset in range(1, horizon):
-                future_idx = idx + future_offset
-                if future_idx >= len(valid_rounds):
-                    break
-                future_round = valid_rounds[future_idx][0]
-                future_features_path = PROCESSED_HISTORIC_FEATURES_DIR / f"{s}_{future_round:02d}.parquet"
-                if not future_features_path.exists():
-                    break
-                future_preds = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, s, future_round)
-                future_events_path = INTERIM_EVENTS_DIR / f"{s}_{future_round:02d}.parquet"
-                future_location = pd.read_parquet(future_events_path)["location"].iloc[0] if future_events_path.exists() else None
-                future_driver_pts = compose_drivers(future_preds, location=future_location, season=s, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
-                future_constructor_pts = compose_constructor(future_driver_pts)
-                period_driver_pts.append(future_driver_pts)
-                period_constructor_pts.append(future_constructor_pts)
-
-            lookahead_team = lookahead_optimiser(period_driver_pts, period_constructor_pts, prices, budget, lookahead_state, discount)
-            lookahead_points = get_actual_team_points(lookahead_team, s, round_num, lookahead_team["transfer_penalty"])
-            lookahead_state = _build_state(lookahead_team, lookahead_state, asset_prices_index, budget)
-
             oracle_team = oracle_baseline(s, round_num, prices, budget, oracle_state)
             oracle_points = get_actual_team_points(oracle_team, s, round_num, oracle_team["transfer_penalty"])
             oracle_state = _build_state(oracle_team, oracle_state, asset_prices_index, budget)
-
-            random_points = random_baseline(s, round_num, prices, budget)
 
             lagged_team = lagged_baseline(s, round_num, prices, budget)
             lagged_points = get_actual_team_points(lagged_team, s, round_num) if lagged_team else None
@@ -682,21 +655,21 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             else:
                 mean_points = None
 
-            results.append({"season": s, "round": round_num, "location": location, "model": model_points, "lookahead": lookahead_points, "oracle": oracle_points, "random": random_points, "lagged": lagged_points, "mean": mean_points})
+            results.append({"season": s, "round": round_num, "location": location, "model": model_points, "oracle": oracle_points, "lagged": lagged_points, "mean": mean_points})
 
         df = pd.DataFrame(results)
 
-        typer.echo(f"\n{'Round':<6} {'Location':<18} {'Model':>8} {'Look':>8} {'Oracle':>8} {'Mean':>8} {'Lagged':>8} {'Random':>8}")
+        typer.echo(f"\n{'Round':<6} {'Location':<18} {'Model':>8} {'Oracle':>8} {'Mean':>8} {'Lagged':>8}")
         for _, row in df.iterrows():
             lagged_str = f"{row['lagged']:>8.1f}" if pd.notna(row["lagged"]) else f"{'N/A':>8}"
             mean_str = f"{row['mean']:>8.1f}" if pd.notna(row["mean"]) else f"{'N/A':>8}"
-            typer.echo(f"  {int(row['round']):<4} {row['location']:<18} {row['model']:>8.1f} {row['lookahead']:>8.1f} {row['oracle']:>8.1f} {mean_str} {lagged_str} {row['random']:>8.1f}")
+            typer.echo(f"  {int(row['round']):<4} {row['location']:<18} {row['model']:>8.1f} {row['oracle']:>8.1f} {mean_str} {lagged_str}")
 
-        typer.echo(f"\n{'Total':<25} {df['model'].sum():>8.1f} {df['lookahead'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['mean'].sum():>8.1f} {df['lagged'].sum():>8.1f} {df['random'].sum():>8.1f}")
+        typer.echo(f"\n{'Total':<25} {df['model'].sum():>8.1f} {df['oracle'].sum():>8.1f} {df['mean'].sum():>8.1f} {df['lagged'].sum():>8.1f}")
 
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-        df[["model", "lookahead", "oracle", "mean", "lagged", "random"]].cumsum().plot(title="Cumulative fantasy points by strategy", color=["blue", "cyan", "orange", "purple", "red", "green"])
+        df[["model", "oracle", "mean", "lagged"]].cumsum().plot(title="Cumulative fantasy points by strategy", color=["blue", "orange", "purple", "red"])
 
         plt.xlabel("Round")
         plt.ylabel("Cumulative points")

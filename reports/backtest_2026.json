@@ -3,50 +3,54 @@
     "season": 2026,
     "round": 1,
     "location": "Melbourne",
-    "model": 226,
-    "oracle": 290,
-    "random": 73.51656920077973,
+    "model": 216.0,
+    "oracle": 290.0,
     "lagged": NaN,
-    "mean": 170
+    "mean": 167.0
   },
   {
     "season": 2026,
     "round": 2,
     "location": "Shanghai",
-    "model": 303,
-    "oracle": 474,
-    "random": 163.17769376181474,
+    "model": 337.0,
+    "oracle": 474.0,
     "lagged": 240.0,
-    "mean": 266
+    "mean": 266.0
   },
   {
     "season": 2026,
     "round": 3,
     "location": "Suzuka",
-    "model": 230,
-    "oracle": 300,
-    "random": 89.1576923076923,
+    "model": 289.0,
+    "oracle": 300.0,
     "lagged": 220.0,
-    "mean": 194
+    "mean": 194.0
   },
   {
     "season": 2026,
     "round": 4,
     "location": "Miami Gardens",
-    "model": 243,
-    "oracle": 349,
-    "random": 122.54382470119522,
+    "model": 233.0,
+    "oracle": 349.0,
     "lagged": 184.0,
-    "mean": 269
+    "mean": 269.0
   },
   {
     "season": 2026,
     "round": 5,
     "location": "Montr\u00e9al",
-    "model": 182,
-    "oracle": 340,
-    "random": 93.96274509803922,
+    "model": 270.0,
+    "oracle": 340.0,
     "lagged": -3.0,
-    "mean": 303
+    "mean": 303.0
+  },
+  {
+    "season": 2026,
+    "round": 6,
+    "location": "Monte Carlo",
+    "model": 41.0,
+    "oracle": 299.0,
+    "lagged": 173.0,
+    "mean": 186.0
   }
 ]
