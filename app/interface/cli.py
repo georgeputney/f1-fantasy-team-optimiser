@@ -30,7 +30,7 @@ from app.features.build_circuit_features import build_circuit_features
 from app.models.configs import FINISH_POSITION_MODEL, QUALI_POSITION_MODEL
 from app.models.train import main as train_main, load as load_model, load_data_upto, train_walk_forward, save_season
 from app.models.predict import load_season_model, predict as run_predict
-from app.models.compose import compose_drivers, compose_constructor
+from app.models.compose import compose_drivers, compose_constructor, expected_pitstop_points
 from app.data.overtakes import build_overtake_predictor
 from app.data.dotd import build_dotd_predictor
 
@@ -353,7 +353,7 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
     predict_dotd = build_dotd_predictor()
     predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
     driver_pts = compose_drivers(predictions, location=circuit, season=season, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
-    constructor_pts = compose_constructor(driver_pts)
+    constructor_pts = compose_constructor(driver_pts, pitstop_pts=expected_pitstop_points(season, round))
 
     drivers_out = [
         {
@@ -446,7 +446,7 @@ def backfill_predictions(from_season: int = typer.Option(2026), prod: bool = typ
 
             predictions = run_predict(walk_quali, QUALI_POSITION_MODEL, walk_finish, FINISH_POSITION_MODEL, s, r)
             driver_pts = compose_drivers(predictions, location=circuit, season=s, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
-            constructor_pts = compose_constructor(driver_pts)
+            constructor_pts = compose_constructor(driver_pts, pitstop_pts=expected_pitstop_points(s, r))
 
             drivers_out = [
                 {
@@ -505,7 +505,7 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
     predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
 
     driver_points = compose_drivers(predictions, location=location, season=season, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
-    constructor_points = compose_constructor(driver_points)
+    constructor_points = compose_constructor(driver_points, pitstop_pts=expected_pitstop_points(season, round))
 
     typer.echo(f"Predicting season {season}, round {round:02d} - {location}...")
     
@@ -536,7 +536,7 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
     predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
 
     driver_points = compose_drivers(predictions, location=location, season=season, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
-    constructor_points = compose_constructor(driver_points)
+    constructor_points = compose_constructor(driver_points, pitstop_pts=expected_pitstop_points(season, round))
 
     team = optimiser(driver_points, constructor_points, prices, budget, state)
 
@@ -636,7 +636,7 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, s, round_num)
 
             driver_points = compose_drivers(predictions, location=bt_location, season=s, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
-            constructor_points = compose_constructor(driver_points)
+            constructor_points = compose_constructor(driver_points, pitstop_pts=expected_pitstop_points(s, round_num))
 
             # greedy model (single-round)
             model_team = optimiser(driver_points, constructor_points, prices, budget, model_state)

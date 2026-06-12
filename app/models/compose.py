@@ -3,10 +3,12 @@
 import numpy as np
 import pandas as pd
 
+from app.config import INTERIM_PITSTOPS_DIR
 from app.data.scoring_rules import (
     CONSTRUCTOR_QUALI_BONUS, DRIVER_QUALI_POSITION_POINTS, DRIVER_RACE_POSITION_POINTS,
     FASTEST_LAP_POINTS, DOTD_POINTS, RACE_PENALTY, POSITION_GAINED_POINTS, OVERTAKE_MADE_POINTS,
-    DRIVER_SPRINT_POSITION_POINTS, SPRINT_FASTEST_LAP_POINTS, SPRINT_OVERTAKE_MADE_POINTS
+    DRIVER_SPRINT_POSITION_POINTS, SPRINT_FASTEST_LAP_POINTS, SPRINT_OVERTAKE_MADE_POINTS,
+    score_pitstop,
 )
 
 _positions = np.arange(1, 21)
@@ -16,6 +18,53 @@ _exp_probs = _exp_weights / _exp_weights.sum()
 FASTEST_LAP_PROB = dict(zip(_positions, _exp_probs))
 
 _DOTD_FALLBACK = 0.05    # flat prior used when no dotd predictor is provided
+
+
+# compute expected pitstop bracket points per constructor from historical DHL data.
+# only uses 2022+ data (current wheel/tyre regulations made stops slower) and applies
+# exponential recency weighting so recent form dominates. predicts a weighted time
+# distribution per constructor and computes E[bracket_pts] from that, which handles
+# the nonlinear step-function scoring better than averaging past scores directly.
+_PITSTOP_MIN_SEASON = 2022
+_PITSTOP_HALF_LIFE = 8  # races; weight halves every 8 races back
+
+
+def expected_pitstop_points(season, round_num):
+    files = sorted(INTERIM_PITSTOPS_DIR.glob("*.parquet"))
+    prior = []
+    for f in files:
+        parts = f.stem.split("_")
+        s, r = int(parts[0]), int(parts[1])
+        if s >= _PITSTOP_MIN_SEASON and (s, r) < (season, round_num):
+            prior.append(pd.read_parquet(f))
+
+    if not prior:
+        return {}
+
+    pitstops = pd.concat(prior)
+    best = pitstops.loc[pitstops.groupby(["season", "round", "constructor_id"])["stationary_s"].idxmin()].copy()
+
+    # recency weight: exponential decay from the most recent race
+    race_keys = best[["season", "round"]].drop_duplicates().sort_values(["season", "round"])
+    race_keys["_race_idx"] = range(len(race_keys))
+    max_idx = race_keys["_race_idx"].max()
+    best = best.merge(race_keys, on=["season", "round"])
+    best["_weight"] = np.exp(-np.log(2) / _PITSTOP_HALF_LIFE * (max_idx - best["_race_idx"]))
+
+    # for each constructor, compute E[bracket_pts] from the weighted time distribution.
+    # sample from the empirical distribution (weighted) and score each sample.
+    rng = np.random.default_rng(42)
+    n_samples = 5000
+    result = {}
+    for cid, group in best.groupby("constructor_id"):
+        times = group["stationary_s"].values
+        weights = group["_weight"].values
+        probs = weights / weights.sum()
+        samples = rng.choice(times, size=n_samples, p=probs)
+        scores = np.array([score_pitstop(t, is_race_fastest=False) for t in samples])
+        result[cid] = float(scores.mean())
+
+    return result
 
 
 # computes expected fantasy points per driver from predicted quali and finish positions.
@@ -91,10 +140,12 @@ def compose_drivers(predictions, location=None, season=None, predict_overtakes=N
     return predictions.sort_values("expected_fantasy_points", ascending=False).reset_index(drop=True)
 
      
-# computes expected fantasy points per constructor by summing both drivers' expected points plus Q2/Q3 quali bonus
-def compose_constructor(predictions):
+# computes expected fantasy points per constructor by summing both drivers' expected points
+# plus Q2/Q3 quali bonus and expected pitstop bracket points.
+# pitstop_pts is an optional dict of constructor_id -> expected bracket points (from expected_pitstop_points()).
+def compose_constructor(predictions, pitstop_pts=None):
     q2_cutoff = (len(predictions) + 10) // 2  # top half of non-Q3 drivers advanced to Q2
-    
+
     predictions = predictions.copy()
 
     predictions["_q2"] = (predictions["predicted_quali_position"] <= q2_cutoff).astype(int)
@@ -109,6 +160,10 @@ def compose_constructor(predictions):
     constructor_points["expected_fantasy_points"] += constructor_points.apply(
         lambda row: CONSTRUCTOR_QUALI_BONUS.get((int(row["_q2"]), int(row["_q3"])), 0), axis=1
     )
+
+    if pitstop_pts:
+        constructor_points["points_pitstop"] = constructor_points["constructor_id"].map(pitstop_pts).fillna(0)
+        constructor_points["expected_fantasy_points"] += constructor_points["points_pitstop"]
 
     return (
         constructor_points[["constructor_id", "expected_fantasy_points"]]
