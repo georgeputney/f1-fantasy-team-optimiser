@@ -119,6 +119,13 @@ def main(config, quali_model=None, quali_config=None):
     if len(X_live):
         evaluate(model, X_live, y_live, "live", config["eval_metrics"])
 
+    # print top feature importances
+    top_n = config.get("feature_importance_top_n", 10)
+    importances = pd.Series(model.feature_importances_, index=config["features"]).sort_values(ascending=False)
+    print(f"\nTop {top_n} features:")
+    for feat, imp in importances.head(top_n).items():
+        print(f"  {feat:<45} {imp:.4f}")
+
 
 
 # saves a per-season walk-forward model to data/artifacts/ under a _{season} suffix
