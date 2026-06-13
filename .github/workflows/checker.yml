@@ -2,7 +2,7 @@ name: Race Weekend Checker
 
 on:
   schedule:
-    - cron: '0 * * * 1,5,6'   # every hour on Fri-Sat-Mon
+    - cron: '*/20 * * * 1,5,6'   # every 20 min on Fri-Sat-Mon (GitHub cron is best-effort)
   workflow_dispatch: {}   # manual trigger for testing
 
 permissions:
