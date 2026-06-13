@@ -226,11 +226,20 @@ with tab1:
     data = json.loads(pred_path.read_text())
     driver_team = {d["driver_id"]: d["constructor_id"] for d in data["drivers"] if "constructor_id" in d}
 
+    _trigger_labels = {
+        "post-fp2": "Post-FP2 (preliminary)",
+        "pre-race": "Post-FP3",
+    }
+    _trigger = data.get("trigger")
+    _label = _trigger_labels.get(_trigger)
+    _subtitle = f'{_label} \u00b7 ' if _label else ""
+    _subtitle += data["generated_at"][:16].replace("T", " ")
+
     st.markdown(
         f'<p style="font-family:\'Cormorant Garamond\',serif;font-size:1.8rem;font-weight:300;letter-spacing:-0.01em;color:#f7f6f3;margin:0 0 2px 0">'
         f'R{data["round"]}: {data["circuit"]}</p>'
         f'<p style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(247,246,243,0.35);margin:0 0 1rem 0">'
-        f'Last updated {data["generated_at"][:10]}</p>',
+        f'{_subtitle}</p>',
         unsafe_allow_html=True,
     )
 

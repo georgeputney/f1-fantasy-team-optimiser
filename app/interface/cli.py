@@ -329,7 +329,7 @@ def train_model(season: int = typer.Option(None)):
 
 # generate reports/predictions_latest.json for the Streamlit app
 @app.command()
-def generate_reports(season: int = typer.Option(...), round: int = typer.Option(...)):
+def generate_reports(season: int = typer.Option(...), round: int = typer.Option(...), trigger: str = typer.Option("")):
     from datetime import datetime
 
     prices_path = PROCESSED_PRICES_DIR / f"{season}_{round:02d}.parquet"
@@ -389,6 +389,7 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
         "round": round,
         "circuit": str(circuit),
         "generated_at": datetime.now().isoformat(),
+        "trigger": trigger or None,
         "drivers": sorted(drivers_out, key=lambda x: -x["expected_points"]),
         "constructors": sorted(constructors_out, key=lambda x: -x["expected_points"]),
     }
