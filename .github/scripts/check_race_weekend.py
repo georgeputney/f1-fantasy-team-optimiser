@@ -1,17 +1,20 @@
 """Check whether the pipeline should run for prediction generation.
 
-Two trigger conditions:
+Three trigger conditions (checked in priority order):
   1. Post-race: race just finished for round N -> trigger pipeline for round N+1
-     (premature prediction using historical features only, no practice data)
+     (preliminary prediction using historical features only, no practice data)
   2. Pre-race: trigger session finished for round N -> trigger pipeline for round N
      Trigger session by weekend type:
        conventional  ->  Practice 3       (Saturday morning)
        sprint        ->  Sprint Qualifying (Friday evening)
+  3. Post-FP2: Practice 2 just finished for round N (conventional weekends only)
+     -> trigger pipeline for round N (preliminary prediction with early practice data)
 
 Writes should_run, season, round to GITHUB_OUTPUT when the pipeline should run.
 """
 
 import os
+import subprocess
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -32,6 +35,18 @@ def _set_output(year, round_num, trigger, label):
     else:
         print(output)
     print(f"{label}: {year} round {round_num}")
+
+
+def _commit_exists(pattern):
+    """Check if a commit matching the pattern exists in recent history."""
+    try:
+        result = subprocess.run(
+            ["git", "log", "--oneline", "--grep", pattern, "-1"],
+            capture_output=True, text=True, timeout=10,
+        )
+        return bool(result.stdout.strip())
+    except Exception:
+        return False
 
 
 def main():
@@ -93,13 +108,49 @@ def main():
             if session_start.tzinfo is None:
                 session_start = session_start.replace(tzinfo=timezone.utc)
             if now < session_start + timedelta(hours=2):
-                print(f"{trigger_session} not finished yet.")
-                return
+                # trigger session not ready yet, fall through to FP2 check
+                break
         except Exception as e:
             print(f"Could not get {trigger_session} time: {e}", file=sys.stderr)
-            return
+            break
+
+        dedup_msg = f"Post-FP3 predictions for {year} round {round_num}"
+        if _commit_exists(dedup_msg):
+            print(f"Already committed: {dedup_msg}, skipping.")
+            break
 
         _set_output(year, round_num, "pre-race", f"Post-{trigger_session} prediction")
+        return
+
+    # check if FP2 finished -> preliminary prediction with early practice data
+    for _, event in schedule.iterrows():
+        race_date = event["EventDate"].date()
+        if not (race_date - timedelta(days=3) <= today <= race_date):
+            continue
+
+        round_num = int(event["RoundNumber"])
+        is_sprint = "sprint" in str(event.get("EventFormat", "")).lower()
+        if is_sprint:
+            print("Sprint weekend, no FP2 trigger.")
+            continue
+
+        try:
+            fp2_start = event.get_session_date("Practice 2", utc=True)
+            if fp2_start.tzinfo is None:
+                fp2_start = fp2_start.replace(tzinfo=timezone.utc)
+            if now < fp2_start + timedelta(hours=2):
+                print("Practice 2 not finished yet.")
+                continue
+        except Exception as e:
+            print(f"Could not get Practice 2 time: {e}", file=sys.stderr)
+            continue
+
+        commit_msg = f"Post-FP2 preliminary predictions for {year} round {round_num}"
+        if _commit_exists(commit_msg):
+            print(f"Already committed: {commit_msg}, skipping.")
+            continue
+
+        _set_output(year, round_num, "post-fp2", "Post-FP2 preliminary prediction")
         return
 
     print("No active race weekend or trigger session data not available.")

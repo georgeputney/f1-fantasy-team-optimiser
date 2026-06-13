@@ -132,10 +132,11 @@ jobs:
           ROUND=${{ inputs.round }}
           TRIGGER="${{ inputs.trigger }}"
           if [ "$TRIGGER" = "pre-race" ]; then
-            MSG="Ingested practice data and final predictions for $SEASON round $ROUND"
+            MSG="Post-FP3 predictions for $SEASON round $ROUND"
+          elif [ "$TRIGGER" = "post-fp2" ]; then
+            MSG="Post-FP2 preliminary predictions for $SEASON round $ROUND"
           elif [ "$TRIGGER" = "post-race" ]; then
-            PREV=$(( ROUND - 1 ))
-            MSG="Ingested round $PREV results and initial predictions for $SEASON round $ROUND"
+            MSG="Post-race preliminary predictions for $SEASON round $ROUND"
           else
             MSG="Pipeline run: $SEASON round $ROUND"
           fi

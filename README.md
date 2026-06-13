@@ -21,14 +21,14 @@ app/
     clean.py                        # validate and normalise raw parquets
     targets.py                      # compute fantasy point targets from results
     prices.py                       # compute rolling price-per-million values
-    scoring_rules.py                # official F1 fantasy scoring breakdown
+    scoring_rules.py                # official F1 fantasy scoring rules (2026+)
     schemas.py                      # pandera schemas for data validation
     overtakes.py                    # expected overtakes per driver
     dotd.py                         # Driver of the Day probability model
   features/
     build_historic_features.py      # rolling driver and constructor features
-    build_practice_features.py      # FP1/FP3 session features
-    build_circuit_features.py       # circuit-level features
+    build_practice_features.py      # FP2/FP3 pace, gaps, sector deltas
+    build_circuit_features.py       # circuit-level features (overtake index, DNF rate, etc.)
   models/
     configs.py                      # XGBoost model definitions
     train.py                        # training loop, walk-forward season artifacts
@@ -86,7 +86,7 @@ python -m app.interface.cli optimise-team --season 2026 --round 7
 python -m app.interface.cli backtest --season 2025
 ```
 
-Runs walk-forward evaluation against oracle, random, lagged, and mean-prior baselines.
+Runs walk-forward evaluation against oracle, lagged, and mean-prior baselines. All strategies are transfer-constrained and cumulative results are saved to `reports/`.
 
 **Backfill prediction reports:**
 
@@ -102,11 +102,17 @@ streamlit run app/dashboard.py
 
 ## CI/CD
 
-A GitHub Actions pipeline triggers on pushes to `main` that touch `data/interim/**`. It runs `build-targets -> build-prices -> build-features -> generate-reports` and commits the results back to the repo. Can also be triggered manually via `workflow_dispatch` with a season and round number.
+A GitHub Actions workflow (`checker.yml`) runs on a cron schedule every 20 minutes on Fridays, Saturdays, and Mondays. It checks whether a session has become available via FastF1 and triggers the pipeline (`pipeline.yml`) at three points during a race weekend:
+
+1. **Post-FP2** -- preliminary predictions with early practice data (conventional weekends only)
+2. **Post-FP3** -- full predictions with all practice data (or post-Sprint Qualifying for sprint weekends)
+3. **Post-race** -- preliminary predictions for the next round using historical features only
+
+The pipeline re-ingests the previous round, processes the current round, builds features, generates prediction reports, and commits the results back to the repo. After a race, it also runs the backtest. The workflow can be triggered manually via `workflow_dispatch`.
 
 ## Data
 
-Race, qualifying, practice, sprint, and pit stop data is fetched from [FastF1](https://github.com/theOehrly/Fast-F1). Fantasy prices are manually maintained CSVs in `data/raw/fantasy_prices/` and must be updated before each race weekend.
+Race, qualifying, practice, sprint, and pit stop data is fetched from [FastF1](https://github.com/theOehrly/Fast-F1). Fantasy starting prices are manually maintained CSVs in `data/manual/fantasy_prices/`. Rolling prices are computed from targets and stored in `data/processed/prices/`.
 
 ## Stack
 
