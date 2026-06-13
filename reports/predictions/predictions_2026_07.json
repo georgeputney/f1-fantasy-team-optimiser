@@ -2,8 +2,8 @@
   "season": 2026,
   "round": 7,
   "circuit": "Barcelona",
-  "generated_at": "2026-06-13T22:38:21.600345",
-  "trigger": "pre-race",
+  "generated_at": "2026-06-13T23:49:44.677549",
+  "trigger": "post-fp2",
   "drivers": [
     {
       "driver_id": "andrea_kimi_antonelli",
