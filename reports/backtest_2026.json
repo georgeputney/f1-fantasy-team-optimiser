@@ -6,7 +6,7 @@
     "model": 216.0,
     "oracle": 290.0,
     "lagged": NaN,
-    "mean": 167.0
+    "mean": NaN
   },
   {
     "season": 2026,
@@ -15,7 +15,7 @@
     "model": 337.0,
     "oracle": 474.0,
     "lagged": 240.0,
-    "mean": 266.0
+    "mean": 240.0
   },
   {
     "season": 2026,
@@ -24,7 +24,7 @@
     "model": 289.0,
     "oracle": 300.0,
     "lagged": 220.0,
-    "mean": 194.0
+    "mean": 221.0
   },
   {
     "season": 2026,
@@ -33,7 +33,7 @@
     "model": 233.0,
     "oracle": 349.0,
     "lagged": 184.0,
-    "mean": 269.0
+    "mean": 251.0
   },
   {
     "season": 2026,
@@ -42,15 +42,24 @@
     "model": 270.0,
     "oracle": 340.0,
     "lagged": -3.0,
-    "mean": 303.0
+    "mean": 283.0
   },
   {
     "season": 2026,
     "round": 6,
     "location": "Monte Carlo",
     "model": 41.0,
-    "oracle": 299.0,
-    "lagged": 173.0,
-    "mean": 186.0
+    "oracle": 289.0,
+    "lagged": 183.0,
+    "mean": 207.0
+  },
+  {
+    "season": 2026,
+    "round": 7,
+    "location": "Barcelona",
+    "model": 99.0,
+    "oracle": 209.0,
+    "lagged": 28.0,
+    "mean": 61.0
   }
 ]
