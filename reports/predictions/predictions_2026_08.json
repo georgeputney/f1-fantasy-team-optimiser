@@ -2,8 +2,8 @@
   "season": 2026,
   "round": 8,
   "circuit": "Spielberg",
-  "generated_at": "2026-06-26T17:16:25.024961",
-  "trigger": "post-fp2",
+  "generated_at": "2026-06-27T14:14:55.405036",
+  "trigger": "pre-race",
   "drivers": [
     {
       "driver_id": "andrea_kimi_antonelli",
