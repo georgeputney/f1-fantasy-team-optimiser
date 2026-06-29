@@ -57,9 +57,18 @@
     "season": 2026,
     "round": 7,
     "location": "Barcelona",
-    "model": 99.0,
-    "oracle": 209.0,
-    "lagged": 28.0,
-    "mean": 61.0
+    "model": 120.0,
+    "oracle": 263.0,
+    "lagged": 55.0,
+    "mean": 87.0
+  },
+  {
+    "season": 2026,
+    "round": 8,
+    "location": "Spielberg",
+    "model": 155.0,
+    "oracle": 223.0,
+    "lagged": 82.0,
+    "mean": 179.0
   }
 ]
