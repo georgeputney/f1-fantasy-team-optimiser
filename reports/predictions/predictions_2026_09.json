@@ -2,8 +2,8 @@
   "season": 2026,
   "round": 9,
   "circuit": "Silverstone",
-  "generated_at": "2026-06-29T03:51:01.708774",
-  "trigger": "post-race",
+  "generated_at": "2026-07-03T17:57:17.157235",
+  "trigger": "pre-race",
   "drivers": [
     {
       "driver_id": "andrea_kimi_antonelli",
