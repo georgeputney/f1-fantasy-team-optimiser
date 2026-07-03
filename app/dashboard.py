@@ -11,7 +11,7 @@ import streamlit as st
 import streamlit.components.v1 as st_components
 
 from app.optimiser.optimiser import optimiser
-from app.config import REPORTS_DIR, PREDICTIONS_DIR
+from app.config import BUDGET_CAP, REPORTS_DIR, PREDICTIONS_DIR
 
 TEAM_COLORS = {
     "red_bull":      "#3671C6",
@@ -255,7 +255,7 @@ with tab1:
 
     with col_left:
         budget_error_slot = st.empty()
-        budget = st.number_input("Budget (£M)", min_value=0.0, max_value=200.0, value=100.0, step=0.1, format="%.1f")
+        budget = st.number_input("Budget (£M)", min_value=0.0, max_value=200.0, value=BUDGET_CAP, step=0.1, format="%.1f")
         def _err(msg, slot):
             slot.markdown(f'<p style="font-family:\'DM Sans\',sans-serif;font-size:13px;color:#c8401a;margin:0 0 8px 0">{msg}</p>', unsafe_allow_html=True)
 
