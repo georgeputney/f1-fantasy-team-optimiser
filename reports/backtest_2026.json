@@ -70,5 +70,14 @@
     "oracle": 223.0,
     "lagged": 82.0,
     "mean": 179.0
+  },
+  {
+    "season": 2026,
+    "round": 9,
+    "location": "Silverstone",
+    "model": 214.0,
+    "oracle": 280.0,
+    "lagged": 190.0,
+    "mean": 233.0
   }
 ]
