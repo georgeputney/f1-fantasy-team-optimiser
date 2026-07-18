@@ -2,8 +2,8 @@
   "season": 2026,
   "round": 10,
   "circuit": "Spa-Francorchamps",
-  "generated_at": "2026-07-17T17:15:28.032177",
-  "trigger": "post-fp2",
+  "generated_at": "2026-07-18T12:39:05.382196",
+  "trigger": "pre-race",
   "drivers": [
     {
       "driver_id": "lewis_hamilton",
