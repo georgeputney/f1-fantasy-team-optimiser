@@ -39,7 +39,7 @@
     "season": 2026,
     "round": 5,
     "location": "Montr\u00e9al",
-    "model": 270.0,
+    "model": 297.0,
     "oracle": 340.0,
     "lagged": -3.0,
     "mean": 283.0
@@ -48,7 +48,7 @@
     "season": 2026,
     "round": 6,
     "location": "Monte Carlo",
-    "model": 41.0,
+    "model": 42.0,
     "oracle": 289.0,
     "lagged": 183.0,
     "mean": 207.0
@@ -57,7 +57,7 @@
     "season": 2026,
     "round": 7,
     "location": "Barcelona",
-    "model": 120.0,
+    "model": 150.0,
     "oracle": 263.0,
     "lagged": 55.0,
     "mean": 87.0
@@ -66,7 +66,7 @@
     "season": 2026,
     "round": 8,
     "location": "Spielberg",
-    "model": 155.0,
+    "model": 177.0,
     "oracle": 223.0,
     "lagged": 82.0,
     "mean": 179.0
@@ -75,9 +75,18 @@
     "season": 2026,
     "round": 9,
     "location": "Silverstone",
-    "model": 214.0,
-    "oracle": 280.0,
-    "lagged": 190.0,
-    "mean": 233.0
+    "model": 284.0,
+    "oracle": 376.0,
+    "lagged": 277.0,
+    "mean": 293.0
+  },
+  {
+    "season": 2026,
+    "round": 10,
+    "location": "Spa-Francorchamps",
+    "model": 169.0,
+    "oracle": 229.0,
+    "lagged": 152.0,
+    "mean": 157.0
   }
 ]
