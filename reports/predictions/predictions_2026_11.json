@@ -2,8 +2,8 @@
   "season": 2026,
   "round": 11,
   "circuit": "Budapest",
-  "generated_at": "2026-07-20T03:21:30.235137",
-  "trigger": "post-race",
+  "generated_at": "2026-07-24T17:34:48.277729",
+  "trigger": "post-fp2",
   "drivers": [
     {
       "driver_id": "lewis_hamilton",
