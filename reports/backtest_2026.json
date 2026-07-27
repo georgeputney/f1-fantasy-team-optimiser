@@ -85,8 +85,17 @@
     "round": 10,
     "location": "Spa-Francorchamps",
     "model": 169.0,
-    "oracle": 229.0,
-    "lagged": 152.0,
+    "oracle": 232.0,
+    "lagged": 172.0,
     "mean": 157.0
+  },
+  {
+    "season": 2026,
+    "round": 11,
+    "location": "Budapest",
+    "model": 149.0,
+    "oracle": 217.0,
+    "lagged": 160.0,
+    "mean": 161.0
   }
 ]
