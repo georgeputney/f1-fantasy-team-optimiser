@@ -6,7 +6,7 @@
     "model": 216.0,
     "oracle": 290.0,
     "lagged": NaN,
-    "mean": NaN
+    "mean": 167.0
   },
   {
     "season": 2026,
@@ -15,7 +15,7 @@
     "model": 337.0,
     "oracle": 474.0,
     "lagged": 240.0,
-    "mean": 240.0
+    "mean": 266.0
   },
   {
     "season": 2026,
@@ -24,7 +24,7 @@
     "model": 289.0,
     "oracle": 300.0,
     "lagged": 220.0,
-    "mean": 221.0
+    "mean": 194.0
   },
   {
     "season": 2026,
@@ -33,7 +33,7 @@
     "model": 233.0,
     "oracle": 349.0,
     "lagged": 184.0,
-    "mean": 251.0
+    "mean": 269.0
   },
   {
     "season": 2026,
@@ -42,7 +42,7 @@
     "model": 297.0,
     "oracle": 340.0,
     "lagged": -3.0,
-    "mean": 283.0
+    "mean": 303.0
   },
   {
     "season": 2026,
@@ -51,51 +51,51 @@
     "model": 42.0,
     "oracle": 289.0,
     "lagged": 183.0,
-    "mean": 207.0
+    "mean": 183.0
   },
   {
     "season": 2026,
     "round": 7,
     "location": "Barcelona",
-    "model": 150.0,
-    "oracle": 263.0,
-    "lagged": 55.0,
-    "mean": 87.0
+    "model": 165.0,
+    "oracle": 284.0,
+    "lagged": 76.0,
+    "mean": 125.0
   },
   {
     "season": 2026,
     "round": 8,
     "location": "Spielberg",
-    "model": 177.0,
-    "oracle": 223.0,
-    "lagged": 82.0,
-    "mean": 179.0
+    "model": 210.0,
+    "oracle": 258.0,
+    "lagged": 150.0,
+    "mean": 217.0
   },
   {
     "season": 2026,
     "round": 9,
     "location": "Silverstone",
-    "model": 284.0,
-    "oracle": 376.0,
-    "lagged": 277.0,
-    "mean": 293.0
+    "model": 279.0,
+    "oracle": 363.0,
+    "lagged": 152.0,
+    "mean": 304.0
   },
   {
     "season": 2026,
     "round": 10,
     "location": "Spa-Francorchamps",
-    "model": 169.0,
-    "oracle": 232.0,
-    "lagged": 172.0,
-    "mean": 157.0
+    "model": 240.0,
+    "oracle": 286.0,
+    "lagged": 186.0,
+    "mean": 188.0
   },
   {
     "season": 2026,
     "round": 11,
     "location": "Budapest",
-    "model": 149.0,
-    "oracle": 217.0,
-    "lagged": 160.0,
-    "mean": 161.0
+    "model": 179.0,
+    "oracle": 268.0,
+    "lagged": 184.0,
+    "mean": 197.0
   }
 ]
