@@ -21,7 +21,7 @@ from app.data.clean import (
     clean_pitstops, clean_race_overtakes, clean_sprint_overtakes, clean_dotd,
 )
 from app.data.targets import compute_targets
-from app.data.prices import compute_prices
+from app.data.prices import compute_prices, compute_price_round
 
 from app.features.build_historic_features import build_historic_features
 from app.features.build_practice_features import build_practice_features
@@ -240,14 +240,46 @@ def build_targets(season: list[int] = typer.Option(ALL_SEASONS), round: list[int
 
 # compute fantasy prices from starting prices and targets using rolling PPM rule, write to data/processed/prices/
 @app.command()
-def build_prices(season: list[int] = typer.Option(ALL_SEASONS)):
+def build_prices(season: list[int] = typer.Option(ALL_SEASONS), round: int = typer.Option(None)):
     for s in season:
-        typer.echo(f"Computing prices for season {s}...")
-        try:
-            frames = compute_prices(s)
-            typer.echo(f"  {len(frames)} rounds computed")
-        except FileNotFoundError as e:
-            typer.echo(f"  Skipping season {s}: {e}")
+        if round is not None:
+            typer.echo(f"Computing prices for season {s}, round {round:02d}...")
+            try:
+                compute_price_round(s, round)
+                typer.echo(f"  Round {round:02d} computed")
+            except FileNotFoundError as e:
+                typer.echo(f"  Skipping: {e}")
+        else:
+            from app.config import PROCESSED_TARGETS_DIR, PROCESSED_PRICES_DIR, STARTING_PRICES_DIR
+            target_rounds = sorted(int(f.stem.split("_")[1]) for f in PROCESSED_TARGETS_DIR.glob(f"{s}_*.parquet"))
+            if not target_rounds:
+                typer.echo(f"Season {s}: no targets found")
+                continue
+            next_rnd = target_rounds[-1] + 1
+            prev_path = PROCESSED_PRICES_DIR / f"{s}_{next_rnd - 1:02d}.parquet"
+            if not prev_path.exists():
+                starting_path = STARTING_PRICES_DIR / f"{s}.csv"
+                if not starting_path.exists():
+                    typer.echo(f"Season {s}: no starting prices found")
+                    continue
+                typer.echo(f"Bootstrapping round 1 prices from starting prices...")
+                starting = pd.read_csv(starting_path)
+                starting["race_id"] = f"{s}_01"
+                PROCESSED_PRICES_DIR.mkdir(parents=True, exist_ok=True)
+                starting.to_parquet(PROCESSED_PRICES_DIR / f"{s}_01.parquet", index=False)
+                if next_rnd == 1:
+                    typer.echo(f"  Round 01 written")
+                    continue
+            existing = PROCESSED_PRICES_DIR / f"{s}_{next_rnd:02d}.parquet"
+            if existing.exists():
+                typer.echo(f"Season {s}: prices up to date (round {next_rnd:02d} exists)")
+                continue
+            typer.echo(f"Computing prices for season {s}, round {next_rnd:02d}...")
+            try:
+                compute_price_round(s, next_rnd)
+                typer.echo(f"  Round {next_rnd:02d} computed")
+            except FileNotFoundError as e:
+                typer.echo(f"  Skipping: {e}")
 
 
 # build historic rolling features and practice session features for the given seasons and write to data/processed/

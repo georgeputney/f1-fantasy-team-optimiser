@@ -73,7 +73,7 @@ BUDGET_CAP                          = 100.0     # total budget (at the start of 
 DRIVER_ROSTER_SIZE                  = 5         # no. drivers to pick
 CONSTRUCTOR_ROSTER_SIZE             = 2         # no. constructors to pick
 STARTING_PRICES_DIR                 = MANUAL_DIR / "starting_prices"  # round 1 prices per season
-PRICE_FLOOR                         = {2025: 4.5, 2026: 3.5}         # minimum asset price by season
+PRICE_FLOOR                         = {2025: 4.5, 2026: 3.0}         # minimum asset price by season
 
 
 # targets

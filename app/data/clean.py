@@ -354,12 +354,12 @@ def clean_race_results(season, round_num):
         results.loc[nc_mask, "dnf_flag"] = True
         results.loc[nc_mask, "mechanical_dnf_flag"] = True
 
-        # "retired" drivers who completed >=85% are classified -> not DNF (pre-2026 only)
-        if season < 2026:
-            classified_mask = results["status"].eq("retired") & pct_completed.ge(0.85)
-            results.loc[classified_mask, "dnf_flag"] = False
-            results.loc[classified_mask, "crash_dnf_flag"] = False
-            results.loc[classified_mask, "mechanical_dnf_flag"] = False
+        # "retired" drivers who completed enough laps are classified -> not DNF
+        classified_threshold = 0.9 if season >= 2026 else 0.85
+        classified_mask = results["status"].eq("retired") & pct_completed.ge(classified_threshold)
+        results.loc[classified_mask, "dnf_flag"] = False
+        results.loc[classified_mask, "crash_dnf_flag"] = False
+        results.loc[classified_mask, "mechanical_dnf_flag"] = False
 
     # derive dotd_flag from interim DOTD data if available
     results["dotd_flag"] = False

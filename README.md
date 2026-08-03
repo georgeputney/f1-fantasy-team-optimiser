@@ -1,5 +1,5 @@
 # F1 Fantasy Team Optimiser
-**Live at:** [f1fantasy.georgeputney.com](https://f1fantasy.georgeputney.com)
+**Live at:** [pitwall.georgeputney.com](https://pitwall.georgeputney.com)
 
 ML pipeline for F1 fantasy team selection. Ingests historical race, qualifying, practice, sprint, and pit stop data via FastF1, engineers rolling features across multiple timeframes, predicts finish positions and qualifying positions with XGBoost, then selects the optimal team under budget and roster constraints using integer linear programming. Probabilistic models for fastest lap, Driver of the Day, and overtakes feed into expected fantasy point calculations.
 
@@ -13,33 +13,33 @@ FastF1 API -> ingest -> clean -> targets -> prices -> features -> train -> predi
 
 ```
 app/
-  config.py                         # seasons, paths, budget cap, all constants
-  dashboard.py                      # Streamlit dashboard for viewing predictions
-  backtest.py                       # walk-forward backtesting with baselines
-  data/
-    ingest.py                       # fetch race, quali, practice, sprint, pit stop data
-    clean.py                        # validate and normalise raw parquets
-    targets.py                      # compute fantasy point targets from results
-    prices.py                       # compute rolling price-per-million values
-    scoring_rules.py                # official F1 fantasy scoring rules (2026+)
-    schemas.py                      # pandera schemas for data validation
-    overtakes.py                    # expected overtakes per driver
-    dotd.py                         # Driver of the Day probability model
-  features/
-    build_historic_features.py      # rolling driver and constructor features
-    build_practice_features.py      # FP2/FP3 pace, gaps, sector deltas
-    build_circuit_features.py       # circuit-level features (overtake index, DNF rate, etc.)
-  models/
-    configs.py                      # XGBoost model definitions
-    train.py                        # training loop, walk-forward season artifacts
-    predict.py                      # inference from trained models
-    compose.py                      # combine predictions into expected fantasy points
-    evaluation.py                   # model evaluation metrics
-  optimiser/
-    optimiser.py                    # ILP team selection under constraints
-    state.py                        # persist budget, prices, and free transfers across rounds
-  interface/
-    cli.py                          # Typer CLI entry points
+├── config.py                       # seasons, paths, budget cap, all constants
+├── dashboard.py                    # Streamlit dashboard for viewing predictions
+├── backtest.py                     # walk-forward backtesting with baselines
+├── data/
+│   ├── ingest.py                   # fetch race, quali, practice, sprint, pit stop data
+│   ├── clean.py                    # validate and normalise raw parquets
+│   ├── targets.py                  # compute fantasy point targets from results
+│   ├── prices.py                   # compute rolling price-per-million values
+│   ├── scoring_rules.py            # official F1 fantasy scoring rules (2026+)
+│   ├── schemas.py                  # pandera schemas for data validation
+│   ├── overtakes.py                # expected overtakes per driver
+│   └── dotd.py                     # Driver of the Day probability model
+├── features/
+│   ├── build_historic_features.py  # rolling driver and constructor features
+│   ├── build_practice_features.py  # FP2/FP3 pace, gaps, sector deltas
+│   └── build_circuit_features.py   # circuit-level features (overtake index, DNF rate, etc.)
+├── models/
+│   ├── configs.py                  # XGBoost model definitions
+│   ├── train.py                    # training loop, walk-forward season artifacts
+│   ├── predict.py                  # inference from trained models
+│   ├── compose.py                  # combine predictions into expected fantasy points
+│   └── evaluation.py               # model evaluation metrics
+├── optimiser/
+│   ├── optimiser.py                # ILP team selection under constraints
+│   └── state.py                    # persist budget, prices, and free transfers across rounds
+└── interface/
+    └── cli.py                      # Typer CLI entry points
 ```
 
 ## Requirements
@@ -47,7 +47,11 @@ app/
 Python 3.10+
 
 ```bash
-pip install -e .
+# dashboard only (what the web service installs)
+pip install -e ".[dashboard]"
+
+# full data + training + report pipeline
+pip install -e ".[pipeline]"
 ```
 
 ## Usage

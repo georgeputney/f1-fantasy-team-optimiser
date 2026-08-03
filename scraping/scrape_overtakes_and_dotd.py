@@ -274,6 +274,15 @@ def scrape_season(season: int, force: bool = False) -> dict[str, int]:
         page.goto(URL, wait_until="networkidle")
         time.sleep(2)
 
+        # dismiss cookie consent popup if present
+        try:
+            consent_btn = page.locator("button", has_text="Agree").first
+            if consent_btn.is_visible(timeout=3000):
+                consent_btn.click()
+                time.sleep(1)
+        except Exception:
+            pass
+
         _select_season(page, season)
 
         # --- race overtakes ---

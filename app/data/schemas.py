@@ -152,7 +152,7 @@ fantasy_prices = pa.DataFrameSchema(
         ),
         "asset_id": pa.Column(str),
         "asset_type": pa.Column(str, pa.Check.isin(["driver", "constructor"])),
-        "price": pa.Column(float, pa.Check.greater_than_or_equal_to(3.5)),
+        "price": pa.Column(float, pa.Check.greater_than_or_equal_to(3.0)),
     },
     strict=True,
 )

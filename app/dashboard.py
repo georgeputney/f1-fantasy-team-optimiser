@@ -1,6 +1,7 @@
 """Streamlit dashboard for the F1 fantasy team optimiser."""
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 import re
@@ -11,7 +12,8 @@ import streamlit as st
 import streamlit.components.v1 as st_components
 
 from app.optimiser.optimiser import optimiser
-from app.config import BUDGET_CAP, REPORTS_DIR, PREDICTIONS_DIR
+from app.config import REPORTS_DIR, PREDICTIONS_DIR, TEAM_STATE_FILE
+from app.optimiser.state import load_state
 
 TEAM_COLORS = {
     "red_bull":      "#3671C6",
@@ -233,12 +235,18 @@ with tab1:
     _trigger = data.get("trigger")
     _label = _trigger_labels.get(_trigger)
     _subtitle = f'{_label} \u00b7 ' if _label else ""
-    _subtitle += data["generated_at"][:16].replace("T", " ")
+    _ts = datetime.fromisoformat(data["generated_at"])
+    _subtitle += f'Updated {_ts.day} {_ts:%b %Y}, {_ts:%H:%M}'
+
+    # shrink the header on mobile so the recommended team clears the fold
+    _title_size = "1.35rem" if _is_mobile else "1.8rem"
+    _title_margin = "0 0 1px 0" if _is_mobile else "0 0 2px 0"
+    _subtitle_margin = "0 0 0.5rem 0" if _is_mobile else "0 0 1rem 0"
 
     st.markdown(
-        f'<p style="font-family:\'Cormorant Garamond\',serif;font-size:1.8rem;font-weight:300;letter-spacing:-0.01em;color:#f7f6f3;margin:0 0 2px 0">'
+        f'<p style="font-family:\'Cormorant Garamond\',serif;font-size:{_title_size};font-weight:300;letter-spacing:-0.01em;color:#f7f6f3;margin:{_title_margin}">'
         f'R{data["round"]}: {data["circuit"]}</p>'
-        f'<p style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(247,246,243,0.35);margin:0 0 1rem 0">'
+        f'<p style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(247,246,243,0.6);margin:{_subtitle_margin}">'
         f'{_subtitle}</p>',
         unsafe_allow_html=True,
     )
@@ -255,7 +263,12 @@ with tab1:
 
     with col_left:
         budget_error_slot = st.empty()
-        budget = st.number_input("Budget (£M)", min_value=0.0, max_value=200.0, value=BUDGET_CAP, step=0.1, format="%.1f")
+        _state = load_state(TEAM_STATE_FILE)
+        _default_budget = (
+            _state["budget_remaining"]
+            + sum(prices_index.get(i, _state["prices"][i]) for i in _state["drivers"] + _state["constructors"])
+        ) if _state else 100.0
+        budget = st.number_input("Budget (£M)", min_value=0.0, max_value=200.0, value=_default_budget, step=0.1, format="%.1f")
         def _err(msg, slot):
             slot.markdown(f'<p style="font-family:\'DM Sans\',sans-serif;font-size:13px;color:#c8401a;margin:0 0 8px 0">{msg}</p>', unsafe_allow_html=True)
 
