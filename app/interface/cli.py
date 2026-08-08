@@ -623,7 +623,7 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 # runs walk-forward backtest comparing model, oracle, and baseline strategies over historical seasons, prints per-round results and saves a cumulative points plot
 # model and oracle are transfer-constrained with state carried forward each round
 @app.command()
-def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP)):
+def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP), save_state_file: bool = typer.Option(False, "--save-state")):
     predict_overtakes = build_overtake_predictor()
     predict_dotd = build_dotd_predictor()
 
@@ -712,6 +712,16 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
 
         with open(REPORTS_DIR / f"backtest_{s}.json", "w") as f:
             json.dump(df.to_dict(orient="records"), f, indent=2)
+
+        # persist the model's final carried-forward team so the dashboard can default to the model's own picks
+        if save_state_file and s == season[-1] and model_state is not None:
+            last_round = valid_rounds[-1][0]
+            save_state(
+                TEAM_STATE_FILE, s, last_round,
+                model_state["drivers"], model_state["constructors"], model_team["doubled_driver"],
+                model_state["prices"], model_state["budget_remaining"], model_state["free_transfers_carried"],
+            )
+            typer.echo(f"Saved model team state to {TEAM_STATE_FILE} (season {s}, round {last_round}).")
 
         typer.echo(f"\nPlot saved to reports/\n")
 

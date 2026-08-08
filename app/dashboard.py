@@ -263,11 +263,12 @@ with tab1:
 
     with col_left:
         budget_error_slot = st.empty()
-        _state = load_state(TEAM_STATE_FILE)
+        # the model's own carried-forward team and budget - shown by default so the app showcases the model's picks
+        _model_state = load_state(TEAM_STATE_FILE)
         _default_budget = (
-            _state["budget_remaining"]
-            + sum(prices_index.get(i, _state["prices"][i]) for i in _state["drivers"] + _state["constructors"])
-        ) if _state else 100.0
+            _model_state["budget_remaining"]
+            + sum(prices_index.get(i, _model_state["prices"][i]) for i in _model_state["drivers"] + _model_state["constructors"])
+        ) if _model_state else 100.0
         budget = st.number_input("Budget (£M)", min_value=0.0, max_value=200.0, value=_default_budget, step=0.1, format="%.1f")
         def _err(msg, slot):
             slot.markdown(f'<p style="font-family:\'DM Sans\',sans-serif;font-size:13px;color:#c8401a;margin:0 0 8px 0">{msg}</p>', unsafe_allow_html=True)
@@ -309,20 +310,28 @@ with tab1:
 
             free_transfers = st.radio("Free transfers", [2, 3], horizontal=True)
 
-        state = None
-        if current_drivers or current_constructors:
-            state = {
-                "drivers": current_drivers,
-                "constructors": current_constructors,
-                "prices": {i: float(prices_index.get(i, 0)) for i in current_drivers + current_constructors},
-                "budget_remaining": budget - team_cost,
-                "free_transfers_carried": free_transfers - 2,
-            }
+        # default to the model's own carried-forward team; switch to the user's squad only when they opt in
+        state = _model_state
+        if has_current_team:
+            state = None
+            if current_drivers or current_constructors:
+                state = {
+                    "drivers": current_drivers,
+                    "constructors": current_constructors,
+                    "prices": {i: float(prices_index.get(i, 0)) for i in current_drivers + current_constructors},
+                    "budget_remaining": budget - team_cost,
+                    "free_transfers_carried": free_transfers - 2,
+                }
 
         team = optimiser(driver_df, constructor_df, prices_df, budget, state)
         selected_ids = set(team["drivers"] + team["constructors"])
 
         st.markdown("### Recommended team")
+        if not has_current_team:
+            st.caption(
+                "This is the model's own optimal team for the round, not necessarily the best move for your squad. "
+                "Tick \"Enter current team\" above for transfer recommendations tailored to your picks."
+            )
 
         total_points = 0.0
         total_cost = 0.0

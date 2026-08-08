@@ -1,0 +1,27 @@
+{
+  "season": 2026,
+  "round": 11,
+  "drivers": [
+    "lando_norris",
+    "sergio_perez",
+    "oliver_bearman",
+    "arvid_lindblad",
+    "nico_hulkenberg"
+  ],
+  "constructors": [
+    "ferrari",
+    "mclaren"
+  ],
+  "doubled_driver": "lando_norris",
+  "prices": {
+    "lando_norris": 25.8,
+    "sergio_perez": 4.4,
+    "oliver_bearman": 7.4,
+    "arvid_lindblad": 7.4,
+    "nico_hulkenberg": 3.0,
+    "ferrari": 26.3,
+    "mclaren": 30.7
+  },
+  "budget_remaining": 0.7,
+  "free_transfers_carried": 1
+}

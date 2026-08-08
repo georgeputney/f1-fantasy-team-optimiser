@@ -12,6 +12,7 @@ build/
 # data
 data/raw/
 data/team_state*.json
+!data/team_state_file.json
 data/artifacts/finish_position.joblib
 data/artifacts/quali_position.joblib
 data/artifacts/dnf_model.joblib
