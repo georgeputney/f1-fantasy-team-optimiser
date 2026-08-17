@@ -6,7 +6,11 @@ from app.config import BUDGET_CAP, DRIVER_ROSTER_SIZE, CONSTRUCTOR_ROSTER_SIZE
 
 
 # selects the optimal fantasy team using ILP, returns selected drivers, constructors, and the doubled driver
-def optimiser(driver_points, constructor_points, prices, budget=BUDGET_CAP, state=None):
+# price_lambda weights expected next-round price gain (price_delta) into the objective, trading current
+# points for future buying power; defaults to 0.0 so behaviour is unchanged unless a caller opts in
+def optimiser(driver_points, constructor_points, prices, budget=BUDGET_CAP, state=None, price_delta=None, price_lambda=0.0):
+    price_delta = price_delta or {}
+
     # objective: maximise total expected fantasy points including doubled driver bonus
     prob = pulp.LpProblem("f1_fantasy", pulp.LpMaximize)
 
@@ -44,6 +48,7 @@ def optimiser(driver_points, constructor_points, prices, budget=BUDGET_CAP, stat
         pulp.lpSum(driver_points.set_index("driver_id")["expected_fantasy_points"][d] * selected[d] for d in drivers)
         + pulp.lpSum(constructor_points.set_index("constructor_id")["expected_fantasy_points"][c] * selected[c] for c in constructors)
         + pulp.lpSum(driver_points.set_index("driver_id")["expected_fantasy_points"][d] * doubled[d] for d in drivers)  # doubled driver scores an extra time
+        + price_lambda * pulp.lpSum(price_delta.get(i, 0.0) * selected[i] for i in drivers + constructors)  # reward holding assets due to rise in price
         - 10 * penalty_transfers
     )
 

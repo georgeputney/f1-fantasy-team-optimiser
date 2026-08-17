@@ -77,6 +77,32 @@ def compute_price_round(season, round_num):
     return price_df
 
 
+# expected next-round price change per asset, using predicted points for the current round
+# mirrors the rolling PPM rule (compute_price_round) but substitutes predicted points for this
+# round in place of the not-yet-known actual, so it uses no look-ahead - safe for the optimiser
+def expected_price_delta(season, round_num, current_prices, predicted_points):
+    floor = PRICE_FLOOR.get(season, 3.5)
+
+    # prior actual points per asset for rounds before this one
+    history = {}
+    for f in sorted(PROCESSED_TARGETS_DIR.glob(f"{season}_*.parquet")):
+        rnd = int(f.stem.split("_")[1])
+        if rnd < round_num:
+            pts = pd.read_parquet(f).set_index("asset_id")["actual_fantasy_points"]
+            for asset_id, v in pts.items():
+                history.setdefault(asset_id, {})[rnd] = 0 if pd.isna(v) else v
+
+    delta = {}
+    for asset_id, price in dict(current_prices).items():
+        prior = [history[asset_id][r] for r in sorted(history.get(asset_id, {}))]
+        # next round is priced off the last 3 rounds' points, this round's being the prediction
+        window = (prior + [float(predicted_points.get(asset_id, 0))])[-3:]
+        avg_pts = sum(window) / len(window)
+        delta[asset_id] = compute_price_change(avg_pts, float(price), floor) - float(price)
+
+    return delta
+
+
 # compute prices for all rounds of a season from starting prices and targets
 def compute_prices(season):
     starting_prices = pd.read_csv(STARTING_PRICES_DIR / f"{season}.csv")

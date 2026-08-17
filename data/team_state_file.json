@@ -3,10 +3,10 @@
   "round": 11,
   "drivers": [
     "lando_norris",
-    "sergio_perez",
+    "isack_hadjar",
     "oliver_bearman",
-    "arvid_lindblad",
-    "nico_hulkenberg"
+    "nico_hulkenberg",
+    "lance_stroll"
   ],
   "constructors": [
     "ferrari",
@@ -15,13 +15,13 @@
   "doubled_driver": "lando_norris",
   "prices": {
     "lando_norris": 25.8,
-    "sergio_perez": 4.4,
+    "isack_hadjar": 13.9,
     "oliver_bearman": 7.4,
-    "arvid_lindblad": 7.4,
     "nico_hulkenberg": 3.0,
+    "lance_stroll": 3.0,
     "ferrari": 26.3,
     "mclaren": 30.7
   },
-  "budget_remaining": 0.7,
-  "free_transfers_carried": 1
+  "budget_remaining": 3.0,
+  "free_transfers_carried": 0
 }

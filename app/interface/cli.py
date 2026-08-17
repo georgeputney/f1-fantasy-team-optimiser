@@ -21,7 +21,7 @@ from app.data.clean import (
     clean_pitstops, clean_race_overtakes, clean_sprint_overtakes, clean_dotd,
 )
 from app.data.targets import compute_targets
-from app.data.prices import compute_prices, compute_price_round
+from app.data.prices import compute_prices, compute_price_round, expected_price_delta
 
 from app.features.build_historic_features import build_historic_features
 from app.features.build_practice_features import build_practice_features
@@ -40,7 +40,7 @@ from app.optimiser.state import load_state, save_state
 from app.backtest import get_actual_team_points, oracle_baseline, lagged_baseline, mean_prior_baseline
 
 from app.config import (
-    ALL_SEASONS, VAL_SEASONS, BUDGET_CAP,
+    ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, PRICE_LAMBDA,
     INTERIM_EVENTS_DIR, INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR,
     INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR,
     INTERIM_RACE_LAPS_DIR, INTERIM_RACE_OVERTAKES_DIR,
@@ -551,7 +551,7 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
 # loads team state from data/team_state.json if it exists; saves updated state after each run unless --no-state is passed
 # dropped/inactive assets are sold at last known price and warned to the user
 @app.command()
-def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP), no_state: bool = typer.Option(False)):
+def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...), budget: float = typer.Option(BUDGET_CAP), no_state: bool = typer.Option(False), price_lambda: float = typer.Option(PRICE_LAMBDA)):
     prices = pd.read_parquet(PROCESSED_PRICES_DIR / f"{season}_{round:02d}.parquet")
     state = None if no_state else load_state(TEAM_STATE_FILE)
 
@@ -570,7 +570,16 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
     driver_points = compose_drivers(predictions, location=location, season=season, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
     constructor_points = compose_constructor(driver_points, pitstop_pts=expected_pitstop_points(season, round))
 
-    team = optimiser(driver_points, constructor_points, prices, budget, state)
+    # expected next-round price change per asset, used to trade current points for future buying power
+    price_delta = None
+    if price_lambda:
+        predicted_points = pd.concat([
+            driver_points.set_index("driver_id")["expected_fantasy_points"],
+            constructor_points.set_index("constructor_id")["expected_fantasy_points"],
+        ])
+        price_delta = expected_price_delta(season, round, prices.set_index("asset_id")["price"], predicted_points)
+
+    team = optimiser(driver_points, constructor_points, prices, budget, state, price_delta=price_delta, price_lambda=price_lambda)
 
     for d in team["dropped"]:
         typer.echo(f"\n  [!] {d} is inactive - sold at last known price £{state['prices'][d]:.1f}M")
@@ -623,7 +632,7 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 # runs walk-forward backtest comparing model, oracle, and baseline strategies over historical seasons, prints per-round results and saves a cumulative points plot
 # model and oracle are transfer-constrained with state carried forward each round
 @app.command()
-def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP), save_state_file: bool = typer.Option(False, "--save-state")):
+def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP), save_state_file: bool = typer.Option(False, "--save-state"), price_lambda: float = typer.Option(PRICE_LAMBDA)):
     predict_overtakes = build_overtake_predictor()
     predict_dotd = build_dotd_predictor()
 
@@ -670,7 +679,14 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             constructor_points = compose_constructor(driver_points, pitstop_pts=expected_pitstop_points(s, round_num))
 
             # greedy model (single-round)
-            model_team = optimiser(driver_points, constructor_points, prices, budget, model_state)
+            price_delta = None
+            if price_lambda:
+                predicted_points = pd.concat([
+                    driver_points.set_index("driver_id")["expected_fantasy_points"],
+                    constructor_points.set_index("constructor_id")["expected_fantasy_points"],
+                ])
+                price_delta = expected_price_delta(s, round_num, asset_prices_index, predicted_points)
+            model_team = optimiser(driver_points, constructor_points, prices, budget, model_state, price_delta=price_delta, price_lambda=price_lambda)
             model_points = get_actual_team_points(model_team, s, round_num, model_team["transfer_penalty"])
             model_state = _build_state(model_team, model_state, asset_prices_index, budget)
 
