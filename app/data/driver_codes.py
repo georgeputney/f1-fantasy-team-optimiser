@@ -23,6 +23,7 @@ FIA_CODES = {
     "pierre_gasly": "GAS",
     "sergio_perez": "PER",
     "valtteri_bottas": "BOT",
+    "yuki_tsunoda": "TSU",
 }
 
 
