@@ -16,6 +16,16 @@ dashboard = [
     "plotly>=5.0",
     "streamlit>=1.32",
 ]
+# FastAPI service backing the React frontend (web/) - replaces the Streamlit dashboard.
+# joblib and xgboost are here (not just under pipeline) because the ladder/team/breakdown
+# endpoints run Monte Carlo sims at request time, which unpickles the trained quali/finish
+# position model artifacts (XGBoost estimators) via joblib - not just needed for offline training
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "joblib>=1.3",
+    "xgboost>=2.0",
+]
 # data ingestion, model training, and report rendering (also needs the dashboard deps)
 pipeline = [
     "f1-fantasy-optimiser[dashboard]",

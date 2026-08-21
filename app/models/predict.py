@@ -7,7 +7,26 @@ into the finish position model as a feature - always chained, no fallback.
 import joblib
 import pandas as pd
 
-from app.config import PROCESSED_HISTORIC_FEATURES_DIR, PROCESSED_PRACTICE_FEATURES_DIR, PROCESSED_CIRCUIT_FEATURES_DIR, ARTIFACTS_DIR, INTERIM_SPRINT_QUALIFYING_DIR
+from app.config import PROCESSED_HISTORIC_FEATURES_DIR, PROCESSED_PRACTICE_FEATURES_DIR, PROCESSED_CIRCUIT_FEATURES_DIR, ARTIFACTS_DIR, INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_EVENTS_DIR
+
+
+# true if the round is a sprint weekend, read from the interim events file (is_sprint flag).
+# lets us project sprint points before the sprint qualifying session has actually run.
+def _is_sprint_weekend(season, round_num):
+    events_path = INTERIM_EVENTS_DIR / f"{season}_{round_num:02d}.parquet"
+    if not events_path.exists():
+        return False
+    events = pd.read_parquet(events_path)
+    return bool(events["is_sprint"].iloc[0]) if "is_sprint" in events.columns else False
+
+
+# on a sprint weekend the sprint grid predicts sprint points (compose uses sprint_quali_position as a
+# stand-in for the sprint finish). before that session runs the file is absent, so fall back to the
+# predicted quali position as the best available proxy - otherwise sprint points are silently dropped
+# from every projection made while teams are still being locked in.
+def _fill_sprint_proxy(features, season, round_num):
+    if features["sprint_quali_position"].isna().all() and _is_sprint_weekend(season, round_num):
+        features["sprint_quali_position"] = features["predicted_quali_position"].astype(float)
 
 
 # loads a trained model artifact - pass prod=True to load the production artifact trained on all historical data
@@ -28,9 +47,9 @@ def load_season_model(config, season):
     return joblib.load(ARTIFACTS_DIR / f"{config['name']}.joblib")
 
 
-# loads historic & practice features for a given race, runs the quali model, then the finish model,
-# and returns a DataFrame with predicted positions per driver
-def predict(quali_model, quali_config, finish_model, finish_config, season, round_num):
+# loads historic, practice, and circuit features for a race and fills any feature columns the
+# model configs expect but this race's data doesn't have (e.g. added after older files were processed)
+def _load_features(quali_config, finish_config, season, round_num):
     historic_features = pd.read_parquet(PROCESSED_HISTORIC_FEATURES_DIR / f"{season}_{round_num:02d}.parquet")
 
     practice_path = PROCESSED_PRACTICE_FEATURES_DIR / f"{season}_{round_num:02d}.parquet"
@@ -61,11 +80,17 @@ def predict(quali_model, quali_config, finish_model, finish_config, season, roun
     else:
         features["sprint_quali_position"] = float("nan")
 
-    # fill any feature columns not present in this race's data with NaN
-    # (can happen when a feature was added after some historic files were processed)
     for col in set(quali_config["features"] + finish_config["features"]):
         if col not in features.columns:
             features[col] = float("nan")
+
+    return features
+
+
+# loads historic & practice features for a given race, runs the quali model, then the finish model,
+# and returns a DataFrame with predicted positions per driver
+def predict(quali_model, quali_config, finish_model, finish_config, season, round_num):
+    features = _load_features(quali_config, finish_config, season, round_num)
 
     # step 1: predict qualifying position (no quali input by design)
     X_quali = features[quali_config["features"]]
@@ -77,11 +102,39 @@ def predict(quali_model, quali_config, finish_model, finish_config, season, roun
     finish_preds = finish_model.predict(X_finish)
     features["predicted_finish_position"] = pd.Series(finish_preds).rank(method="first").astype(int).values
 
+    _fill_sprint_proxy(features, season, round_num)
+
     return pd.DataFrame({
         "driver_id": features["driver_id"],
         "constructor_id": features["constructor_id"],
         "predicted_quali_position": features["predicted_quali_position"],
         "predicted_finish_position": features["predicted_finish_position"],
+        "sprint_quali_position": features["sprint_quali_position"],
+    }).sort_values("predicted_finish_position").reset_index(drop=True)
+
+
+# same as predict() but also keeps the raw (pre-ranking) XGBoost outputs, used by the Monte Carlo
+# simulator - residual pools are calibrated against these raw scores, not the ranked positions
+def predict_with_raw(quali_model, quali_config, finish_model, finish_config, season, round_num):
+    features = _load_features(quali_config, finish_config, season, round_num)
+
+    X_quali = features[quali_config["features"]]
+    raw_quali = quali_model.predict(X_quali)
+    features["predicted_quali_position"] = pd.Series(raw_quali).rank(method="first").astype(int).values
+
+    X_finish = features[finish_config["features"]]
+    raw_finish = finish_model.predict(X_finish)
+    features["predicted_finish_position"] = pd.Series(raw_finish).rank(method="first").astype(int).values
+
+    _fill_sprint_proxy(features, season, round_num)
+
+    return pd.DataFrame({
+        "driver_id": features["driver_id"],
+        "constructor_id": features["constructor_id"],
+        "predicted_quali_position": features["predicted_quali_position"],
+        "predicted_finish_position": features["predicted_finish_position"],
+        "raw_quali": raw_quali,
+        "raw_finish": raw_finish,
         "sprint_quali_position": features["sprint_quali_position"],
     }).sort_values("predicted_finish_position").reset_index(drop=True)
 
