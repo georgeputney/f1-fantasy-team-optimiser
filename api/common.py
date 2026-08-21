@@ -35,10 +35,33 @@ def latest_predictions_path():
     return available[-1]
 
 
+# every one of the 5 endpoints a page load fires calls this - re-parsing the predictions JSON and
+# recomputing the price delta (which itself reads every target parquet up to this round) 5 times
+# over on every load costs more than the optimiser solve does, so it gets the same short-lived cache
+_PREDICTIONS_CACHE = {}
+_PREDICTIONS_CACHE_LOCK = threading.Lock()
+_PREDICTIONS_CACHE_TTL = 30  # seconds - just needs to outlive one page load's burst of requests
+
+
 # loads the latest prediction snapshot into dataframes/indexes every section builds from, plus the
 # no-lookahead expected price move used to weight the optimiser toward assets likely to rise
 def load_predictions():
-    data = json.loads(latest_predictions_path().read_text())
+    path = latest_predictions_path()
+    key = str(path)
+    now = time.monotonic()
+    with _PREDICTIONS_CACHE_LOCK:
+        cached = _PREDICTIONS_CACHE.get(key)
+        if cached and now - cached[0] < _PREDICTIONS_CACHE_TTL:
+            return cached[1]
+
+    result = _load_predictions(path)
+    with _PREDICTIONS_CACHE_LOCK:
+        _PREDICTIONS_CACHE[key] = (now, result)
+    return result
+
+
+def _load_predictions(path):
+    data = json.loads(path.read_text())
     season, rnd, circuit = data["season"], data["round"], data["circuit"]
 
     driver_team = {d["driver_id"]: d.get("constructor_id", "") for d in data["drivers"]}
@@ -76,12 +99,27 @@ def load_predictions():
 # constructors - constructor points aren't just their two drivers summed, they also carry a
 # per-sim Q2/Q3 qualifying bonus and pitstop points) alongside the predictions snapshot so repeat
 # requests for the same round are instant. Old-schema cache files are rebuilt once rather than
-# erroring on a missing key.
+# erroring on a missing key. team/ladder/breakdown all call this on every page load - the file
+# itself can be a couple MB, so an in-memory cache on top of the on-disk one avoids re-parsing that
+# JSON three times over for what's otherwise an identical result within the same short window
+_MC_MEMORY_CACHE = {}
+_MC_MEMORY_CACHE_LOCK = threading.Lock()
+
+
 def load_or_build_mc(season, round_num, circuit):
+    mem_key = (season, round_num)
+    now = time.monotonic()
+    with _MC_MEMORY_CACHE_LOCK:
+        cached = _MC_MEMORY_CACHE.get(mem_key)
+        if cached and now - cached[0] < _PREDICTIONS_CACHE_TTL:
+            return cached[1]
+
     cache_path = MC_CACHE_DIR / f"mc_{season}_{round_num:02d}.json"
     if cache_path.exists():
         cached = json.loads(cache_path.read_text())
         if "raw_constructor_totals" in cached:
+            with _MC_MEMORY_CACHE_LOCK:
+                _MC_MEMORY_CACHE[mem_key] = (now, cached)
             return cached
 
     result = simulate_round(season, round_num, circuit)
@@ -95,6 +133,8 @@ def load_or_build_mc(season, round_num, circuit):
     }
     MC_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_path.write_text(json.dumps(cached))
+    with _MC_MEMORY_CACHE_LOCK:
+        _MC_MEMORY_CACHE[mem_key] = (now, cached)
     return cached
 
 
