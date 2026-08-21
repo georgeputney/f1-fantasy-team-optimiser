@@ -2,12 +2,15 @@
 section needs, and the cached Monte Carlo simulation both the ladder and team sections read from."""
 
 import json
+import threading
+import time
 
 import pandas as pd
 
 from app.config import PREDICTIONS_DIR, REPORTS_DIR, PRICE_LAMBDA, BUDGET_CAP
 from app.models.monte_carlo import simulate_round
 from app.optimiser.budget_range import compute_budget_range
+from app.optimiser.optimiser import optimiser
 
 try:
     from app.data.prices import expected_price_delta
@@ -136,3 +139,30 @@ def resolve_state(squad_mode, drivers, constructors, free_transfers, budget, pri
         "budget_remaining": budget - team_cost,
         "free_transfers_carried": free_transfers - 2,
     }
+
+
+# team/ladder/breakdown/value all solve the identical ILP for the same squad state on every page
+# load (the frontend fires all 5 requests in parallel with the same params) - a short-lived cache
+# means only the first of those does the actual solve and the rest reuse it, instead of paying for
+# the same ~150ms-plus (much more under Render's shared/throttled CPU) solve four times over
+_OPTIMISER_CACHE = {}
+_OPTIMISER_CACHE_LOCK = threading.Lock()
+_OPTIMISER_CACHE_TTL = 30  # seconds - just needs to outlive one page load's burst of requests
+
+
+def cached_optimiser(season, round_num, driver_df, constructor_df, prices_df, budget, state, price_delta, price_lambda):
+    state_key = (
+        tuple(sorted(state["drivers"])), tuple(sorted(state["constructors"])), state["free_transfers_carried"],
+    ) if state else None
+    key = (season, round_num, round(budget, 2), state_key, price_lambda)
+
+    now = time.monotonic()
+    with _OPTIMISER_CACHE_LOCK:
+        cached = _OPTIMISER_CACHE.get(key)
+        if cached and now - cached[0] < _OPTIMISER_CACHE_TTL:
+            return cached[1]
+
+    result = optimiser(driver_df, constructor_df, prices_df, budget, state, price_delta=price_delta, price_lambda=price_lambda)
+    with _OPTIMISER_CACHE_LOCK:
+        _OPTIMISER_CACHE[key] = (now, result)
+    return result

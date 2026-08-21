@@ -6,10 +6,9 @@ placement live in the frontend (web/src/valueMap.ts), same split as the ladder's
 
 from app.config import TEAM_STATE_FILE
 from app.data.team_colors import TEAM_COLORS
-from app.optimiser.optimiser import optimiser
 from app.optimiser.state import load_state
 
-from api.common import surname, fullname, load_predictions, model_default_budget, resolve_state
+from api.common import surname, fullname, load_predictions, model_default_budget, resolve_state, cached_optimiser
 
 
 def build_value(budget=None, squad_mode="model", drivers=None, constructors=None, free_transfers=2):
@@ -28,7 +27,7 @@ def build_value(budget=None, squad_mode="model", drivers=None, constructors=None
     resolved_budget = budget if budget is not None else default_budget
     state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, prices_index, model_state)
 
-    team = optimiser(driver_df, constructor_df, prices_df, resolved_budget, state, price_delta=price_delta, price_lambda=lam)
+    team = cached_optimiser(season, rnd, driver_df, constructor_df, prices_df, resolved_budget, state, price_delta, lam)
     selected_ids = set(team["drivers"] + team["constructors"])
 
     def name_of(i, is_drv):

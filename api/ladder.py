@@ -5,10 +5,10 @@ from app.config import TEAM_STATE_FILE
 from app.data.driver_codes import fia_code
 from app.data.constructor_codes import constructor_code
 from app.data.team_colors import TEAM_COLORS
-from app.optimiser.optimiser import optimiser, enumerate_teams
+from app.optimiser.optimiser import enumerate_teams
 from app.optimiser.state import load_state
 
-from api.common import surname, fullname, load_predictions, load_or_build_mc, model_default_budget, resolve_state
+from api.common import surname, fullname, load_predictions, load_or_build_mc, model_default_budget, resolve_state, cached_optimiser
 
 N_ALTERNATIVES = 5
 
@@ -31,7 +31,7 @@ def build_ladder(budget=None, squad_mode="model", drivers=None, constructors=Non
     resolved_budget = budget if budget is not None else model_default_budget(model_state, prices_index)
     state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, prices_index, model_state)
 
-    team = optimiser(driver_df, constructor_df, prices_df, resolved_budget, state, price_delta=price_delta, price_lambda=lam)
+    team = cached_optimiser(season, rnd, driver_df, constructor_df, prices_df, resolved_budget, state, price_delta, lam)
     selected_ids = set(team["drivers"] + team["constructors"])
     captain = team["doubled_driver"]
 

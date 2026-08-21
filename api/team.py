@@ -9,13 +9,12 @@ from datetime import datetime
 
 from app.config import TEAM_STATE_FILE
 from app.data.team_colors import TEAM_COLORS
-from app.optimiser.optimiser import optimiser
 from app.optimiser.state import load_state
 from app.models.monte_carlo import team_distribution
 
 from api.common import (
     surname, fullname, load_predictions, load_or_build_mc, load_or_build_budget_range,
-    model_default_budget, resolve_state,
+    model_default_budget, resolve_state, cached_optimiser,
 )
 
 # matches app/dashboard.py's _trigger_labels - which point in the race weekend this snapshot's
@@ -90,7 +89,7 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
 
     state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, prices_index, model_state)
 
-    team = optimiser(driver_df, constructor_df, prices_df, resolved_budget, state, price_delta=price_delta, price_lambda=lam)
+    team = cached_optimiser(season, rnd, driver_df, constructor_df, prices_df, resolved_budget, state, price_delta, lam)
     selected_ids = set(team["drivers"] + team["constructors"])
     captain = team["doubled_driver"]
 

@@ -110,9 +110,9 @@ export function SquadControls({
       <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', height: '100%' }}>
         <div>
           <p style={{ margin: '0 0 6px', font: '400 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>Remaining budget</p>
-          <p style={{ margin: '0 0 16px', font: '500 18px/1 Archivo,sans-serif', color: INK }}>£{controls.remaining_budget.toFixed(1)}M</p>
+          <p style={{ margin: '0 0 16px', font: '500 18px/1 Archivo,sans-serif', color: INK }}>£{(budget - squadSpend).toFixed(1)}M</p>
           <p style={{ margin: '0 0 6px', font: '400 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>Team value</p>
-          <p style={{ margin: 0, font: '500 18px/1 Archivo,sans-serif', color: INK }}>£{controls.team_value.toFixed(1)}M</p>
+          <p style={{ margin: 0, font: '500 18px/1 Archivo,sans-serif', color: INK }}>£{squadSpend.toFixed(1)}M</p>
         </div>
         <button
           onClick={onRecalculate}

@@ -5,10 +5,9 @@ import json
 
 from app.config import PREDICTIONS_DIR, TEAM_STATE_FILE
 from app.data.team_colors import TEAM_COLORS
-from app.optimiser.optimiser import optimiser
 from app.optimiser.state import load_state
 
-from api.common import surname, load_predictions, load_or_build_mc, model_default_budget, resolve_state
+from api.common import surname, load_predictions, load_or_build_mc, model_default_budget, resolve_state, cached_optimiser
 
 
 def _available_rounds():
@@ -57,9 +56,9 @@ def build_breakdown(
         model_state = load_state(TEAM_STATE_FILE)
         resolved_budget = budget if budget is not None else model_default_budget(model_state, pred["prices_index"])
         state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, pred["prices_index"], model_state)
-        team = optimiser(
-            pred["driver_df"], pred["constructor_df"], pred["prices_df"], resolved_budget, state,
-            price_delta=pred["price_delta"], price_lambda=pred["price_lambda"],
+        team = cached_optimiser(
+            pred["season"], pred["round"], pred["driver_df"], pred["constructor_df"], pred["prices_df"], resolved_budget, state,
+            pred["price_delta"], pred["price_lambda"],
         )
         selected_ids = set(team["drivers"] + team["constructors"])
 
