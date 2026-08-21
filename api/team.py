@@ -19,8 +19,9 @@ from api.common import (
 )
 
 # matches app/dashboard.py's _trigger_labels - which point in the race weekend this snapshot's
-# predictions were generated at, read straight from the predictions file rather than hardcoded
-TRIGGER_LABELS = {"post-fp2": "Post-FP2", "pre-race": "Post-FP3"}
+# predictions were generated at, read straight from the predictions file rather than hardcoded.
+# post-sprint-quali covers sprint weekends, which skip FP2/FP3 entirely
+TRIGGER_LABELS = {"post-fp2": "Post-FP2", "pre-race": "Post-FP3", "post-sprint-quali": "Post-Sprint Quali"}
 
 
 # derives suggested transfers (dropped -> added, paired by asset type) from the diff between the
