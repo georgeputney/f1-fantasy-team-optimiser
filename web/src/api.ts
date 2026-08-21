@@ -83,6 +83,7 @@ export interface AssetOption {
   id: string
   name: string
   price: number
+  inactive: boolean
 }
 
 export interface Controls {

@@ -5,9 +5,11 @@ import type { AssetOption } from './api'
 // current selection). Duplicates are hard-excluded - there's no legitimate reason to show a driver
 // already in another slot - but budget is handled separately (see unaffordableIds) since silently
 // hiding options a user might expect to see is confusing; those are shown greyed-out instead.
+// inactive options (a held asset that's gone out mid-week) are excluded the same way everywhere
+// except the one slot that actually holds them - they're not a valid new pick for any other slot.
 export function slotOptions(options: AssetOption[], currentValue: string, otherSelectedIds: string[]): AssetOption[] {
   const excluded = new Set(otherSelectedIds.filter((id) => id && id !== currentValue))
-  return options.filter((o) => o.id === currentValue || !excluded.has(o.id))
+  return options.filter((o) => o.id === currentValue || (!excluded.has(o.id) && !o.inactive))
 }
 
 // ids that would push the squad over budget if picked in this slot - shown but disabled, not

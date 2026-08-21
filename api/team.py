@@ -101,9 +101,13 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
     # controls.team_value/remaining_budget describe the squad shown in the dropdowns (state) - the
     # optimiser's recommended team (spend/cash above) is a different squad whenever it proposes any
     # transfers, and mixing the two produced a "team value" that didn't match the displayed squad's
-    # own prices
+    # own prices. a held asset can go inactive mid-week (see driver_options below) and have no
+    # current price at all - falls back to its last-known price rather than silently pricing it at 0
     if state:
-        current_value = sum(float(prices_index.get(i, 0)) for i in state["drivers"] + state["constructors"])
+        current_value = sum(
+            float(prices_index[i]) if i in prices_index.index else float(state["prices"].get(i, 0))
+            for i in state["drivers"] + state["constructors"]
+        )
         current_cash = resolved_budget - current_value
     else:
         current_value, current_cash = spend, cash
@@ -143,13 +147,26 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
             })
 
     driver_options = [
-        {"id": d, "name": surname(d), "price": float(prices_index[d])}
+        {"id": d, "name": surname(d), "price": float(prices_index[d]), "inactive": False}
         for d in driver_df.sort_values("price", ascending=False)["driver_id"]
     ]
     constructor_options = [
-        {"id": c, "name": fullname(c), "price": float(prices_index[c])}
+        {"id": c, "name": fullname(c), "price": float(prices_index[c]), "inactive": False}
         for c in constructor_df.sort_values("price", ascending=False)["constructor_id"]
     ]
+
+    # a held asset can go inactive mid-week (injury, seat swap) without the user ever transferring
+    # it out - the optimiser already treats it as sold when computing the recommendation, but the
+    # squad-controls dropdown still needs to show what's actually in the squad, not a blank slot
+    if state:
+        active_driver_ids = set(driver_df["driver_id"])
+        active_constructor_ids = set(constructor_df["constructor_id"])
+        for d in state["drivers"]:
+            if d not in active_driver_ids:
+                driver_options.append({"id": d, "name": surname(d), "price": float(state["prices"][d]), "inactive": True})
+        for c in state["constructors"]:
+            if c not in active_constructor_ids:
+                constructor_options.append({"id": c, "name": fullname(c), "price": float(state["prices"][c]), "inactive": True})
 
     return {
         "season": season, "round": rnd, "circuit": circuit, "status": status,
