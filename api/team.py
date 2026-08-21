@@ -99,6 +99,16 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
     spend = sum(float(prices_index[i]) for i in team["drivers"] + team["constructors"])
     cash = resolved_budget - spend
 
+    # controls.team_value/remaining_budget describe the squad shown in the dropdowns (state) - the
+    # optimiser's recommended team (spend/cash above) is a different squad whenever it proposes any
+    # transfers, and mixing the two produced a "team value" that didn't match the displayed squad's
+    # own prices
+    if state:
+        current_value = sum(float(prices_index.get(i, 0)) for i in state["drivers"] + state["constructors"])
+        current_cash = resolved_budget - current_value
+    else:
+        current_value, current_cash = spend, cash
+
     mc = load_or_build_mc(season, rnd, circuit)
     likely_range = team_distribution(mc, team["drivers"], captain, set(team["constructors"]))
 
@@ -154,8 +164,8 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
             "free_transfers": free_transfers,
             "current_drivers": state["drivers"] if state else [],
             "current_constructors": state["constructors"] if state else [],
-            "remaining_budget": round(cash, 1),
-            "team_value": round(spend, 1),
+            "remaining_budget": round(current_cash, 1),
+            "team_value": round(current_value, 1),
         },
         "driver_options": driver_options,
         "constructor_options": constructor_options,
