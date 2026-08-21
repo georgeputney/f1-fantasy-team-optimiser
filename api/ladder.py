@@ -5,10 +5,9 @@ from app.config import TEAM_STATE_FILE
 from app.data.driver_codes import fia_code
 from app.data.constructor_codes import constructor_code
 from app.data.team_colors import TEAM_COLORS
-from app.optimiser.optimiser import enumerate_teams
 from app.optimiser.state import load_state
 
-from api.common import surname, fullname, load_predictions, load_or_build_mc, model_default_budget, resolve_state, cached_optimiser
+from api.common import surname, fullname, load_predictions, load_or_build_mc, model_default_budget, resolve_state, cached_optimiser, cached_enumerate_teams
 
 N_ALTERNATIVES = 5
 
@@ -40,9 +39,9 @@ def build_ladder(budget=None, squad_mode="model", drivers=None, constructors=Non
     # and labels rows by raw points ("ranked next, by expected points"), so re-sort for display -
     # the recommended team (index 0) is pinned first since it must match the highlighted selection
     # above, even in the rare case something later has marginally higher raw points
-    alt_teams = enumerate_teams(
-        driver_df, constructor_df, prices_df, resolved_budget, state,
-        price_delta=price_delta, price_lambda=lam, n=N_ALTERNATIVES,
+    alt_teams = cached_enumerate_teams(
+        season, rnd, driver_df, constructor_df, prices_df, resolved_budget, state,
+        price_delta, lam, N_ALTERNATIVES,
     )
     if alt_teams:
         alt_teams = [alt_teams[0]] + sorted(alt_teams[1:], key=lambda t: -t["total_points"])

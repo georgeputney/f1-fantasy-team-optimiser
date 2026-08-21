@@ -12,15 +12,20 @@ interface Props {
   compact?: boolean
 }
 
-// graded distribution bar: faded ends reach P10/P90, the solid middle covers P25-P75,
-// a caret marks expected points. selected rows render in the constructor colour at full
+// graded distribution bar: faded ends reach P10/P90, the solid middle covers P25-P75, a caret
+// marks the simulation's own median. selected rows render in the constructor colour at full
 // strength; unselected rows fall back to a low-opacity neutral so selected picks stand out.
 // compact shaves 2px off the row/caret height for the mobile ladder. the domain is NOT
 // pinned to zero - P10 regularly runs negative (a bad DNF costs -20), so it tracks the
 // real min/max across the column or those bars would get clipped at the left edge.
+// the caret deliberately tracks dist.median, not the deterministic `points` estimate - that's a
+// separately-computed value from a different model and can legitimately fall outside the P10-P90
+// range entirely, which reads as a bug (a marker sitting outside the box it's drawn on). points is
+// only a fallback for the rare row with no distribution to derive a median from.
 export function DistributionBar({ dist, points, domainMin, domainMax, ticks, color, selected, compact }: Props) {
   const span = domainMax - domainMin || 1
   const pct = (v: number) => Math.max(0, Math.min(100, ((v - domainMin) / span) * 100))
+  const caretValue = dist ? dist.median : points
   const barColor = selected ? color : INK
   const fadedOpacity = selected ? 0.32 : 0.13
   const solidOpacity = selected ? 1 : 0.4
@@ -70,7 +75,7 @@ export function DistributionBar({ dist, points, domainMin, domainMax, ticks, col
       )}
       <div
         style={{
-          position: 'absolute', left: `${pct(points)}%`, top: 0, marginLeft: -3,
+          position: 'absolute', left: `${pct(caretValue)}%`, top: 0, marginLeft: -3,
           width: 0, height: 0,
           borderLeft: '3px solid transparent', borderRight: '3px solid transparent',
           borderTop: `${caretSize}px solid ${caretColor}`,

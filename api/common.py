@@ -10,7 +10,7 @@ import pandas as pd
 from app.config import PREDICTIONS_DIR, REPORTS_DIR, PRICE_LAMBDA, BUDGET_CAP
 from app.models.monte_carlo import simulate_round
 from app.optimiser.budget_range import compute_budget_range
-from app.optimiser.optimiser import optimiser
+from app.optimiser.optimiser import optimiser, enumerate_teams
 
 try:
     from app.data.prices import expected_price_delta
@@ -205,4 +205,28 @@ def cached_optimiser(season, round_num, driver_df, constructor_df, prices_df, bu
     result = optimiser(driver_df, constructor_df, prices_df, budget, state, price_delta=price_delta, price_lambda=price_lambda)
     with _OPTIMISER_CACHE_LOCK:
         _OPTIMISER_CACHE[key] = (now, result)
+    return result
+
+
+# the ladder's 5 alternative-team solves take ~600ms and are otherwise uncached - a plain reload
+# within the TTL window (unchanged squad state) would pay for them again for no reason
+_ENUMERATE_CACHE = {}
+_ENUMERATE_CACHE_LOCK = threading.Lock()
+
+
+def cached_enumerate_teams(season, round_num, driver_df, constructor_df, prices_df, budget, state, price_delta, price_lambda, n):
+    state_key = (
+        tuple(sorted(state["drivers"])), tuple(sorted(state["constructors"])), state["free_transfers_carried"],
+    ) if state else None
+    key = (season, round_num, round(budget, 2), state_key, price_lambda, n)
+
+    now = time.monotonic()
+    with _ENUMERATE_CACHE_LOCK:
+        cached = _ENUMERATE_CACHE.get(key)
+        if cached and now - cached[0] < _OPTIMISER_CACHE_TTL:
+            return cached[1]
+
+    result = enumerate_teams(driver_df, constructor_df, prices_df, budget, state, price_delta=price_delta, price_lambda=price_lambda, n=n)
+    with _ENUMERATE_CACHE_LOCK:
+        _ENUMERATE_CACHE[key] = (now, result)
     return result
