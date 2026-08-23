@@ -11,12 +11,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# minimal set the Streamlit dashboard (web service) needs at runtime
-dashboard = [
-    "plotly>=5.0",
-    "streamlit>=1.32",
-]
-# FastAPI service backing the React frontend (web/) - replaces the Streamlit dashboard.
+# FastAPI service backing the React frontend (web/).
 # joblib and xgboost are here (not just under pipeline) because the ladder/team/breakdown
 # endpoints run Monte Carlo sims at request time, which unpickles the trained quali/finish
 # position model artifacts (XGBoost estimators) via joblib. pandera is here because
@@ -30,9 +25,8 @@ api = [
     "xgboost>=2.0",
     "pandera>=0.19",
 ]
-# data ingestion, model training, and report rendering (also needs the dashboard deps)
+# data ingestion, model training, and report rendering
 pipeline = [
-    "f1-fantasy-optimiser[dashboard]",
     "fastf1>=3.3",
     "scikit-learn>=1.3",
     "scipy>=1.11",
