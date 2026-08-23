@@ -1,0 +1,14 @@
+.git
+.github
+.venv
+.vscode
+.claude
+__pycache__
+*.pyc
+*.egg-info
+notebooks
+scraping
+data/raw
+data/fastf1_cache
+web/node_modules
+web/dist

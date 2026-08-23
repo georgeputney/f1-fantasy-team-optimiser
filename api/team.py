@@ -1,0 +1,270 @@
+"""Builds the squad-controls / projected-points hero / lineup / suggested-transfers payload.
+
+Mirrors the logic in app/dashboard.py (the Streamlit predecessor) - same optimiser call, same
+transfer-row derivation - but adds the team-level "likely range" from the Monte Carlo raw matrix,
+which the Streamlit version never had (it showed a placeholder).
+"""
+
+from datetime import datetime
+
+from app.config import TEAM_STATE_FILE
+from app.data.team_colors import TEAM_COLORS
+from app.optimiser.state import load_state
+from app.models.monte_carlo import team_distribution
+from app.models.predict import is_sprint_weekend
+
+from api.common import (
+    surname, fullname, load_predictions, load_or_build_mc, load_or_build_budget_range,
+    model_default_budget, resolve_state, cached_optimiser, historical_driver_teams,
+)
+
+# which point in the race weekend this snapshot's predictions were generated at, read straight from
+# the predictions file rather than hardcoded. "pre-race" covers both Post-FP3 and a sprint weekend's
+# Post-Sprint-Quali (check_race_weekend.py sets the same trigger value for both - it skips FP2/FP3
+# entirely on a sprint weekend), so that one needs the sprint flag to disambiguate; "post-fp2" and
+# "post-race" are unambiguous
+TRIGGER_LABELS = {"post-fp2": "Post-FP2", "post-race": "Post-race"}
+
+
+def _trigger_label(trigger, season, round_num):
+    if trigger == "pre-race":
+        return "Post-Sprint Quali" if is_sprint_weekend(season, round_num) else "Post-FP3"
+    return TRIGGER_LABELS.get(trigger, "Latest")
+
+
+# one-off: some rounds have a stand-in chain (e.g. r12 - Hadjar out, Lawson covers his Red Bull
+# seat, Tsunoda covers Lawson's now-vacant Racing Bulls seat) that isn't a real seat change, just a
+# short-notice fill-in. The optimiser still sees these drivers completely normally - their real
+# points/price this week are legitimate transfer suggestions, so the manual "change any slot"
+# dropdown should still offer them - but not mislabelled under a seat that isn't really theirs.
+# MANUAL_PICK_TEAM_OVERRIDES relabels a driver with an established team from recent rounds (e.g.
+# Lawson was racing_bulls through round 11) under that real team instead of this week's stand-in one,
+# keeping this week's actual price/points. MANUAL_PICK_EXCLUSIONS is for the rest: a driver with no
+# established prior team at all (e.g. Tsunoda, not on the grid before this round) has no real
+# identity to relabel them under, so they're hidden from the dropdown entirely rather than shown
+# under a seat that's just as temporary as the one being worked around. Keyed by (season, round)
+# since this is inherently a specific week's situation, not a general rule - a real permanent swap (a
+# driver's seat changing for good) should NOT be added here, that's what driver_teams snapshotting
+# already handles correctly.
+MANUAL_PICK_TEAM_OVERRIDES = {
+    (2026, 12): {"liam_lawson": "racing_bulls"},
+}
+MANUAL_PICK_EXCLUSIONS = {
+    (2026, 12): {"yuki_tsunoda"},
+}
+
+
+# derives suggested transfers (dropped -> added, paired by asset type) from the diff between the
+# prior state and the optimiser's picks - same pairing logic as dashboard.py's transfer_rows()
+def _transfer_rows(state, team, driver_pts, constructor_pts, selected_ids):
+    if not state:
+        return [], 0.0
+
+    prev = set(state["drivers"] + state["constructors"])
+    added = [i for i in team["drivers"] + team["constructors"] if i not in prev]
+    dropped = [i for i in prev if i not in selected_ids]
+
+    def pts_of(i):
+        if i in driver_pts.index:
+            return float(driver_pts[i])
+        if i in constructor_pts.index:
+            return float(constructor_pts[i])
+        return 0.0
+
+    def is_driver(i):
+        return i in driver_pts.index or i in state.get("drivers", [])
+
+    add_d = [i for i in added if is_driver(i)]
+    add_c = [i for i in added if not is_driver(i)]
+    drop_d = [i for i in dropped if is_driver(i)]
+    drop_c = [i for i in dropped if not is_driver(i)]
+
+    rows = []
+    for outs, ins, is_drv in ((drop_d, add_d, True), (drop_c, add_c, False)):
+        for out_i, in_i in zip(outs, ins):
+            label = surname if is_drv else fullname
+            delta = pts_of(in_i) - pts_of(out_i)
+            rows.append({
+                "out_id": out_i, "out_name": label(out_i),
+                "in_id": in_i, "in_name": label(in_i),
+                "delta": round(delta, 1),
+            })
+    net = sum(r["delta"] for r in rows) - 10 * team["transfer_penalty"]
+    return rows, round(net, 1)
+
+
+def build_team(budget=None, squad_mode="model", drivers=None, constructors=None, free_transfers=2):
+    drivers = drivers or []
+    constructors = constructors or []
+
+    pred = load_predictions()
+    season, rnd, circuit = pred["season"], pred["round"], pred["circuit"]
+    driver_team = pred["driver_team"]
+    driver_df, constructor_df, prices_df = pred["driver_df"], pred["constructor_df"], pred["prices_df"]
+    prices_index, driver_pts, constructor_pts = pred["prices_index"], pred["driver_pts"], pred["constructor_pts"]
+    price_delta, lam = pred["price_delta"], pred["price_lambda"]
+    trigger_label = _trigger_label(pred["trigger"], season, rnd)
+    generated_at = datetime.fromisoformat(pred["generated_at"])
+    status = f"{trigger_label}, {generated_at:%H:%M}"
+
+    model_state = load_state(TEAM_STATE_FILE)
+    default_budget = model_default_budget(model_state, prices_index)
+    resolved_budget = budget if budget is not None else default_budget
+
+    # the slider's bounds are the actual best/worst-case budget any manager could be sitting on
+    # entering this round (a retrospective solve over the season's real price history), not an
+    # arbitrary fixed range - widened slightly if needed so the current budget is never out of bounds
+    budget_min, budget_max = load_or_build_budget_range(season, rnd)
+    budget_min = min(budget_min, resolved_budget)
+    budget_max = max(budget_max, resolved_budget)
+
+    state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, prices_index, model_state, driver_team)
+
+    team = cached_optimiser(season, rnd, driver_df, constructor_df, prices_df, resolved_budget, state, price_delta, lam)
+    selected_ids = set(team["drivers"] + team["constructors"])
+    captain = team["doubled_driver"]
+
+    proj_points = sum(float(driver_pts[d]) * (2 if d == captain else 1) for d in team["drivers"])
+    proj_points += sum(float(constructor_pts[c]) for c in team["constructors"])
+    spend = sum(float(prices_index[i]) for i in team["drivers"] + team["constructors"])
+    cash = resolved_budget - spend
+
+    # controls.team_value/remaining_budget describe the squad shown in the dropdowns (state) - the
+    # optimiser's recommended team (spend/cash above) is a different squad whenever it proposes any
+    # transfers, and mixing the two produced a "team value" that didn't match the displayed squad's
+    # own prices. a held asset can go inactive mid-week (see driver_options below) and have no
+    # current price at all - falls back to its last-known price rather than silently pricing it at 0
+    if state:
+        current_value = sum(
+            float(prices_index[i]) if i in prices_index.index else float(state["prices"].get(i, 0))
+            for i in state["drivers"] + state["constructors"]
+        )
+        current_cash = resolved_budget - current_value
+    else:
+        current_value, current_cash = spend, cash
+
+    mc = load_or_build_mc(season, rnd, circuit)
+    likely_range = team_distribution(mc, team["drivers"], captain, set(team["constructors"]))
+
+    transfer_rows, net = _transfer_rows(state, team, driver_pts, constructor_pts, selected_ids)
+
+    added_set = set()
+    if state:
+        prev = set(state["drivers"] + state["constructors"])
+        added_set = selected_ids - prev
+
+    ordered = [captain] + sorted([d for d in team["drivers"] if d != captain], key=lambda d: -driver_pts[d])
+    ordered += sorted(team["constructors"], key=lambda c: -constructor_pts[c])
+
+    lineup = []
+    for aid in ordered:
+        is_drv = aid in driver_pts.index
+        price = float(prices_index[aid])
+        cid = driver_team.get(aid, "") if is_drv else aid
+        if aid == captain:
+            pts = float(driver_pts[aid])
+            lineup.append({
+                "id": aid, "name": surname(aid), "is_driver": True, "captain": True, "in": aid in added_set,
+                "constructor_id": cid, "color": TEAM_COLORS.get(cid, "#888888"),
+                "points": round(pts, 1), "doubled_points": round(pts * 2, 1), "price": price,
+            })
+        else:
+            pts = float(driver_pts[aid]) if is_drv else float(constructor_pts[aid])
+            lineup.append({
+                "id": aid, "name": surname(aid) if is_drv else fullname(aid), "is_driver": is_drv,
+                "captain": False, "in": aid in added_set,
+                "constructor_id": cid, "color": TEAM_COLORS.get(cid, "#888888"),
+                "points": round(pts, 1), "doubled_points": None, "price": price,
+            })
+
+    # a driver's id is permanent but their constructor isn't - a mid-season seat swap (e.g. a driver
+    # moving between two sister teams) means the same id can carry a different colour/team label
+    # round to round, so every option carries its constructor explicitly rather than leaving the
+    # dropdown to show two same-named drivers with no way to tell them apart
+    excluded_from_dropdown = MANUAL_PICK_EXCLUSIONS.get((season, rnd), set())
+    team_overrides = MANUAL_PICK_TEAM_OVERRIDES.get((season, rnd), {})
+    driver_options = [
+        {
+            "id": d, "name": surname(d), "price": float(prices_index[d]), "inactive": False,
+            "constructor_id": team_overrides.get(d, driver_team.get(d, "")),
+            "color": TEAM_COLORS.get(team_overrides.get(d, driver_team.get(d, "")), "#888888"),
+        }
+        for d in driver_df["driver_id"]
+        if d not in excluded_from_dropdown
+    ]
+    constructor_options = [
+        {
+            "id": c, "name": fullname(c), "price": float(prices_index[c]), "inactive": False,
+            "constructor_id": c, "color": TEAM_COLORS.get(c, "#888888"),
+        }
+        for c in constructor_df["constructor_id"]
+    ]
+
+    # a held asset can go inactive mid-week (injury, seat swap) without the user ever transferring
+    # it out - the optimiser already treats it as sold when computing the recommendation, but the
+    # squad-controls dropdown still needs to show what's actually in the squad, not a blank slot.
+    # for a dropped driver there's no live team to join against, so it reads their team from the
+    # driver_teams snapshot taken when they were actually picked, not whatever the current round's
+    # roster says (they may not even be on it any more)
+    if state:
+        active_driver_ids = set(driver_df["driver_id"])
+        active_constructor_ids = set(constructor_df["constructor_id"])
+        held_driver_teams = state.get("driver_teams", {})
+        # state files saved before driver_teams existed have no snapshot at all - reconstruct one
+        # from that state's own season/round predictions file rather than showing every held driver
+        # with no team/colour forever
+        if not held_driver_teams and state.get("season") and state.get("round"):
+            held_driver_teams = historical_driver_teams(state["season"], state["round"])
+        for d in state["drivers"]:
+            if d not in active_driver_ids:
+                cid = held_driver_teams.get(d, "")
+                driver_options.append({
+                    "id": d, "name": surname(d), "price": float(state["prices"][d]), "inactive": True,
+                    "constructor_id": cid, "color": TEAM_COLORS.get(cid, "#888888"),
+                })
+        for c in state["constructors"]:
+            if c not in active_constructor_ids:
+                constructor_options.append({
+                    "id": c, "name": fullname(c), "price": float(state["prices"][c]), "inactive": True,
+                    "constructor_id": c, "color": TEAM_COLORS.get(c, "#888888"),
+                })
+
+    # sorted once, together - an inactive held driver still slots in at their own price rather than
+    # being tacked onto the end of an already-sorted list regardless of how they'd actually rank
+    driver_options.sort(key=lambda o: -o["price"])
+    constructor_options.sort(key=lambda o: -o["price"])
+
+    return {
+        "season": season, "round": rnd, "circuit": circuit, "status": status,
+        "controls": {
+            # 0.1 not 0.5 - budget_min/max come from a retrospective solve and won't generally sit on
+            # a 0.5 grid (e.g. min=57.5 but your actual budget might be 114.8), so a 0.5 step could
+            # never land back on your real starting value once you'd moved the slider
+            "budget": resolved_budget, "budget_min": budget_min, "budget_max": budget_max, "budget_step": 0.1,
+            "default_budget": default_budget,
+            "squad_mode": squad_mode,
+            "free_transfers": free_transfers,
+            "current_drivers": state["drivers"] if state else [],
+            "current_constructors": state["constructors"] if state else [],
+            "remaining_budget": round(current_cash, 1),
+            "team_value": round(current_value, 1),
+        },
+        "driver_options": driver_options,
+        "constructor_options": constructor_options,
+        "hero": {
+            "projected_points": round(proj_points),
+            "likely_range": likely_range,
+            "spend": round(spend, 1),
+            "net_after_hit": net if state else None,
+            "transfers_made": team["transfers_made"] if state else 0,
+            "captain_id": captain,
+        },
+        "lineup": lineup,
+        "transfers": {
+            "rows": transfer_rows,
+            "net": net,
+            "has_state": state is not None,
+            "free": (2 + state["free_transfers_carried"]) if state else 0,
+            "paid": team["transfer_penalty"] if state else 0,
+        },
+    }

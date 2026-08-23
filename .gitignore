@@ -35,11 +35,24 @@ reports/*.png
 # pre-2026 reports
 reports/backtest_2024.*
 reports/backtest_2025.*
+reports/backtest/backtest_2024.*
+reports/backtest/backtest_2025.*
 reports/predictions/predictions_2024_*
 reports/predictions/predictions_2025_*
+
+# notebooks re-run with outputs baked in - throwaway, the source notebook is what's tracked
+notebooks/*_executed.ipynb
+
+# one-off local analysis scripts, not part of the pipeline
+scratchpad/
 
 # virtual env
 .venv/
 
 # IDE
 .vscode/
+
+# personal planning/backlog notes, not part of the tracked project
+/BRIEF.txt
+/V2.md
+/V3.md

@@ -1,0 +1,56 @@
+[
+  {
+    "season": 2026,
+    "round": 1,
+    "location": "Melbourne",
+    "model": 148.0,
+    "oracle": 290.0,
+    "lagged": NaN,
+    "mean": 167.0
+  },
+  {
+    "season": 2026,
+    "round": 2,
+    "location": "Shanghai",
+    "model": 349.0,
+    "oracle": 474.0,
+    "lagged": 240.0,
+    "mean": 266.0
+  },
+  {
+    "season": 2026,
+    "round": 3,
+    "location": "Suzuka",
+    "model": 153.0,
+    "oracle": 300.0,
+    "lagged": 220.0,
+    "mean": 194.0
+  },
+  {
+    "season": 2026,
+    "round": 4,
+    "location": "Miami Gardens",
+    "model": 188.0,
+    "oracle": 349.0,
+    "lagged": 184.0,
+    "mean": 269.0
+  },
+  {
+    "season": 2026,
+    "round": 5,
+    "location": "Montr\u00e9al",
+    "model": 223.0,
+    "oracle": 340.0,
+    "lagged": -3.0,
+    "mean": 303.0
+  },
+  {
+    "season": 2026,
+    "round": 6,
+    "location": "Monte Carlo",
+    "model": 80.0,
+    "oracle": 299.0,
+    "lagged": 173.0,
+    "mean": 186.0
+  }
+]
