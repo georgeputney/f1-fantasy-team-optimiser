@@ -1,9 +1,12 @@
 """Computes fantasy prices from targets and starting prices using the rolling PPM rule."""
 
 import pandas as pd
-import app.data.schemas as schemas
 
 from app.config import PROCESSED_TARGETS_DIR, PROCESSED_PRICES_DIR, STARTING_PRICES_DIR, PRICE_FLOOR
+
+# imported lazily inside the two offline-pipeline functions that validate against it below -
+# expected_price_delta (the only function the live API calls) never needs it, and pandera is
+# ~200ms of import time the API would otherwise pay at every cold start for no reason
 
 
 # PPM thresholds and step sizes for price changes
@@ -36,6 +39,8 @@ def compute_price_change(avg_pts, price, floor):
 
 # compute prices for a single round from the previous round's prices and recent targets
 def compute_price_round(season, round_num):
+    import app.data.schemas as schemas
+
     floor = PRICE_FLOOR.get(season, 3.5)
 
     # load previous round's prices as the base
@@ -105,6 +110,8 @@ def expected_price_delta(season, round_num, current_prices, predicted_points):
 
 # compute prices for all rounds of a season from starting prices and targets
 def compute_prices(season):
+    import app.data.schemas as schemas
+
     starting_prices = pd.read_csv(STARTING_PRICES_DIR / f"{season}.csv")
     floor = PRICE_FLOOR.get(season, 3.5)
 

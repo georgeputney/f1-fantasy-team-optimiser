@@ -11,8 +11,11 @@ interface Props {
 const GRID = '26px 128px 1fr 52px 104px 58px'
 
 export function LadderColumn({ label, rows }: Props) {
-  const maxP90 = Math.max(...rows.map((r) => r.distribution?.p90 ?? r.points), 1)
-  const minP10 = Math.min(...rows.map((r) => r.distribution?.p10 ?? r.points), 0)
+  // each row's own points must be covered too, not just its distribution's p10/p90 - they're
+  // different models and can disagree enough that points falls outside that row's simulated range,
+  // which would otherwise clamp that row's caret to the edge instead of showing where it actually is
+  const maxP90 = Math.max(...rows.map((r) => Math.max(r.distribution?.p90 ?? r.points, r.points)), 1)
+  const minP10 = Math.min(...rows.map((r) => Math.min(r.distribution?.p10 ?? r.points, r.points)), 0)
   const { ticks, domainMin, domainMax } = niceScale(minP10, maxP90)
 
   return (

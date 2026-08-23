@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { Select } from './Select'
 import { CARD, FAINT, GREEN, GREEN_TINT, INK, LINE_SOFT, LINE_STR, MUTED, MUTED2 } from './theme'
-import type { BreakdownResponse } from './api'
+import type { BreakdownResponse, BreakdownRow } from './api'
 
 interface Props {
   data: BreakdownResponse
@@ -9,10 +10,43 @@ interface Props {
 
 const GRID = '2px 132px repeat(8,1fr)'
 
-const HEADERS = ['Quali', 'Finish', 'Pos. gained', 'Overtakes', 'Fastest lap', 'DOTD', 'DNF risk', 'Expected']
+type SortDir = 'asc' | 'desc'
+type SortKey = keyof Pick<BreakdownRow,
+  'name' | 'quali_position' | 'finish_position' | 'positions_gained' | 'overtakes' | 'prob_fl' | 'prob_dotd' | 'dnf_prob' | 'expected_points'
+>
+
+// P1 reads as "best" ascending, so quali/finish default that way on first click; everything else
+// defaults to biggest-first, which is what you want the first time you click e.g. "DNF risk"
+const COLUMNS: { key: SortKey; label: string; defaultDir: SortDir }[] = [
+  { key: 'quali_position', label: 'Quali', defaultDir: 'asc' },
+  { key: 'finish_position', label: 'Finish', defaultDir: 'asc' },
+  { key: 'positions_gained', label: 'Pos. gained', defaultDir: 'desc' },
+  { key: 'overtakes', label: 'Overtakes', defaultDir: 'desc' },
+  { key: 'prob_fl', label: 'Fastest lap', defaultDir: 'desc' },
+  { key: 'prob_dotd', label: 'DOTD', defaultDir: 'desc' },
+  { key: 'dnf_prob', label: 'DNF risk', defaultDir: 'desc' },
+  { key: 'expected_points', label: 'Expected', defaultDir: 'desc' },
+]
 
 export function DriverBreakdown({ data, onRoundChange }: Props) {
+  const [sortKey, setSortKey] = useState<SortKey>('expected_points')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const roundOptions = data.available_rounds.map((r) => ({ id: String(r), name: `Round ${r}` }))
+
+  const toggleSort = (key: SortKey, defaultDir: SortDir) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(defaultDir)
+    }
+  }
+
+  const rows = [...data.rows].sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey]
+    const cmp = typeof av === 'string' ? av.localeCompare(bv as string) : (av as number) - (bv as number)
+    return sortDir === 'asc' ? cmp : -cmp
+  })
 
   return (
     <div id="breakdown" style={{ padding: '40px 44px 12px', background: CARD, scrollMarginTop: 66 }}>
@@ -38,9 +72,6 @@ export function DriverBreakdown({ data, onRoundChange }: Props) {
             fontSize={13}
             fitContent
           />
-          <span style={{ font: '400 13px/1 Archivo,sans-serif', color: MUTED2 }}>
-            Sorted by expected points
-          </span>
         </div>
       </div>
 
@@ -48,18 +79,32 @@ export function DriverBreakdown({ data, onRoundChange }: Props) {
         <div style={{ minWidth: 900 }}>
           <div style={{ display: 'grid', gridTemplateColumns: GRID, columnGap: 14, alignItems: 'center', padding: '0 12px 9px', borderBottom: `1px solid ${LINE_STR}` }}>
             <span />
-            <span style={{ font: '400 11.5px/1 Archivo,sans-serif', color: FAINT }}>Driver</span>
-            {HEADERS.map((h) => (
-              <span key={h} style={{ font: '400 11.5px/1.3 Archivo,sans-serif', color: FAINT, textAlign: 'right' }}>{h}</span>
+            <span
+              onClick={() => toggleSort('name', 'asc')}
+              style={{ font: '400 11.5px/1 Archivo,sans-serif', color: sortKey === 'name' ? INK : FAINT, cursor: 'pointer', userSelect: 'none' }}
+            >
+              Driver{sortKey === 'name' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+            </span>
+            {COLUMNS.map((c) => (
+              <span
+                key={c.key}
+                onClick={() => toggleSort(c.key, c.defaultDir)}
+                style={{
+                  font: '400 11.5px/1.3 Archivo,sans-serif', color: sortKey === c.key ? INK : FAINT,
+                  textAlign: 'right', cursor: 'pointer', userSelect: 'none',
+                }}
+              >
+                {c.label}{sortKey === c.key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+              </span>
             ))}
           </div>
 
-          {data.rows.map((row, i) => (
+          {rows.map((row, i) => (
             <div
               key={row.id}
               style={{
                 display: 'grid', gridTemplateColumns: GRID, columnGap: 14, alignItems: 'center', padding: '13px 12px',
-                borderBottom: i === data.rows.length - 1 ? 'none' : `1px solid ${LINE_SOFT}`,
+                borderBottom: i === rows.length - 1 ? 'none' : `1px solid ${LINE_SOFT}`,
                 background: row.selected ? GREEN_TINT : 'transparent',
               }}
             >

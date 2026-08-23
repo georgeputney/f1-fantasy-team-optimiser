@@ -24,3 +24,20 @@ export function unaffordableIds(options: AssetOption[], currentValue: string, ot
 export function totalSpend(ids: string[], priceOf: Map<string, number>): number {
   return ids.reduce((sum, id) => sum + (id ? priceOf.get(id) ?? 0 : 0), 0)
 }
+
+// native <input type="range"> can't actually reach `max` by dragging when (max - min) isn't a
+// clean multiple of `step` - min/max here come from a retrospective solve and rarely divide
+// evenly, and float error (e.g. 88.5 % 0.1 = 0.09999999999999509, not 0) makes the browser cap
+// the reachable value just short of the real max. Driving the <input> off an integer step count
+// instead of the raw float range sidesteps the problem entirely - both ends are always reachable.
+export function budgetStepCount(min: number, max: number, step: number): number {
+  return Math.round((max - min) / step)
+}
+
+export function budgetToStep(value: number, min: number, step: number): number {
+  return Math.round((value - min) / step)
+}
+
+export function stepToBudget(stepValue: number, min: number, step: number): number {
+  return Math.round((min + stepValue * step) * 10) / 10
+}

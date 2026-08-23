@@ -17,7 +17,7 @@ export function Footer({ mobile }: Props) {
         rel="noopener noreferrer"
         style={{ font: '400 13px/1 Archivo,sans-serif', color: MUTED2, textDecoration: 'none' }}
       >
-        Full write-up ↗
+        Full write-up ↗︎
       </a>
     </div>
   )
