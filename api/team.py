@@ -22,6 +22,19 @@ from api.common import (
 # post-sprint-quali covers sprint weekends, which skip FP2/FP3 entirely
 TRIGGER_LABELS = {"post-fp2": "Post-FP2", "pre-race": "Post-FP3", "post-sprint-quali": "Post-Sprint Quali"}
 
+# one-off: some rounds have a stand-in chain (e.g. r12 - Hadjar out, Lawson covers his Red Bull
+# seat, Tsunoda covers Lawson's now-vacant Racing Bulls seat) that isn't a real seat change, just a
+# short-notice fill-in. The optimiser still sees these drivers completely normally - their real
+# points/price this week are legitimate transfer suggestions - but the manual "change any slot"
+# dropdown shouldn't offer them as if they were an ordinary grid regular: neither was a selectable
+# part of any squad as of last round, and showing Lawson under Red Bull would price/label him for a
+# seat that isn't his. Keyed by (season, round) since this is inherently a specific week's situation,
+# not a general rule - a real permanent swap (a driver's seat changing for good) should NOT be added
+# here, that's what driver_teams snapshotting already handles correctly.
+MANUAL_PICK_EXCLUSIONS = {
+    (2026, 12): {"yuki_tsunoda", "liam_lawson"},
+}
+
 
 # derives suggested transfers (dropped -> added, paired by asset type) from the diff between the
 # prior state and the optimiser's picks - same pairing logic as dashboard.py's transfer_rows()
@@ -150,19 +163,21 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
     # moving between two sister teams) means the same id can carry a different colour/team label
     # round to round, so every option carries its constructor explicitly rather than leaving the
     # dropdown to show two same-named drivers with no way to tell them apart
+    excluded_from_dropdown = MANUAL_PICK_EXCLUSIONS.get((season, rnd), set())
     driver_options = [
         {
             "id": d, "name": surname(d), "price": float(prices_index[d]), "inactive": False,
             "constructor_id": driver_team.get(d, ""), "color": TEAM_COLORS.get(driver_team.get(d, ""), "#888888"),
         }
-        for d in driver_df.sort_values("price", ascending=False)["driver_id"]
+        for d in driver_df["driver_id"]
+        if d not in excluded_from_dropdown
     ]
     constructor_options = [
         {
             "id": c, "name": fullname(c), "price": float(prices_index[c]), "inactive": False,
             "constructor_id": c, "color": TEAM_COLORS.get(c, "#888888"),
         }
-        for c in constructor_df.sort_values("price", ascending=False)["constructor_id"]
+        for c in constructor_df["constructor_id"]
     ]
 
     # a held asset can go inactive mid-week (injury, seat swap) without the user ever transferring
@@ -193,6 +208,11 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
                     "id": c, "name": fullname(c), "price": float(state["prices"][c]), "inactive": True,
                     "constructor_id": c, "color": TEAM_COLORS.get(c, "#888888"),
                 })
+
+    # sorted once, together - an inactive held driver still slots in at their own price rather than
+    # being tacked onto the end of an already-sorted list regardless of how they'd actually rank
+    driver_options.sort(key=lambda o: -o["price"])
+    constructor_options.sort(key=lambda o: -o["price"])
 
     return {
         "season": season, "round": rnd, "circuit": circuit, "status": status,
