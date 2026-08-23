@@ -18,7 +18,7 @@ from app.data.scoring_rules import (
 )
 from app.models.compose import FASTEST_LAP_PROB, expected_pitstop_points
 
-# DISPLAY ONLY - team selection stays on the ranked pipeline (app.optimiser). MC was validated against
+# display only - team selection stays on the ranked pipeline (app.optimiser). MC was validated against
 # the season backtest and loses at team selection (see project memory: MC's driver-level MAE win never
 # survives the team-level task, and multi-season sweeps found no calibration that beats ranked). Its one
 # validated use is rendering a calibrated per-asset range (~79-80% P10-P90 coverage) alongside the ranked

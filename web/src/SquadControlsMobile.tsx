@@ -65,7 +65,7 @@ export function SquadControlsMobile({
             const disabledIds = unaffordableIds(driverOptions, did, otherSpend, budget)
             return (
               <div key={i} style={SLOT_STYLE}>
-                <Select value={did} options={options} disabledIds={disabledIds} placeholder={`Driver ${i + 1}`} onChange={(id) => onDriverChange(i, id)} fontSize={13} />
+                <Select value={did} options={options} disabledIds={disabledIds} placeholder={`Driver ${i + 1}`} onChange={(id) => onDriverChange(i, id)} fontSize={13} showColor={false} />
               </div>
             )
           })}
@@ -78,7 +78,7 @@ export function SquadControlsMobile({
             const disabledIds = unaffordableIds(constructorOptions, cid, otherSpend, budget)
             return (
               <div key={i} style={SLOT_STYLE}>
-                <Select value={cid} options={options} disabledIds={disabledIds} placeholder={`Constructor ${i + 1}`} onChange={(id) => onConstructorChange(i, id)} fontSize={13} />
+                <Select value={cid} options={options} disabledIds={disabledIds} placeholder={`Constructor ${i + 1}`} onChange={(id) => onConstructorChange(i, id)} fontSize={13} showColor={false} />
               </div>
             )
           })}

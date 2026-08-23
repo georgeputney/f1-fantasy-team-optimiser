@@ -38,7 +38,7 @@ from app.data.dotd import build_dotd_predictor
 from app.optimiser.optimiser import optimiser
 from app.optimiser.state import load_state, save_state
 
-from app.backtest import get_actual_team_points, oracle_baseline, lagged_baseline, mean_prior_baseline
+from app.models.backtest import get_actual_team_points, oracle_baseline, lagged_baseline, mean_prior_baseline
 
 from app.config import (
     ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, PRICE_LAMBDA,

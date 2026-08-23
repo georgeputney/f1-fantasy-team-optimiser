@@ -17,6 +17,8 @@ interface Props {
   // hugs its content (chevron sits right next to the label) instead of stretching to fill the
   // parent with space-between - use for an inline label like "Round 12 ⌄", not a bordered slot box
   fitContent?: boolean
+  // suppresses the team-colour dot even when an option carries one - the squad selector doesn't want it
+  showColor?: boolean
   // overrides the label's default (INK when a value is selected) - for an inline trigger sitting
   // next to muted plain-text siblings, the default reads noticeably darker/bolder than them
   labelColor?: string
@@ -35,7 +37,7 @@ function ColorDot({ color }: { color: string }) {
 // button + absolutely-positioned list standing in for one, styled to match the rest of the page.
 // disabledIds are shown greyed-out rather than removed from the list - hiding an option a user
 // might expect to see (e.g. one that's currently unaffordable) reads as a bug, not a rule.
-export function Select({ value, options, placeholder, onChange, fontSize = 14, disabledIds, fitContent, labelColor }: Props) {
+export function Select({ value, options, placeholder, onChange, fontSize = 14, disabledIds, fitContent, labelColor, showColor = true }: Props) {
   const [open, setOpen] = useState(false)
   const [alignRight, setAlignRight] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -73,7 +75,7 @@ export function Select({ value, options, placeholder, onChange, fontSize = 14, d
         }}
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-          {selected?.color && <ColorDot color={selected.color} />}
+          {showColor && selected?.color && <ColorDot color={selected.color} />}
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {selected ? selected.name : placeholder}
           </span>
@@ -110,7 +112,7 @@ export function Select({ value, options, placeholder, onChange, fontSize = 14, d
                 onMouseLeave={(e) => { e.currentTarget.style.background = o.id === value ? GREEN_TINT : 'transparent' }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-                  {o.color && <ColorDot color={o.color} />}
+                  {showColor && o.color && <ColorDot color={o.color} />}
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}</span>
                 </span>
                 {isDisabled && <span style={{ font: '400 10.5px/1 Archivo,sans-serif', color: FAINT, flexShrink: 0 }}>over budget</span>}

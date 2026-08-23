@@ -11,28 +11,46 @@ from app.config import TEAM_STATE_FILE
 from app.data.team_colors import TEAM_COLORS
 from app.optimiser.state import load_state
 from app.models.monte_carlo import team_distribution
+from app.models.predict import is_sprint_weekend
 
 from api.common import (
     surname, fullname, load_predictions, load_or_build_mc, load_or_build_budget_range,
     model_default_budget, resolve_state, cached_optimiser, historical_driver_teams,
 )
 
-# matches app/dashboard.py's _trigger_labels - which point in the race weekend this snapshot's
-# predictions were generated at, read straight from the predictions file rather than hardcoded.
-# post-sprint-quali covers sprint weekends, which skip FP2/FP3 entirely
-TRIGGER_LABELS = {"post-fp2": "Post-FP2", "pre-race": "Post-FP3", "post-sprint-quali": "Post-Sprint Quali"}
+# which point in the race weekend this snapshot's predictions were generated at, read straight from
+# the predictions file rather than hardcoded. "pre-race" covers both Post-FP3 and a sprint weekend's
+# Post-Sprint-Quali (check_race_weekend.py sets the same trigger value for both - it skips FP2/FP3
+# entirely on a sprint weekend), so that one needs the sprint flag to disambiguate; "post-fp2" and
+# "post-race" are unambiguous
+TRIGGER_LABELS = {"post-fp2": "Post-FP2", "post-race": "Post-race"}
+
+
+def _trigger_label(trigger, season, round_num):
+    if trigger == "pre-race":
+        return "Post-Sprint Quali" if is_sprint_weekend(season, round_num) else "Post-FP3"
+    return TRIGGER_LABELS.get(trigger, "Latest")
+
 
 # one-off: some rounds have a stand-in chain (e.g. r12 - Hadjar out, Lawson covers his Red Bull
 # seat, Tsunoda covers Lawson's now-vacant Racing Bulls seat) that isn't a real seat change, just a
 # short-notice fill-in. The optimiser still sees these drivers completely normally - their real
-# points/price this week are legitimate transfer suggestions - but the manual "change any slot"
-# dropdown shouldn't offer them as if they were an ordinary grid regular: neither was a selectable
-# part of any squad as of last round, and showing Lawson under Red Bull would price/label him for a
-# seat that isn't his. Keyed by (season, round) since this is inherently a specific week's situation,
-# not a general rule - a real permanent swap (a driver's seat changing for good) should NOT be added
-# here, that's what driver_teams snapshotting already handles correctly.
+# points/price this week are legitimate transfer suggestions, so the manual "change any slot"
+# dropdown should still offer them - but not mislabelled under a seat that isn't really theirs.
+# MANUAL_PICK_TEAM_OVERRIDES relabels a driver with an established team from recent rounds (e.g.
+# Lawson was racing_bulls through round 11) under that real team instead of this week's stand-in one,
+# keeping this week's actual price/points. MANUAL_PICK_EXCLUSIONS is for the rest: a driver with no
+# established prior team at all (e.g. Tsunoda, not on the grid before this round) has no real
+# identity to relabel them under, so they're hidden from the dropdown entirely rather than shown
+# under a seat that's just as temporary as the one being worked around. Keyed by (season, round)
+# since this is inherently a specific week's situation, not a general rule - a real permanent swap (a
+# driver's seat changing for good) should NOT be added here, that's what driver_teams snapshotting
+# already handles correctly.
+MANUAL_PICK_TEAM_OVERRIDES = {
+    (2026, 12): {"liam_lawson": "racing_bulls"},
+}
 MANUAL_PICK_EXCLUSIONS = {
-    (2026, 12): {"yuki_tsunoda", "liam_lawson"},
+    (2026, 12): {"yuki_tsunoda"},
 }
 
 
@@ -85,7 +103,7 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
     driver_df, constructor_df, prices_df = pred["driver_df"], pred["constructor_df"], pred["prices_df"]
     prices_index, driver_pts, constructor_pts = pred["prices_index"], pred["driver_pts"], pred["constructor_pts"]
     price_delta, lam = pred["price_delta"], pred["price_lambda"]
-    trigger_label = TRIGGER_LABELS.get(pred["trigger"], "Latest")
+    trigger_label = _trigger_label(pred["trigger"], season, rnd)
     generated_at = datetime.fromisoformat(pred["generated_at"])
     status = f"{trigger_label}, {generated_at:%H:%M}"
 
@@ -164,10 +182,12 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
     # round to round, so every option carries its constructor explicitly rather than leaving the
     # dropdown to show two same-named drivers with no way to tell them apart
     excluded_from_dropdown = MANUAL_PICK_EXCLUSIONS.get((season, rnd), set())
+    team_overrides = MANUAL_PICK_TEAM_OVERRIDES.get((season, rnd), {})
     driver_options = [
         {
             "id": d, "name": surname(d), "price": float(prices_index[d]), "inactive": False,
-            "constructor_id": driver_team.get(d, ""), "color": TEAM_COLORS.get(driver_team.get(d, ""), "#888888"),
+            "constructor_id": team_overrides.get(d, driver_team.get(d, "")),
+            "color": TEAM_COLORS.get(team_overrides.get(d, driver_team.get(d, "")), "#888888"),
         }
         for d in driver_df["driver_id"]
         if d not in excluded_from_dropdown

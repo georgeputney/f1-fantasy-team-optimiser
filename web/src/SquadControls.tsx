@@ -68,7 +68,7 @@ export function SquadControls({
             return (
               <div key={i} style={SLOT_STYLE}>
                 <p style={{ margin: '0 0 5px', font: '400 10.5px/1 Archivo,sans-serif', color: '#b0aa9c' }}>Driver {i + 1}</p>
-                <Select value={did} options={options} disabledIds={disabledIds} placeholder="-" onChange={(id) => onDriverChange(i, id)} />
+                <Select value={did} options={options} disabledIds={disabledIds} placeholder="-" onChange={(id) => onDriverChange(i, id)} showColor={false} />
               </div>
             )
           })}
@@ -82,7 +82,7 @@ export function SquadControls({
             return (
               <div key={i} style={SLOT_STYLE}>
                 <p style={{ margin: '0 0 5px', font: '400 10.5px/1 Archivo,sans-serif', color: '#b0aa9c' }}>Constructor {i + 1}</p>
-                <Select value={cid} options={options} disabledIds={disabledIds} placeholder="-" onChange={(id) => onConstructorChange(i, id)} />
+                <Select value={cid} options={options} disabledIds={disabledIds} placeholder="-" onChange={(id) => onConstructorChange(i, id)} showColor={false} />
               </div>
             )
           })}

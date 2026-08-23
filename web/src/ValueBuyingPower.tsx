@@ -92,7 +92,7 @@ export function ValueBuyingPower({ data }: Props) {
                 <span style={{ textAlign: 'right', font: '400 13.5px/1 Archivo,sans-serif', color: MUTED }}>£{row.price.toFixed(1)}</span>
                 <span style={{ textAlign: 'right', font: '400 13.5px/1 Archivo,sans-serif', color: MUTED2 }}>{row.ppm.toFixed(2)}</span>
                 <span style={{ textAlign: 'right', font: '500 13.5px/1 Archivo,sans-serif', color: row.move == null ? MUTED2 : row.move > 0 ? GREEN : row.move < 0 ? '#a8412a' : MUTED2 }}>
-                  {row.move == null ? '—' : `${row.move > 0 ? '+' : ''}${row.move.toFixed(1)}`}
+                  {row.move == null ? '-' : `${row.move > 0 ? '+' : ''}${row.move.toFixed(1)}`}
                 </span>
               </div>
             ))}

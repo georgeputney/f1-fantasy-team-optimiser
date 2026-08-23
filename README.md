@@ -1,7 +1,7 @@
 # F1 Fantasy Team Optimiser
 **Live at:** [pitwall.georgeputney.com](https://pitwall.georgeputney.com)
 
-ML pipeline and web app for F1 fantasy team selection. The pipeline ingests historical race, qualifying, practice, sprint, and pit stop data via FastF1, engineers rolling features across multiple timeframes, predicts finish positions and qualifying positions with XGBoost, then selects the optimal team under budget and roster constraints using integer linear programming. Probabilistic models for fastest lap, Driver of the Day, and overtakes feed into expected fantasy point calculations, and a calibrated Monte Carlo simulation supplies each asset's likely points range. A FastAPI service (`api/`) exposes the results to a React frontend (`web/`), Pitwall.
+ML pipeline and web app for F1 fantasy team selection. The pipeline ingests historical race, qualifying, practice, sprint, and pit stop data via FastF1, engineers rolling features across multiple timeframes, predicts finish positions and qualifying positions with XGBoost, then selects the optimal team under budget and roster constraints using integer linear programming. Probabilistic models for fastest lap, Driver of the Day, and overtakes feed into expected fantasy point calculations, and a calibrated Monte Carlo simulation supplies each asset's likely points range. A FastAPI service (`api/`) exposes the results to a React frontend (`web/`), [Pitwall](https://pitwall.georgeputney.com).
 
 ## Pipeline
 
@@ -12,9 +12,8 @@ FastF1 API -> ingest -> clean -> targets -> prices -> features -> train -> predi
 ## Structure
 
 ```
-app/
+app/                                 # ML pipeline: ingest, clean, engineer features, train, predict, optimise
 ├── config.py                       # seasons, paths, budget cap, all constants
-├── backtest.py                     # walk-forward backtesting with baselines
 ├── data/
 │   ├── ingest.py                   # fetch race, quali, practice, sprint, pit stop data
 │   ├── clean.py                    # validate and normalise raw parquets
@@ -34,7 +33,8 @@ app/
 │   ├── predict.py                  # inference from trained models
 │   ├── compose.py                  # combine predictions into expected fantasy points
 │   ├── monte_carlo.py              # calibrated Monte Carlo race-outcome simulation (display only)
-│   └── evaluation.py               # model evaluation metrics
+│   ├── evaluation.py               # model evaluation metrics
+│   └── backtest.py                 # walk-forward backtesting with baselines
 ├── optimiser/
 │   ├── optimiser.py                # ILP team selection under constraints
 │   ├── budget_range.py             # theoretical max/min reachable budget by a given round

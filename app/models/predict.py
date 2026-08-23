@@ -11,8 +11,10 @@ from app.config import PROCESSED_HISTORIC_FEATURES_DIR, PROCESSED_PRACTICE_FEATU
 
 
 # true if the round is a sprint weekend, read from the interim events file (is_sprint flag).
-# lets us project sprint points before the sprint qualifying session has actually run.
-def _is_sprint_weekend(season, round_num):
+# lets us project sprint points before the sprint qualifying session has actually run. public - also
+# used by api/team.py to label a round's status correctly, since the pipeline's own trigger value is
+# "pre-race" for both a normal Post-FP3 report and a sprint weekend's Post-Sprint-Quali one
+def is_sprint_weekend(season, round_num):
     events_path = INTERIM_EVENTS_DIR / f"{season}_{round_num:02d}.parquet"
     if not events_path.exists():
         return False
@@ -25,7 +27,7 @@ def _is_sprint_weekend(season, round_num):
 # predicted quali position as the best available proxy - otherwise sprint points are silently dropped
 # from every projection made while teams are still being locked in.
 def _fill_sprint_proxy(features, season, round_num):
-    if features["sprint_quali_position"].isna().all() and _is_sprint_weekend(season, round_num):
+    if features["sprint_quali_position"].isna().all() and is_sprint_weekend(season, round_num):
         features["sprint_quali_position"] = features["predicted_quali_position"].astype(float)
 
 
