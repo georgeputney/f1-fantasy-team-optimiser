@@ -9,7 +9,13 @@ interface Props {
 
 export function Hero({ hero }: Props) {
   const { likely_range: r } = hero
-  const { domainMin, domainMax } = niceScale(r.p10, r.p90, 3)
+  // the domain must cover the caret (projected_points) too, not just the simulation's own p10/p90 -
+  // the two are different models and can disagree enough that projected_points falls outside the
+  // simulated range, which would otherwise clamp the caret to the edge and make it look like it's
+  // sitting exactly at p10/p90 when it's actually well beyond either
+  const { domainMin, domainMax } = niceScale(
+    Math.min(r.p10, hero.projected_points), Math.max(r.p90, hero.projected_points), 3,
+  )
   const netPositive = (hero.net_after_hit ?? 0) >= 0
 
   return (
@@ -25,7 +31,7 @@ export function Hero({ hero }: Props) {
           <p style={{ margin: '0 0 14px', font: '400 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>Likely range · 10,000 simulations</p>
           <div style={{ maxWidth: 340 }}>
             <DistributionBar
-              dist={r} points={r.median} domainMin={domainMin} domainMax={domainMax} ticks={[]}
+              dist={r} points={hero.projected_points} domainMin={domainMin} domainMax={domainMax} ticks={[]}
               color={GREEN} selected
             />
           </div>
@@ -33,6 +39,9 @@ export function Hero({ hero }: Props) {
             <span style={{ font: '400 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>{r.p10.toFixed(0)}</span>
             <span style={{ font: '400 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>{r.p90.toFixed(0)}</span>
           </div>
+          <p style={{ margin: '8px 0 0', maxWidth: 340, font: '400 11px/1.4 Archivo,sans-serif', color: MUTED2 }}>
+            ▾ projected points, dark line = simulation median
+          </p>
         </div>
         <div>
           <p style={{ margin: '0 0 6px', font: '400 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>Spend</p>

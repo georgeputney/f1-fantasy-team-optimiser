@@ -14,7 +14,8 @@ export function LadderMobile({ data }: Props) {
       <MobileSheet title="The ladder" count={`${data.drivers.length} drivers`} defaultOpen>
         <p style={{ margin: '0 0 18px', font: '400 12.5px/1.55 Archivo,sans-serif', color: MUTED }}>
           Solid bar = middle half of 10,000 simulations, faded ends reach the 10th and 90th
-          percentiles (P10-P90), caret = expected points. Your picks carry their team colours.
+          percentiles (P10-P90), caret = expected points, dark line = simulation median. Your picks
+          carry their team colours.
         </p>
         <LadderColumnMobile label="Driver" rows={data.drivers} />
         <div style={{ height: 24 }} />
