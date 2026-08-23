@@ -35,6 +35,18 @@ def latest_predictions_path():
     return available[-1]
 
 
+# state files saved before driver_teams existed have no snapshot at all - rather than showing every
+# held driver from one of those with no team/colour forever, this reconstructs it from that state's
+# own season/round predictions file (still on disk for any recent round), the same source the
+# snapshot would have been taken from had it existed at save time
+def historical_driver_teams(season, round_num):
+    path = PREDICTIONS_DIR / f"predictions_{season}_{round_num:02d}.json"
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text())
+    return {d["driver_id"]: d.get("constructor_id", "") for d in data["drivers"]}
+
+
 # every one of the 5 endpoints a page load fires calls this - re-parsing the predictions JSON and
 # recomputing the price delta (which itself reads every target parquet up to this round) 5 times
 # over on every load costs more than the optimiser solve does, so it gets the same short-lived cache
@@ -163,7 +175,7 @@ def model_default_budget(model_state, prices_index):
 # state file. "custom" mode builds a state from whatever squad the user has picked so far in the UI -
 # empty selections mean a from-scratch build (state=None, no transfer penalty). Shared by the ladder
 # and team sections so a squad edit in the controls is reflected in both.
-def resolve_state(squad_mode, drivers, constructors, free_transfers, budget, prices_index, model_state):
+def resolve_state(squad_mode, drivers, constructors, free_transfers, budget, prices_index, model_state, driver_team=None):
     if squad_mode != "custom":
         return model_state
 
@@ -172,12 +184,19 @@ def resolve_state(squad_mode, drivers, constructors, free_transfers, budget, pri
 
     held = drivers + constructors
     team_cost = sum(float(prices_index.get(i, 0)) for i in held)
+    # a driver in a custom-mode slot is either currently active (live driver_team has them) or an
+    # inactive holdover the UI kept selected in its own slot - for that case there's no live team to
+    # look up, so it falls back to whatever was last snapshotted in the committed state file
+    driver_team = driver_team or {}
+    prev_driver_teams = model_state.get("driver_teams", {}) if model_state else {}
+    driver_teams = {d: driver_team.get(d, prev_driver_teams.get(d, "")) for d in drivers}
     return {
         "drivers": drivers,
         "constructors": constructors,
         "prices": {i: float(prices_index.get(i, 0)) for i in held},
         "budget_remaining": budget - team_cost,
         "free_transfers_carried": free_transfers - 2,
+        "driver_teams": driver_teams,
     }
 
 

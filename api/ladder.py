@@ -28,7 +28,7 @@ def build_ladder(budget=None, squad_mode="model", drivers=None, constructors=Non
 
     model_state = load_state(TEAM_STATE_FILE)
     resolved_budget = budget if budget is not None else model_default_budget(model_state, prices_index)
-    state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, prices_index, model_state)
+    state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, prices_index, model_state, driver_team)
 
     team = cached_optimiser(season, rnd, driver_df, constructor_df, prices_df, resolved_budget, state, price_delta, lam)
     selected_ids = set(team["drivers"] + team["constructors"])

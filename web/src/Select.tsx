@@ -4,6 +4,7 @@ import { CARD, FAINT, GREEN_TINT, INK, LINE_MED, MUTED, MUTED2 } from './theme'
 interface Option {
   id: string
   name: string
+  color?: string
 }
 
 interface Props {
@@ -22,6 +23,13 @@ interface Props {
 }
 
 const MENU_WIDTH = 200
+
+// same driver id can carry a different team/colour across rounds after a seat swap - a small dot
+// is enough to tell two same-named entries apart without needing a full team label in a slot this
+// narrow
+function ColorDot({ color }: { color: string }) {
+  return <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
+}
 
 // native <select> options popups can't be restyled (they render as the OS's own UI), so this is a
 // button + absolutely-positioned list standing in for one, styled to match the rest of the page.
@@ -64,8 +72,11 @@ export function Select({ value, options, placeholder, onChange, fontSize = 14, d
           display: 'flex', alignItems: 'center', justifyContent: fitContent ? 'flex-start' : 'space-between', gap: 6,
         }}
       >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {selected ? selected.name : placeholder}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+          {selected?.color && <ColorDot color={selected.color} />}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {selected ? selected.name : placeholder}
+          </span>
         </span>
         <span style={{ color: MUTED2, font: '400 10px/1 Archivo,sans-serif', flexShrink: 0 }}>⌄</span>
       </button>
@@ -98,8 +109,11 @@ export function Select({ value, options, placeholder, onChange, fontSize = 14, d
                 onMouseEnter={(e) => { if (!isDisabled) e.currentTarget.style.background = o.id === value ? GREEN_TINT : 'rgba(22,21,15,.05)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = o.id === value ? GREEN_TINT : 'transparent' }}
               >
-                <span>{o.name}</span>
-                {isDisabled && <span style={{ font: '400 10.5px/1 Archivo,sans-serif', color: FAINT }}>over budget</span>}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                  {o.color && <ColorDot color={o.color} />}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}</span>
+                </span>
+                {isDisabled && <span style={{ font: '400 10.5px/1 Archivo,sans-serif', color: FAINT, flexShrink: 0 }}>over budget</span>}
               </div>
             )
           })}

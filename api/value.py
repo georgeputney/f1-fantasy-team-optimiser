@@ -25,7 +25,7 @@ def build_value(budget=None, squad_mode="model", drivers=None, constructors=None
     model_state = load_state(TEAM_STATE_FILE)
     default_budget = model_default_budget(model_state, prices_index)
     resolved_budget = budget if budget is not None else default_budget
-    state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, prices_index, model_state)
+    state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, prices_index, model_state, driver_team)
 
     team = cached_optimiser(season, rnd, driver_df, constructor_df, prices_df, resolved_budget, state, price_delta, lam)
     selected_ids = set(team["drivers"] + team["constructors"])

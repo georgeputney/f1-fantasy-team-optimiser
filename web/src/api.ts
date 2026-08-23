@@ -84,6 +84,8 @@ export interface AssetOption {
   name: string
   price: number
   inactive: boolean
+  constructor_id?: string
+  color?: string
 }
 
 export interface Controls {

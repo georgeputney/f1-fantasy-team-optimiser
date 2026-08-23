@@ -55,7 +55,7 @@ def build_breakdown(
         pred = load_predictions()
         model_state = load_state(TEAM_STATE_FILE)
         resolved_budget = budget if budget is not None else model_default_budget(model_state, pred["prices_index"])
-        state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, pred["prices_index"], model_state)
+        state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, pred["prices_index"], model_state, pred["driver_team"])
         team = cached_optimiser(
             pred["season"], pred["round"], pred["driver_df"], pred["constructor_df"], pred["prices_df"], resolved_budget, state,
             pred["price_delta"], pred["price_lambda"],

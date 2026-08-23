@@ -14,7 +14,7 @@ from app.models.monte_carlo import team_distribution
 
 from api.common import (
     surname, fullname, load_predictions, load_or_build_mc, load_or_build_budget_range,
-    model_default_budget, resolve_state, cached_optimiser,
+    model_default_budget, resolve_state, cached_optimiser, historical_driver_teams,
 )
 
 # matches app/dashboard.py's _trigger_labels - which point in the race weekend this snapshot's
@@ -87,7 +87,7 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
     budget_min = min(budget_min, resolved_budget)
     budget_max = max(budget_max, resolved_budget)
 
-    state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, prices_index, model_state)
+    state = resolve_state(squad_mode, drivers, constructors, free_transfers, resolved_budget, prices_index, model_state, driver_team)
 
     team = cached_optimiser(season, rnd, driver_df, constructor_df, prices_df, resolved_budget, state, price_delta, lam)
     selected_ids = set(team["drivers"] + team["constructors"])
@@ -146,27 +146,53 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
                 "points": round(pts, 1), "doubled_points": None, "price": price,
             })
 
+    # a driver's id is permanent but their constructor isn't - a mid-season seat swap (e.g. a driver
+    # moving between two sister teams) means the same id can carry a different colour/team label
+    # round to round, so every option carries its constructor explicitly rather than leaving the
+    # dropdown to show two same-named drivers with no way to tell them apart
     driver_options = [
-        {"id": d, "name": surname(d), "price": float(prices_index[d]), "inactive": False}
+        {
+            "id": d, "name": surname(d), "price": float(prices_index[d]), "inactive": False,
+            "constructor_id": driver_team.get(d, ""), "color": TEAM_COLORS.get(driver_team.get(d, ""), "#888888"),
+        }
         for d in driver_df.sort_values("price", ascending=False)["driver_id"]
     ]
     constructor_options = [
-        {"id": c, "name": fullname(c), "price": float(prices_index[c]), "inactive": False}
+        {
+            "id": c, "name": fullname(c), "price": float(prices_index[c]), "inactive": False,
+            "constructor_id": c, "color": TEAM_COLORS.get(c, "#888888"),
+        }
         for c in constructor_df.sort_values("price", ascending=False)["constructor_id"]
     ]
 
     # a held asset can go inactive mid-week (injury, seat swap) without the user ever transferring
     # it out - the optimiser already treats it as sold when computing the recommendation, but the
-    # squad-controls dropdown still needs to show what's actually in the squad, not a blank slot
+    # squad-controls dropdown still needs to show what's actually in the squad, not a blank slot.
+    # for a dropped driver there's no live team to join against, so it reads their team from the
+    # driver_teams snapshot taken when they were actually picked, not whatever the current round's
+    # roster says (they may not even be on it any more)
     if state:
         active_driver_ids = set(driver_df["driver_id"])
         active_constructor_ids = set(constructor_df["constructor_id"])
+        held_driver_teams = state.get("driver_teams", {})
+        # state files saved before driver_teams existed have no snapshot at all - reconstruct one
+        # from that state's own season/round predictions file rather than showing every held driver
+        # with no team/colour forever
+        if not held_driver_teams and state.get("season") and state.get("round"):
+            held_driver_teams = historical_driver_teams(state["season"], state["round"])
         for d in state["drivers"]:
             if d not in active_driver_ids:
-                driver_options.append({"id": d, "name": surname(d), "price": float(state["prices"][d]), "inactive": True})
+                cid = held_driver_teams.get(d, "")
+                driver_options.append({
+                    "id": d, "name": surname(d), "price": float(state["prices"][d]), "inactive": True,
+                    "constructor_id": cid, "color": TEAM_COLORS.get(cid, "#888888"),
+                })
         for c in state["constructors"]:
             if c not in active_constructor_ids:
-                constructor_options.append({"id": c, "name": fullname(c), "price": float(state["prices"][c]), "inactive": True})
+                constructor_options.append({
+                    "id": c, "name": fullname(c), "price": float(state["prices"][c]), "inactive": True,
+                    "constructor_id": c, "color": TEAM_COLORS.get(c, "#888888"),
+                })
 
     return {
         "season": season, "round": rnd, "circuit": circuit, "status": status,
