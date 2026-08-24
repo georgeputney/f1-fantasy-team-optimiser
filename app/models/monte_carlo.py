@@ -1,5 +1,7 @@
 """Monte Carlo race-outcome simulation - calibrated per-driver/constructor fantasy point distributions."""
 
+import json
+
 import numpy as np
 import pandas as pd
 import joblib
@@ -372,6 +374,25 @@ def simulate_round(season, round_num, location, n_sims=10000, seed=42):
         "raw_constructor_totals": constructor_totals.tolist(),
         "raw_constructor_ids": constructor_ids,
     }
+
+
+# shapes simulate_round()'s output into the cache format the API layer reads (rounded quantiles for
+# display, plus the raw per-sim matrices needed for an arbitrary lineup's joint "likely range") and
+# writes it to disk. Shared by the CLI, which should pre-build this every round the pipeline runs, and
+# the API's lazy on-demand build - so a round's cache always exists before the live site's first
+# request rather than a user's browser paying for a ~26s+ (worse under Render's throttled CPU) sim
+def cache_mc_result(result, path):
+    cached = {
+        "drivers": {aid: {k: round(v, 3) for k, v in q.items()} for aid, q in result["drivers"].items()},
+        "constructors": {aid: {k: round(v, 3) for k, v in q.items()} for aid, q in result["constructors"].items()},
+        "raw_totals": result["raw_totals"],
+        "raw_driver_ids": result["raw_driver_ids"],
+        "raw_constructor_totals": result["raw_constructor_totals"],
+        "raw_constructor_ids": result["raw_constructor_ids"],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(cached))
+    return cached
 
 
 # sums the raw per-sim matrices for an arbitrary selected lineup (captain doubled) into a joint team

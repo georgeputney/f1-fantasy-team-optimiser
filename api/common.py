@@ -8,8 +8,8 @@ import time
 import pandas as pd
 
 from app.config import PREDICTIONS_DIR, REPORTS_DIR, PRICE_LAMBDA, BUDGET_CAP
-from app.models.monte_carlo import simulate_round
-from app.optimiser.budget_range import compute_budget_range
+from app.models.monte_carlo import simulate_round, cache_mc_result
+from app.optimiser.budget_range import cache_budget_range
 from app.optimiser.optimiser import optimiser, enumerate_teams
 
 try:
@@ -135,16 +135,7 @@ def load_or_build_mc(season, round_num, circuit):
             return cached
 
     result = simulate_round(season, round_num, circuit)
-    cached = {
-        "drivers": {aid: {k: round(v, 3) for k, v in q.items()} for aid, q in result["drivers"].items()},
-        "constructors": {aid: {k: round(v, 3) for k, v in q.items()} for aid, q in result["constructors"].items()},
-        "raw_totals": result["raw_totals"],
-        "raw_driver_ids": result["raw_driver_ids"],
-        "raw_constructor_totals": result["raw_constructor_totals"],
-        "raw_constructor_ids": result["raw_constructor_ids"],
-    }
-    MC_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    cache_path.write_text(json.dumps(cached))
+    cached = cache_mc_result(result, cache_path)
     with _MC_MEMORY_CACHE_LOCK:
         _MC_MEMORY_CACHE[mem_key] = (now, cached)
     return cached
@@ -157,10 +148,7 @@ def load_or_build_budget_range(season, round_num):
         cached = json.loads(cache_path.read_text())
         return cached["min"], cached["max"]
 
-    lo, hi = compute_budget_range(season, round_num)
-    MC_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    cache_path.write_text(json.dumps({"min": lo, "max": hi}))
-    return lo, hi
+    return cache_budget_range(season, round_num, cache_path)
 
 
 def model_default_budget(model_state, prices_index):

@@ -5,6 +5,8 @@ transfers cost POINTS, not budget, so they don't constrain what budget is reacha
 legality (5 drivers + 2 constructors) and affordability at each round's prices do.
 """
 
+import json
+
 import pandas as pd
 import pulp
 
@@ -52,3 +54,13 @@ def compute_budget_range(season, round_num):
         min_budget = _solve_transition(prices_now, prices_next, min_budget, maximize=False)
 
     return round(min_budget, 1), round(max_budget, 1)
+
+
+# computes and writes the (min, max) budget range cache to disk - shared by the CLI (which should
+# pre-build this every round the pipeline runs) and the API's lazy on-demand build, so a round's cache
+# always exists before the live site's first request rather than paying for a ~2s solve mid-request
+def cache_budget_range(season, round_num, path):
+    lo, hi = compute_budget_range(season, round_num)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"min": lo, "max": hi}))
+    return lo, hi

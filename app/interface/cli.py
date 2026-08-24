@@ -31,7 +31,8 @@ from app.models.configs import FINISH_POSITION_MODEL, QUALI_POSITION_MODEL
 from app.models.train import main as train_main, load as load_model, load_data_upto, train_walk_forward, save_season
 from app.models.predict import load_season_model, predict as run_predict
 from app.models.compose import compose_drivers, compose_constructor, expected_pitstop_points
-from app.models.monte_carlo import simulate_round
+from app.models.monte_carlo import simulate_round, cache_mc_result
+from app.optimiser.budget_range import cache_budget_range
 from app.data.overtakes import build_overtake_predictor
 from app.data.dotd import build_dotd_predictor
 
@@ -440,6 +441,13 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
         json.dump(output, f, indent=2)
 
     typer.echo(f"Saved to {versioned_path}")
+
+    # pre-build the API's MC and budget-range caches now (reusing the mc result already computed
+    # above for the MC cache, so this is nearly free) rather than leaving the live site's first
+    # request to pay for a ~26s+ sim and a multi-round ILP solve
+    cache_mc_result(mc, REPORTS_DIR / "predictions" / f"mc_{season}_{round:02d}.json")
+    cache_budget_range(season, round, REPORTS_DIR / "predictions" / f"budget_range_{season}_{round:02d}.json")
+    typer.echo("Cached MC and budget-range data for the API.")
 
 
 # generate versioned predictions for all historical races that have prices but no saved file yet
