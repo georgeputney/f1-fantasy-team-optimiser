@@ -6,85 +6,85 @@
     "model": 216.0,
     "oracle": 290.0,
     "lagged": NaN,
-    "mean": 167.0
+    "mean": NaN
   },
   {
     "season": 2026,
     "round": 2,
     "location": "Shanghai",
-    "model": 340.0,
+    "model": 342.0,
     "oracle": 474.0,
     "lagged": 240.0,
-    "mean": 266.0
+    "mean": 240.0
   },
   {
     "season": 2026,
     "round": 3,
     "location": "Suzuka",
-    "model": 259.0,
+    "model": 216.0,
     "oracle": 300.0,
     "lagged": 220.0,
-    "mean": 194.0
+    "mean": 221.0
   },
   {
     "season": 2026,
     "round": 4,
     "location": "Miami Gardens",
-    "model": 248.0,
+    "model": 222.0,
     "oracle": 349.0,
     "lagged": 184.0,
-    "mean": 269.0
+    "mean": 251.0
   },
   {
     "season": 2026,
     "round": 5,
     "location": "Montr\u00e9al",
-    "model": 308.0,
+    "model": 235.0,
     "oracle": 340.0,
     "lagged": -3.0,
-    "mean": 303.0
+    "mean": 283.0
   },
   {
     "season": 2026,
     "round": 6,
     "location": "Monte Carlo",
-    "model": 70.0,
+    "model": 79.0,
     "oracle": 289.0,
     "lagged": 183.0,
-    "mean": 183.0
+    "mean": 207.0
   },
   {
     "season": 2026,
     "round": 7,
     "location": "Barcelona",
-    "model": 125.0,
+    "model": 127.0,
     "oracle": 284.0,
     "lagged": 76.0,
-    "mean": 125.0
+    "mean": 123.0
   },
   {
     "season": 2026,
     "round": 8,
     "location": "Spielberg",
-    "model": 180.0,
+    "model": 222.0,
     "oracle": 258.0,
     "lagged": 150.0,
-    "mean": 217.0
+    "mean": 212.0
   },
   {
     "season": 2026,
     "round": 9,
     "location": "Silverstone",
-    "model": 286.0,
+    "model": 282.0,
     "oracle": 363.0,
     "lagged": 152.0,
-    "mean": 304.0
+    "mean": 290.0
   },
   {
     "season": 2026,
     "round": 10,
     "location": "Spa-Francorchamps",
-    "model": 273.0,
+    "model": 211.0,
     "oracle": 286.0,
     "lagged": 186.0,
     "mean": 188.0
@@ -93,9 +93,18 @@
     "season": 2026,
     "round": 11,
     "location": "Budapest",
-    "model": 225.0,
+    "model": 209.0,
     "oracle": 268.0,
     "lagged": 184.0,
-    "mean": 197.0
+    "mean": 198.0
+  },
+  {
+    "season": 2026,
+    "round": 12,
+    "location": "Zandvoort",
+    "model": 260.0,
+    "oracle": 328.0,
+    "lagged": 264.0,
+    "mean": 221.0
   }
 ]

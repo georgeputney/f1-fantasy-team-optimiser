@@ -1,27 +1,34 @@
 {
   "season": 2026,
-  "round": 11,
+  "round": 12,
   "drivers": [
     "lando_norris",
-    "isack_hadjar",
-    "oliver_bearman",
+    "pierre_gasly",
     "nico_hulkenberg",
+    "oliver_bearman",
     "lance_stroll"
   ],
   "constructors": [
-    "ferrari",
-    "mclaren"
+    "mclaren",
+    "ferrari"
   ],
   "doubled_driver": "lando_norris",
   "prices": {
-    "lando_norris": 25.8,
-    "isack_hadjar": 13.9,
-    "oliver_bearman": 7.4,
+    "lando_norris": 26.1,
+    "pierre_gasly": 13.4,
     "nico_hulkenberg": 3.0,
+    "oliver_bearman": 7.6,
     "lance_stroll": 3.0,
-    "ferrari": 26.3,
-    "mclaren": 30.7
+    "mclaren": 31.0,
+    "ferrari": 26.6
   },
-  "budget_remaining": 3.0,
-  "free_transfers_carried": 0
+  "budget_remaining": 1.0,
+  "free_transfers_carried": 0,
+  "driver_teams": {
+    "lando_norris": "mclaren",
+    "pierre_gasly": "alpine",
+    "nico_hulkenberg": "audi",
+    "oliver_bearman": "haas",
+    "lance_stroll": "aston_martin"
+  }
 }
