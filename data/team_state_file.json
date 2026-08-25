@@ -6,7 +6,7 @@
     "pierre_gasly",
     "nico_hulkenberg",
     "oliver_bearman",
-    "lance_stroll"
+    "alexander_albon"
   ],
   "constructors": [
     "mclaren",
@@ -18,17 +18,17 @@
     "pierre_gasly": 13.4,
     "nico_hulkenberg": 3.0,
     "oliver_bearman": 7.6,
-    "lance_stroll": 3.0,
+    "alexander_albon": 5.8,
     "mclaren": 31.0,
     "ferrari": 26.6
   },
-  "budget_remaining": 1.0,
+  "budget_remaining": 0.2,
   "free_transfers_carried": 0,
   "driver_teams": {
     "lando_norris": "mclaren",
     "pierre_gasly": "alpine",
     "nico_hulkenberg": "audi",
     "oliver_bearman": "haas",
-    "lance_stroll": "aston_martin"
+    "alexander_albon": "williams"
   }
 }

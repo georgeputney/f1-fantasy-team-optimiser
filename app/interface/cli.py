@@ -654,9 +654,6 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 # model and oracle are transfer-constrained with state carried forward each round
 @app.command()
 def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP), save_state_file: bool = typer.Option(False, "--save-state"), price_lambda: float = typer.Option(PRICE_LAMBDA)):
-    predict_overtakes = build_overtake_predictor()
-    predict_dotd = build_dotd_predictor()
-
     for s in season:
         results = []
 
@@ -687,6 +684,12 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
 
         for round_num, location in valid_rounds:
             typer.echo(f"Backtesting season {s}, round {round_num:02d} - {location}...")
+
+            # rebuilt per round, scoped to races strictly before (s, round_num) - otherwise a later
+            # round's actual overtakes/DOTD result leaks into an earlier round's prediction, since
+            # both predictors are calibrated from every file currently on disk
+            predict_overtakes = build_overtake_predictor(before=(s, round_num))
+            predict_dotd = build_dotd_predictor(before=(s, round_num))
 
             prices = pd.read_parquet(PROCESSED_PRICES_DIR / f"{s}_{round_num:02d}.parquet")
             asset_prices_index = prices.set_index("asset_id")["price"]
