@@ -39,9 +39,6 @@ export function Hero({ hero }: Props) {
             <span style={{ font: '400 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>{r.p10.toFixed(0)}</span>
             <span style={{ font: '400 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>{r.p90.toFixed(0)}</span>
           </div>
-          <p style={{ margin: '8px 0 0', maxWidth: 340, font: '400 11px/1.4 Archivo,sans-serif', color: MUTED2 }}>
-            ▾ projected points, dark line = simulation median
-          </p>
         </div>
         <div>
           <p style={{ margin: '0 0 6px', font: '400 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>Spend</p>
