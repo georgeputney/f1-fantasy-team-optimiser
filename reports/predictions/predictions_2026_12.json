@@ -2,13 +2,13 @@
   "season": 2026,
   "round": 12,
   "circuit": "Zandvoort",
-  "generated_at": "2026-08-21T23:17:53.726341",
+  "generated_at": "2026-08-26T16:01:55.682087",
   "trigger": null,
   "drivers": [
     {
       "driver_id": "lando_norris",
       "constructor_id": "mclaren",
-      "expected_points": 49.135157425436105,
+      "expected_points": 49.07212750922482,
       "price": 26.1,
       "predicted_quali_position": 1,
       "predicted_finish_position": 1,
@@ -16,24 +16,27 @@
         "quali": 10.0,
         "finish": 25.0,
         "positions_gained": 0.0,
-        "overtakes": 2.01,
+        "overtakes": 1.9,
         "prob_fl": 0.24141448258730092,
-        "prob_dotd": 0.112415404398263,
-        "sprint": 8.586858555580466
+        "prob_dotd": 0.12077907944380115,
+        "sprint": 8.5501918889138,
+        "sprint_position": 2,
+        "sprint_overtakes": 0.6333333333333333,
+        "sprint_prob_fl": 0.18337171111609335
       },
       "mc": {
-        "p10": 6.586858555580466,
-        "p25": 32.58685855558046,
-        "median": 44.58685855558046,
-        "p75": 47.58685855558046,
-        "p90": 55.58685855558046,
+        "p10": 6.550191888913799,
+        "p25": 32.5501918889138,
+        "median": 44.5501918889138,
+        "p75": 47.5501918889138,
+        "p90": 55.5501918889138,
         "dnf_prob": 0.0936
       }
     },
     {
       "driver_id": "george_russell",
       "constructor_id": "mercedes",
-      "expected_points": 43.03533331109082,
+      "expected_points": 42.7153121696139,
       "price": 27.9,
       "predicted_quali_position": 2,
       "predicted_finish_position": 2,
@@ -41,24 +44,27 @@
         "quali": 9.0,
         "finish": 18.0,
         "positions_gained": 0.0,
-        "overtakes": 3.73,
+        "overtakes": 3.49,
         "prob_fl": 0.18337171111609335,
-        "prob_dotd": 0.0021210453660049622,
-        "sprint": 10.450405746269839
+        "prob_dotd": 0.0021189312183123006,
+        "sprint": 10.370405746269839,
+        "sprint_position": 1,
+        "sprint_overtakes": 1.1633333333333333,
+        "sprint_prob_fl": 0.24141448258730092
       },
       "mc": {
-        "p10": 10.450405746269839,
-        "p25": 32.45040574626984,
-        "median": 40.45040574626984,
-        "p75": 48.45040574626984,
-        "p90": 51.45040574626984,
+        "p10": 10.370405746269839,
+        "p25": 32.37040574626984,
+        "median": 40.37040574626984,
+        "p75": 47.37040574626984,
+        "p90": 51.37040574626984,
         "dnf_prob": 0.0642
       }
     },
     {
       "driver_id": "charles_leclerc",
       "constructor_id": "ferrari",
-      "expected_points": 36.60893046599951,
+      "expected_points": 36.36866802445415,
       "price": 23.9,
       "predicted_quali_position": 3,
       "predicted_finish_position": 3,
@@ -66,24 +72,27 @@
         "quali": 8.0,
         "finish": 15.0,
         "positions_gained": 0.0,
-        "overtakes": 3.56,
+        "overtakes": 3.38,
         "prob_fl": 0.13928403995184657,
-        "prob_dotd": 0.07730032000551418,
-        "sprint": 7.8830868664258995
+        "prob_dotd": 0.07727407585097859,
+        "sprint": 7.8230868664259,
+        "sprint_position": 3,
+        "sprint_overtakes": 1.1266666666666667,
+        "sprint_prob_fl": 0.13928403995184657
       },
       "mc": {
-        "p10": 4.8830868664258995,
-        "p25": 25.8830868664259,
-        "median": 33.8830868664259,
-        "p75": 39.8830868664259,
-        "p90": 45.8830868664259,
+        "p10": 4.8230868664259,
+        "p25": 25.8230868664259,
+        "median": 33.823086866425896,
+        "p75": 38.823086866425896,
+        "p90": 45.823086866425896,
         "dnf_prob": 0.0893
       }
     },
     {
       "driver_id": "lewis_hamilton",
       "constructor_id": "ferrari",
-      "expected_points": 28.795263626026262,
+      "expected_points": 28.501700431391953,
       "price": 25.0,
       "predicted_quali_position": 4,
       "predicted_finish_position": 4,
@@ -91,24 +100,27 @@
         "quali": 7.0,
         "finish": 12.0,
         "positions_gained": 0.0,
-        "overtakes": 4.41,
+        "overtakes": 4.19,
         "prob_fl": 0.10579627395757542,
-        "prob_dotd": 0.06254827398474208,
-        "sprint": 3.701818146603089
+        "prob_dotd": 0.06252528785464392,
+        "sprint": 3.628484813269756,
+        "sprint_position": 7,
+        "sprint_overtakes": 1.3966666666666667,
+        "sprint_prob_fl": 0.04636362932061777
       },
       "mc": {
-        "p10": 2.701818146603089,
-        "p25": 20.701818146603088,
-        "median": 26.701818146603088,
-        "p75": 32.70181814660309,
-        "p90": 37.70181814660309,
+        "p10": 2.628484813269756,
+        "p25": 20.628484813269758,
+        "median": 26.628484813269758,
+        "p75": 32.62848481326976,
+        "p90": 37.62848481326976,
         "dnf_prob": 0.0659
       }
     },
     {
       "driver_id": "andrea_kimi_antonelli",
       "constructor_id": "mercedes",
-      "expected_points": 27.919824897916232,
+      "expected_points": 27.570200796884112,
       "price": 25.7,
       "predicted_quali_position": 5,
       "predicted_finish_position": 5,
@@ -116,24 +128,27 @@
         "quali": 6.0,
         "finish": 10.0,
         "positions_gained": 0.0,
-        "overtakes": 3.9,
+        "overtakes": 3.66,
         "prob_fl": 0.08035990043924601,
-        "prob_dotd": 0.1514426391327543,
-        "sprint": 5.70179950219623
+        "prob_dotd": 0.14848022902954244,
+        "sprint": 5.62179950219623,
+        "sprint_position": 5,
+        "sprint_overtakes": 1.22,
+        "sprint_prob_fl": 0.08035990043924601
       },
       "mc": {
-        "p10": -2.2982004978037702,
-        "p25": 10.70179950219623,
-        "median": 25.70179950219623,
-        "p75": 33.70179950219623,
-        "p90": 41.70179950219623,
+        "p10": -2.3782004978037703,
+        "p25": 10.621799502196229,
+        "median": 24.62179950219623,
+        "p75": 33.62179950219623,
+        "p90": 40.62179950219623,
         "dnf_prob": 0.1382
       }
     },
     {
       "driver_id": "max_verstappen",
       "constructor_id": "red_bull",
-      "expected_points": 23.51441331445131,
+      "expected_points": 23.193997248586722,
       "price": 27.6,
       "predicted_quali_position": 6,
       "predicted_finish_position": 6,
@@ -141,24 +156,27 @@
         "quali": 5.0,
         "finish": 8.0,
         "positions_gained": 0.0,
-        "overtakes": 4.03,
+        "overtakes": 3.79,
         "prob_fl": 0.06103914019878517,
-        "prob_dotd": 0.12254928781362004,
-        "sprint": 4.648529034327259
+        "prob_dotd": 0.12250768122716119,
+        "sprint": 4.568529034327259,
+        "sprint_position": 6,
+        "sprint_overtakes": 1.2633333333333334,
+        "sprint_prob_fl": 0.06103914019878517
       },
       "mc": {
-        "p10": -0.35147096567274083,
-        "p25": 9.64852903432726,
-        "median": 22.64852903432726,
-        "p75": 29.64852903432726,
-        "p90": 36.64852903432726,
+        "p10": -0.4314709656727409,
+        "p25": 9.568529034327259,
+        "median": 21.56852903432726,
+        "p75": 29.56852903432726,
+        "p90": 35.568529034327256,
         "dnf_prob": 0.1056
       }
     },
     {
       "driver_id": "oscar_piastri",
       "constructor_id": "mclaren",
-      "expected_points": 22.988477027787177,
+      "expected_points": 22.63497219142733,
       "price": 24.4,
       "predicted_quali_position": 7,
       "predicted_finish_position": 7,
@@ -166,24 +184,27 @@
         "quali": 4.0,
         "finish": 6.0,
         "positions_gained": 0.0,
-        "overtakes": 4.47,
+        "overtakes": 4.21,
         "prob_fl": 0.04636362932061777,
-        "prob_dotd": 0.10358593647931212,
-        "sprint": 7.018981369787877
+        "prob_dotd": 0.10290211950999392,
+        "sprint": 6.93231470312121,
+        "sprint_position": 4,
+        "sprint_overtakes": 1.4033333333333333,
+        "sprint_prob_fl": 0.10579627395757542
       },
       "mc": {
-        "p10": -0.9810186302121231,
-        "p25": 9.018981369787877,
-        "median": 22.018981369787877,
-        "p75": 29.018981369787877,
-        "p90": 36.01898136978788,
+        "p10": -2.06768529687879,
+        "p25": 8.932314703121211,
+        "median": 20.93231470312121,
+        "p75": 28.93231470312121,
+        "p90": 34.93231470312121,
         "dnf_prob": 0.1302
       }
     },
     {
       "driver_id": "pierre_gasly",
       "constructor_id": "alpine",
-      "expected_points": 15.507101542038866,
+      "expected_points": 15.133761807692235,
       "price": 13.4,
       "predicted_quali_position": 8,
       "predicted_finish_position": 8,
@@ -191,24 +212,27 @@
         "quali": 3.0,
         "finish": 4.0,
         "positions_gained": 0.0,
-        "overtakes": 5.22,
+        "overtakes": 4.94,
         "prob_fl": 0.035216520363477034,
-        "prob_dotd": 0.0018853736586710776,
-        "sprint": 2.916082601817385
+        "prob_dotd": 0.0018847335573409412,
+        "sprint": 2.822749268484052,
+        "sprint_position": 8,
+        "sprint_overtakes": 1.6466666666666667,
+        "sprint_prob_fl": 0.035216520363477034
       },
       "mc": {
-        "p10": -1.083917398182615,
-        "p25": 6.916082601817385,
-        "median": 15.916082601817385,
-        "p75": 22.916082601817386,
-        "p90": 27.916082601817386,
+        "p10": -1.1772507315159482,
+        "p25": 5.822749268484052,
+        "median": 15.822749268484053,
+        "p75": 22.822749268484053,
+        "p90": 27.822749268484053,
         "dnf_prob": 0.0791
       }
     },
     {
       "driver_id": "nico_hulkenberg",
       "constructor_id": "audi",
-      "expected_points": 11.74877518957491,
+      "expected_points": 11.41510026639336,
       "price": 3.0,
       "predicted_quali_position": 11,
       "predicted_finish_position": 9,
@@ -216,24 +240,27 @@
         "quali": 0.0,
         "finish": 2.0,
         "positions_gained": 2.0,
-        "overtakes": 5.57,
+        "overtakes": 5.32,
         "prob_fl": 0.015433111536130095,
-        "prob_dotd": 0.013396075995820813,
-        "sprint": 1.8904833142554
+        "prob_dotd": 0.01336191701099921,
+        "sprint": 1.8071499809220668,
+        "sprint_position": 14,
+        "sprint_overtakes": 1.7733333333333334,
+        "sprint_prob_fl": 0.006763329517746692
       },
       "mc": {
-        "p10": -12.1095166857446,
-        "p25": -0.10951668574459994,
-        "median": 10.8904833142554,
-        "p75": 18.8904833142554,
-        "p90": 23.8904833142554,
+        "p10": -12.192850019077934,
+        "p25": -0.1928500190779332,
+        "median": 9.807149980922066,
+        "p75": 18.807149980922066,
+        "p90": 23.807149980922066,
         "dnf_prob": 0.2168
       }
     },
     {
       "driver_id": "oliver_bearman",
       "constructor_id": "haas",
-      "expected_points": 11.465344079904268,
+      "expected_points": 10.865334666734967,
       "price": 7.6,
       "predicted_quali_position": 15,
       "predicted_finish_position": 15,
@@ -241,24 +268,27 @@
         "quali": 0.0,
         "finish": 0.0,
         "positions_gained": 0.0,
-        "overtakes": 7.99,
+        "overtakes": 7.55,
         "prob_fl": 0.0051372365618649555,
-        "prob_dotd": 0.07458187426510472,
-        "sprint": 2.678152971634572
+        "prob_dotd": 0.07324759961484113,
+        "sprint": 2.5314863049679053,
+        "sprint_position": 17,
+        "sprint_overtakes": 2.5166666666666666,
+        "sprint_prob_fl": 0.0029639276602476897
       },
       "mc": {
-        "p10": -8.321847028365427,
-        "p25": 7.678152971634573,
-        "median": 13.678152971634573,
-        "p75": 19.67815297163457,
-        "p90": 25.67815297163457,
+        "p10": -8.468513695032094,
+        "p25": 7.531486304967905,
+        "median": 12.531486304967906,
+        "p75": 18.531486304967906,
+        "p90": 24.531486304967906,
         "dnf_prob": 0.1691
       }
     },
     {
       "driver_id": "liam_lawson",
       "constructor_id": "red_bull",
-      "expected_points": 10.584260900359006,
+      "expected_points": 10.14325643525046,
       "price": 14.5,
       "predicted_quali_position": 12,
       "predicted_finish_position": 10,
@@ -266,24 +296,27 @@
         "quali": 0.0,
         "finish": 1.0,
         "positions_gained": 2.0,
-        "overtakes": 5.49,
+        "overtakes": 5.16,
         "prob_fl": 0.011722561297466086,
-        "prob_dotd": 0.006986972970369288,
-        "sprint": 1.9071655576806505
+        "prob_dotd": 0.006886526459514979,
+        "sprint": 1.7971655576806504,
+        "sprint_position": 11,
+        "sprint_overtakes": 1.72,
+        "sprint_prob_fl": 0.015433111536130095
       },
       "mc": {
-        "p10": -11.092834442319349,
-        "p25": 3.9071655576806505,
-        "median": 12.907165557680651,
-        "p75": 20.90716555768065,
-        "p90": 27.90716555768065,
+        "p10": -12.20283444231935,
+        "p25": 3.7971655576806507,
+        "median": 11.79716555768065,
+        "p75": 19.79716555768065,
+        "p90": 26.79716555768065,
         "dnf_prob": 0.1701
       }
     },
     {
       "driver_id": "esteban_ocon",
       "constructor_id": "haas",
-      "expected_points": 8.642012771234807,
+      "expected_points": 8.255235987951915,
       "price": 10.7,
       "predicted_quali_position": 17,
       "predicted_finish_position": 17,
@@ -291,24 +324,27 @@
         "quali": 0.0,
         "finish": 0.0,
         "positions_gained": 0.0,
-        "overtakes": 6.36,
+        "overtakes": 6.07,
         "prob_fl": 0.0029639276602476897,
-        "prob_dotd": 0.01066873118230041,
-        "sprint": 2.145686182809325
+        "prob_dotd": 0.010657719520677941,
+        "sprint": 2.0490195161426583,
+        "sprint_position": 15,
+        "sprint_overtakes": 2.0233333333333334,
+        "sprint_prob_fl": 0.0051372365618649555
       },
       "mc": {
-        "p10": 3.145686182809325,
-        "p25": 8.145686182809325,
-        "median": 11.145686182809325,
-        "p75": 15.145686182809325,
-        "p90": 20.145686182809325,
+        "p10": 3.0490195161426583,
+        "p25": 7.049019516142659,
+        "median": 11.049019516142659,
+        "p75": 15.049019516142659,
+        "p90": 19.049019516142657,
         "dnf_prob": 0.0633
       }
     },
     {
       "driver_id": "alexander_albon",
       "constructor_id": "williams",
-      "expected_points": 8.381405877479601,
+      "expected_points": 7.861168297808775,
       "price": 5.8,
       "predicted_quali_position": 16,
       "predicted_finish_position": 16,
@@ -316,24 +352,27 @@
         "quali": 0.0,
         "finish": 0.0,
         "positions_gained": 0.0,
-        "overtakes": 6.15,
+        "overtakes": 5.76,
         "prob_fl": 0.0039021016828047032,
-        "prob_dotd": 0.012287435223752885,
-        "sprint": 2.069510508414024
+        "prob_dotd": 0.012263677256670508,
+        "sprint": 1.9395105084140234,
+        "sprint_position": 16,
+        "sprint_overtakes": 1.92,
+        "sprint_prob_fl": 0.0039021016828047032
       },
       "mc": {
-        "p10": -11.930489491585977,
-        "p25": -0.930489491585976,
-        "median": 9.069510508414023,
-        "p75": 14.069510508414023,
-        "p90": 20.069510508414023,
+        "p10": -13.060489491585976,
+        "p25": -1.0604894915859766,
+        "median": 8.939510508414024,
+        "p75": 13.939510508414024,
+        "p90": 18.939510508414024,
         "dnf_prob": 0.2481
       }
     },
     {
       "driver_id": "yuki_tsunoda",
       "constructor_id": "racing_bulls",
-      "expected_points": 7.723818309754609,
+      "expected_points": 7.322895312818592,
       "price": 10.3,
       "predicted_quali_position": 13,
       "predicted_finish_position": 14,
@@ -341,24 +380,27 @@
         "quali": 0.0,
         "finish": 0.0,
         "positions_gained": -1.0,
-        "overtakes": 6.23,
+        "overtakes": 5.93,
         "prob_fl": 0.008904130774351158,
-        "prob_dotd": 0.026949752885710106,
-        "sprint": 2.135279473153997
+        "prob_dotd": 0.026857453192108412,
+        "sprint": 2.035279473153997,
+        "sprint_position": 12,
+        "sprint_overtakes": 1.9766666666666666,
+        "sprint_prob_fl": 0.011722561297466086
       },
       "mc": {
-        "p10": 1.135279473153997,
-        "p25": 5.135279473153997,
-        "median": 10.135279473153997,
-        "p75": 15.135279473153997,
-        "p90": 21.135279473153997,
+        "p10": 1.035279473153997,
+        "p25": 5.035279473153997,
+        "median": 10.035279473153997,
+        "p75": 15.035279473153997,
+        "p90": 21.035279473154,
         "dnf_prob": 0.0482
       }
     },
     {
       "driver_id": "gabriel_bortoleto",
       "constructor_id": "audi",
-      "expected_points": 7.192017564868303,
+      "expected_points": 7.003000883929731,
       "price": 7.8,
       "predicted_quali_position": 10,
       "predicted_finish_position": 12,
@@ -366,24 +408,27 @@
         "quali": 1.0,
         "finish": 0.0,
         "positions_gained": -2.0,
-        "overtakes": 5.29,
+        "overtakes": 5.16,
         "prob_fl": 0.02031816474596863,
-        "prob_dotd": 0.08017551483498758,
-        "sprint": 1.8970807690587415
+        "prob_dotd": 0.07860718007446366,
+        "sprint": 1.853747435725408,
+        "sprint_position": 9,
+        "sprint_overtakes": 1.72,
+        "sprint_prob_fl": 0.026749487145081595
       },
       "mc": {
-        "p10": -10.102919230941259,
-        "p25": 1.8970807690587415,
-        "median": 8.897080769058741,
-        "p75": 15.897080769058741,
-        "p90": 22.897080769058743,
+        "p10": -10.146252564274592,
+        "p25": 1.853747435725408,
+        "median": 8.853747435725408,
+        "p75": 15.853747435725408,
+        "p90": 22.85374743572541,
         "dnf_prob": 0.1642
       }
     },
     {
       "driver_id": "fernando_alonso",
       "constructor_id": "aston_martin",
-      "expected_points": 7.062625513470933,
+      "expected_points": 6.7554490379943655,
       "price": 6.2,
       "predicted_quali_position": 18,
       "predicted_finish_position": 18,
@@ -391,24 +436,27 @@
         "quali": 0.0,
         "finish": 0.0,
         "positions_gained": 0.0,
-        "overtakes": 5.05,
+        "overtakes": 4.82,
         "prob_fl": 0.00225131682597955,
-        "prob_dotd": 0.030677901187780382,
-        "sprint": 1.6833333333333333
+        "prob_dotd": 0.030626920306790296,
+        "sprint": 1.6066666666666667,
+        "sprint_position": 22,
+        "sprint_overtakes": 1.6066666666666667,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
-        "p10": -13.316666666666666,
-        "p25": 1.6833333333333333,
-        "median": 8.683333333333334,
-        "p75": 12.683333333333334,
-        "p90": 16.683333333333334,
+        "p10": -13.393333333333333,
+        "p25": 1.6066666666666667,
+        "median": 8.606666666666667,
+        "p75": 12.606666666666667,
+        "p90": 16.606666666666666,
         "dnf_prob": 0.2235
       }
     },
     {
       "driver_id": "franco_colapinto",
       "constructor_id": "alpine",
-      "expected_points": 6.6083560315660055,
+      "expected_points": 6.366873504176824,
       "price": 11.2,
       "predicted_quali_position": 14,
       "predicted_finish_position": 13,
@@ -416,74 +464,27 @@
         "quali": 0.0,
         "finish": 0.0,
         "positions_gained": 1.0,
-        "overtakes": 4.06,
+        "overtakes": 3.88,
         "prob_fl": 0.006763329517746692,
-        "prob_dotd": 0.00828687491834497,
-        "sprint": 1.397853987205089
+        "prob_dotd": 0.008138622179426793,
+        "sprint": 1.337853987205089,
+        "sprint_position": 13,
+        "sprint_overtakes": 1.2933333333333332,
+        "sprint_prob_fl": 0.008904130774351158
       },
       "mc": {
-        "p10": -0.602146012794911,
-        "p25": 4.397853987205089,
-        "median": 9.397853987205089,
-        "p75": 14.397853987205089,
-        "p90": 20.39785398720509,
+        "p10": -1.662146012794911,
+        "p25": 3.337853987205089,
+        "median": 8.337853987205088,
+        "p75": 14.337853987205088,
+        "p90": 20.33785398720509,
         "dnf_prob": 0.0631
-      }
-    },
-    {
-      "driver_id": "sergio_perez",
-      "constructor_id": "cadillac",
-      "expected_points": 6.550860720614816,
-      "price": 3.8,
-      "predicted_quali_position": 21,
-      "predicted_finish_position": 19,
-      "points_breakdown": {
-        "quali": 0.0,
-        "finish": 0.0,
-        "positions_gained": 2.0,
-        "overtakes": 3.2,
-        "prob_fl": 0.0,
-        "prob_dotd": 0.028419405394814953,
-        "sprint": 1.0666666666666667
-      },
-      "mc": {
-        "p10": -15.933333333333334,
-        "p25": -12.933333333333334,
-        "median": 7.066666666666666,
-        "p75": 11.066666666666666,
-        "p90": 15.066666666666666,
-        "dnf_prob": 0.2761
-      }
-    },
-    {
-      "driver_id": "lance_stroll",
-      "constructor_id": "aston_martin",
-      "expected_points": 6.227261203161307,
-      "price": 3.0,
-      "predicted_quali_position": 20,
-      "predicted_finish_position": 20,
-      "points_breakdown": {
-        "quali": 0.0,
-        "finish": 0.0,
-        "positions_gained": 0.0,
-        "overtakes": 4.64,
-        "prob_fl": 0.0012988968158553008,
-        "prob_dotd": 0.0019055380828279873,
-        "sprint": 1.5552168541744735
-      },
-      "mc": {
-        "p10": -14.444783145825527,
-        "p25": -7.444783145825527,
-        "median": 7.555216854174473,
-        "p75": 11.555216854174473,
-        "p90": 14.555216854174473,
-        "dnf_prob": 0.253
       }
     },
     {
       "driver_id": "arvid_lindblad",
       "constructor_id": "racing_bulls",
-      "expected_points": 6.125128791944514,
+      "expected_points": 6.339732386883471,
       "price": 8.0,
       "predicted_quali_position": 9,
       "predicted_finish_position": 11,
@@ -491,24 +492,83 @@
         "quali": 2.0,
         "finish": 0.0,
         "positions_gained": -2.0,
-        "overtakes": 4.15,
+        "overtakes": 4.32,
         "prob_fl": 0.026749487145081595,
-        "prob_dotd": 0.022270976343052105,
-        "sprint": 1.4849241570631766
+        "prob_dotd": 0.02106466917028111,
+        "sprint": 1.5415908237298432,
+        "sprint_position": 10,
+        "sprint_overtakes": 1.4400000000000002,
+        "sprint_prob_fl": 0.02031816474596863
       },
       "mc": {
-        "p10": -9.515075842936824,
-        "p25": 2.4849241570631766,
-        "median": 9.484924157063176,
-        "p75": 16.484924157063176,
-        "p90": 22.484924157063176,
+        "p10": -8.458409176270157,
+        "p25": 2.5415908237298432,
+        "median": 9.541590823729843,
+        "p75": 16.541590823729845,
+        "p90": 22.541590823729845,
         "dnf_prob": 0.1172
+      }
+    },
+    {
+      "driver_id": "sergio_perez",
+      "constructor_id": "cadillac",
+      "expected_points": 6.123859261380008,
+      "price": 3.8,
+      "predicted_quali_position": 21,
+      "predicted_finish_position": 19,
+      "points_breakdown": {
+        "quali": 0.0,
+        "finish": 0.0,
+        "positions_gained": 2.0,
+        "overtakes": 2.88,
+        "prob_fl": 0.0,
+        "prob_dotd": 0.028385926138000762,
+        "sprint": 0.96,
+        "sprint_position": 21,
+        "sprint_overtakes": 0.96,
+        "sprint_prob_fl": 0.0
+      },
+      "mc": {
+        "p10": -17.04,
+        "p25": -13.04,
+        "median": 6.96,
+        "p75": 10.96,
+        "p90": 13.96,
+        "dnf_prob": 0.2761
+      }
+    },
+    {
+      "driver_id": "lance_stroll",
+      "constructor_id": "aston_martin",
+      "expected_points": 5.947253661476366,
+      "price": 3.0,
+      "predicted_quali_position": 20,
+      "predicted_finish_position": 20,
+      "points_breakdown": {
+        "quali": 0.0,
+        "finish": 0.0,
+        "positions_gained": 0.0,
+        "overtakes": 4.43,
+        "prob_fl": 0.0012988968158553008,
+        "prob_dotd": 0.00190478391433393,
+        "sprint": 1.4852168541744735,
+        "sprint_position": 19,
+        "sprint_overtakes": 1.4766666666666666,
+        "sprint_prob_fl": 0.0017100375015613844
+      },
+      "mc": {
+        "p10": -14.514783145825527,
+        "p25": -8.514783145825527,
+        "median": 7.485216854174474,
+        "p75": 11.485216854174473,
+        "p90": 14.485216854174473,
+        "dnf_prob": 0.253
       }
     },
     {
       "driver_id": "carlos_sainz",
       "constructor_id": "williams",
-      "expected_points": 4.248874186302648,
+      "expected_points": 4.00870004895342,
       "price": 10.0,
       "predicted_quali_position": 19,
       "predicted_finish_position": 21,
@@ -516,24 +576,27 @@
         "quali": 0.0,
         "finish": 0.0,
         "positions_gained": -2.0,
-        "overtakes": 4.31,
+        "overtakes": 4.13,
         "prob_fl": 0.0017100375015613844,
-        "prob_dotd": 0.04738505604904703,
-        "sprint": 1.4479232507965643
+        "prob_dotd": 0.047367642314124186,
+        "sprint": 1.3879232507965644,
+        "sprint_position": 18,
+        "sprint_overtakes": 1.3766666666666667,
+        "sprint_prob_fl": 0.00225131682597955
       },
       "mc": {
-        "p10": -11.552076749203437,
-        "p25": 3.4479232507965643,
-        "median": 7.447923250796564,
-        "p75": 10.447923250796563,
-        "p90": 14.447923250796563,
+        "p10": -11.612076749203435,
+        "p25": 3.3879232507965646,
+        "median": 7.387923250796565,
+        "p75": 10.387923250796565,
+        "p90": 14.387923250796565,
         "dnf_prob": 0.1214
       }
     },
     {
       "driver_id": "valtteri_bottas",
       "constructor_id": "cadillac",
-      "expected_points": 2.5214239156846605,
+      "expected_points": 2.3614000689725363,
       "price": 3.0,
       "predicted_quali_position": 22,
       "predicted_finish_position": 22,
@@ -541,17 +604,20 @@
         "quali": 0.0,
         "finish": 0.0,
         "positions_gained": 0.0,
-        "overtakes": 1.87,
+        "overtakes": 1.75,
         "prob_fl": 0.0,
-        "prob_dotd": 0.0021596098272050526,
-        "sprint": 0.62982781741261
+        "prob_dotd": 0.0021572251559926437,
+        "sprint": 0.5898278174126099,
+        "sprint_position": 20,
+        "sprint_overtakes": 0.5833333333333334,
+        "sprint_prob_fl": 0.0012988968158553008
       },
       "mc": {
-        "p10": -18.37017218258739,
-        "p25": -16.37017218258739,
-        "median": 3.62982781741261,
-        "p75": 6.62982781741261,
-        "p90": 9.62982781741261,
+        "p10": -18.41017218258739,
+        "p25": -16.41017218258739,
+        "median": 3.58982781741261,
+        "p75": 6.58982781741261,
+        "p90": 9.58982781741261,
         "dnf_prob": 0.3369
       }
     }
@@ -559,134 +625,134 @@
   "constructors": [
     {
       "constructor_id": "mclaren",
-      "expected_points": 87.97563445322328,
+      "expected_points": 87.55909970065215,
       "price": 31.0,
       "mc": {
-        "p10": 44.45783992536835,
-        "p25": 59.45783992536835,
-        "median": 76.45783992536835,
-        "p75": 88.45783992536835,
-        "p90": 96.55783992536871
+        "p10": 43.33450659203501,
+        "p25": 59.33450659203501,
+        "median": 75.33450659203501,
+        "p75": 88.33450659203501,
+        "p90": 96.33450659203501
       }
     },
     {
       "constructor_id": "mercedes",
-      "expected_points": 86.56995820900705,
+      "expected_points": 85.90031296649802,
       "price": 32.6,
       "mc": {
-        "p10": 47.76700524846607,
-        "p25": 61.76700524846607,
-        "median": 77.76700524846606,
-        "p75": 89.76700524846606,
-        "p90": 99.76700524846606
+        "p10": 47.607005248466066,
+        "p25": 60.60700524846607,
+        "median": 76.60700524846607,
+        "p75": 89.60700524846607,
+        "p90": 98.60700524846607
       }
     },
     {
       "constructor_id": "ferrari",
-      "expected_points": 80.80959409202576,
+      "expected_points": 80.2757684558461,
       "price": 26.6,
       "mc": {
-        "p10": 44.99030501302899,
-        "p25": 57.99030501302899,
-        "median": 73.99030501302899,
-        "p75": 83.99030501302899,
-        "p90": 91.99030501302899
+        "p10": 44.856971679695654,
+        "p25": 57.85697167969566,
+        "median": 73.85697167969566,
+        "p75": 82.85697167969566,
+        "p90": 90.85697167969566
       }
     },
     {
       "constructor_id": "red_bull",
-      "expected_points": 44.34447421481032,
+      "expected_points": 43.583053683837186,
       "price": 30.9,
       "mc": {
-        "p10": 17.80149459200791,
-        "p25": 29.80149459200791,
-        "median": 43.80149459200791,
-        "p75": 55.80149459200791,
-        "p90": 66.80149459200791
+        "p10": 16.611494592007908,
+        "p25": 28.611494592007908,
+        "median": 43.611494592007915,
+        "p75": 55.61149459200791,
+        "p90": 65.61149459200792
       }
     },
     {
       "constructor_id": "alpine",
-      "expected_points": 29.47125757360487,
+      "expected_points": 28.856435311869056,
       "price": 18.8,
       "mc": {
-        "p10": 11.669736589022474,
-        "p25": 21.669736589022474,
-        "median": 31.669736589022474,
-        "p75": 40.66973658902248,
-        "p90": 48.66973658902248
+        "p10": 11.516403255689141,
+        "p25": 20.51640325568914,
+        "median": 30.51640325568914,
+        "p75": 40.51640325568914,
+        "p90": 48.51640325568914
       }
     },
     {
       "constructor_id": "audi",
-      "expected_points": 27.030192754443217,
+      "expected_points": 26.50750115032309,
       "price": 6.8,
       "mc": {
-        "p10": 2.876964083314141,
-        "p25": 13.876964083314142,
-        "median": 26.876964083314142,
-        "p75": 37.876964083314135,
-        "p90": 46.87696408331414
+        "p10": 2.750297416647474,
+        "p25": 13.750297416647475,
+        "median": 25.750297416647477,
+        "p75": 36.75029741664747,
+        "p90": 46.75029741664747
       }
     },
     {
       "constructor_id": "racing_bulls",
-      "expected_points": 25.268947101699126,
+      "expected_points": 25.082627699702066,
       "price": 12.9,
       "mc": {
-        "p10": 13.040203630217173,
-        "p25": 22.04020363021717,
-        "median": 31.04020363021717,
-        "p75": 40.04020363021718,
-        "p90": 48.04020363021718
+        "p10": 11.99687029688384,
+        "p25": 21.99687029688384,
+        "median": 29.99687029688384,
+        "p75": 39.99687029688384,
+        "p90": 47.99687029688384
       }
     },
     {
       "constructor_id": "haas",
-      "expected_points": 22.362956851139074,
+      "expected_points": 21.37617065468688,
       "price": 12.0,
       "mc": {
-        "p10": 6.0794391544438975,
-        "p25": 19.079439154443897,
-        "median": 28.079439154443897,
-        "p75": 35.0794391544439,
-        "p90": 43.0794391544439
+        "p10": 4.836105821110565,
+        "p25": 17.836105821110564,
+        "median": 26.836105821110564,
+        "p75": 33.836105821110564,
+        "p90": 41.836105821110564
       }
     },
     {
       "constructor_id": "williams",
-      "expected_points": 16.569280063782248,
+      "expected_points": 15.808868346762196,
       "price": 13.0,
       "mc": {
-        "p10": -2.5435662407894135,
-        "p25": 5.4564337592105865,
-        "median": 19.456433759210586,
-        "p75": 26.456433759210586,
-        "p90": 32.45643375921058
+        "p10": -2.733566240789412,
+        "p25": 4.266433759210589,
+        "median": 18.26643375921059,
+        "p75": 25.26643375921059,
+        "p90": 32.266433759210585
       }
     },
     {
       "constructor_id": "aston_martin",
-      "expected_points": 14.799086716632239,
+      "expected_points": 14.21190269947073,
       "price": 5.7,
       "mc": {
-        "p10": -6.2522498124921935,
-        "p25": -0.25224981249219347,
-        "median": 15.747750187507807,
-        "p75": 23.747750187507805,
-        "p90": 29.747750187507805
+        "p10": -7.39891647915886,
+        "p25": -0.39891647915885997,
+        "median": 15.60108352084114,
+        "p75": 22.60108352084114,
+        "p90": 28.60108352084114
       }
     },
     {
       "constructor_id": "cadillac",
-      "expected_points": 8.670284636299478,
+      "expected_points": 8.083259330352545,
       "price": 3.0,
       "mc": {
-        "p10": -20.705505515920724,
-        "p25": -9.705505515920722,
-        "median": 1.2944944840792774,
-        "p75": 15.294494484079276,
-        "p90": 20.294494484079273
+        "p10": -20.852172182587392,
+        "p25": -10.852172182587388,
+        "median": 1.147827817412609,
+        "p75": 14.147827817412612,
+        "p90": 19.14782781741261
       }
     }
   ]

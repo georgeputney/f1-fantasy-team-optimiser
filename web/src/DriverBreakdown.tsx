@@ -8,16 +8,15 @@ interface Props {
   onRoundChange: (round: number) => void
 }
 
-const GRID = '2px 132px repeat(8,1fr)'
-
 type SortDir = 'asc' | 'desc'
 type SortKey = keyof Pick<BreakdownRow,
-  'name' | 'quali_position' | 'finish_position' | 'positions_gained' | 'overtakes' | 'prob_fl' | 'prob_dotd' | 'dnf_prob' | 'expected_points'
+  'name' | 'quali_position' | 'finish_position' | 'positions_gained' | 'overtakes' | 'prob_fl' | 'prob_dotd' | 'dnf_prob'
+  | 'sprint_position' | 'sprint_overtakes' | 'sprint_prob_fl' | 'expected_points'
 >
 
 // P1 reads as "best" ascending, so quali/finish default that way on first click; everything else
 // defaults to biggest-first, which is what you want the first time you click e.g. "DNF risk"
-const COLUMNS: { key: SortKey; label: string; defaultDir: SortDir }[] = [
+const BASE_COLUMNS: { key: SortKey; label: string; defaultDir: SortDir }[] = [
   { key: 'quali_position', label: 'Quali', defaultDir: 'asc' },
   { key: 'finish_position', label: 'Finish', defaultDir: 'asc' },
   { key: 'positions_gained', label: 'Pos. gained', defaultDir: 'desc' },
@@ -25,13 +24,24 @@ const COLUMNS: { key: SortKey; label: string; defaultDir: SortDir }[] = [
   { key: 'prob_fl', label: 'Fastest lap', defaultDir: 'desc' },
   { key: 'prob_dotd', label: 'DOTD', defaultDir: 'desc' },
   { key: 'dnf_prob', label: 'DNF risk', defaultDir: 'desc' },
-  { key: 'expected_points', label: 'Expected', defaultDir: 'desc' },
 ]
+// sprint session runs before quali/the race, so its columns lead the row rather than trailing it -
+// sprint_quali_position doubles as the sprint result proxy, so there's no separate sprint finish/gained
+const SPRINT_COLUMNS: { key: SortKey; label: string; defaultDir: SortDir }[] = [
+  { key: 'sprint_position', label: 'Sprint', defaultDir: 'asc' },
+  { key: 'sprint_overtakes', label: 'Sprint OT', defaultDir: 'desc' },
+  { key: 'sprint_prob_fl', label: 'Sprint FL', defaultDir: 'desc' },
+]
+const EXPECTED_COLUMN: { key: SortKey; label: string; defaultDir: SortDir } = { key: 'expected_points', label: 'Expected', defaultDir: 'desc' }
 
 export function DriverBreakdown({ data, onRoundChange }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('expected_points')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const roundOptions = data.available_rounds.map((r) => ({ id: String(r), name: `Round ${r}` }))
+  // sprint columns only exist as scoring components on sprint weekends - hidden the rest of the
+  // time rather than showing columns of zeroes for every driver
+  const COLUMNS = data.is_sprint ? [...SPRINT_COLUMNS, ...BASE_COLUMNS, EXPECTED_COLUMN] : [...BASE_COLUMNS, EXPECTED_COLUMN]
+  const GRID = `2px 132px repeat(${COLUMNS.length},1fr)`
 
   const toggleSort = (key: SortKey, defaultDir: SortDir) => {
     if (key === sortKey) {
@@ -59,7 +69,7 @@ export function DriverBreakdown({ data, onRoundChange }: Props) {
             Where each expected-points total comes from. Quali and finish are the model's median predicted
             positions, so positions gained is the difference between them; overtakes, fastest lap and driver
             of the day are per-race averages, and DNF risk is the share of simulations in which the car fails
-            to finish.
+            to finish{data.is_sprint ? '; sprint columns are that session\'s own predicted position, overtakes and fastest-lap chance' : ''}.
           </p>
         </div>
         <div style={{ display: 'flex', gap: 20, alignItems: 'baseline', flexShrink: 0, paddingTop: 2 }}>
@@ -92,6 +102,9 @@ export function DriverBreakdown({ data, onRoundChange }: Props) {
                 style={{
                   font: '400 11.5px/1.3 Archivo,sans-serif', color: sortKey === c.key ? INK : FAINT,
                   textAlign: 'right', cursor: 'pointer', userSelect: 'none',
+                  // marks where the sprint column group ends and the race group begins, so the
+                  // two are read as groups rather than one arbitrarily-spaced row of numbers
+                  ...(data.is_sprint && c.key === 'quali_position' ? { borderLeft: `1px solid ${LINE_STR}`, paddingLeft: 14 } : {}),
                 }}
               >
                 {c.label}{sortKey === c.key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
@@ -110,7 +123,19 @@ export function DriverBreakdown({ data, onRoundChange }: Props) {
             >
               <span style={{ height: 20, background: row.color }} />
               <span style={{ font: `${row.selected ? 500 : 400} 15px/1 Archivo,sans-serif`, color: INK }}>{row.name}</span>
-              <span style={{ textAlign: 'right', font: `${row.selected ? 500 : 400} 14px/1 Archivo,sans-serif`, color: row.selected ? INK : MUTED }}>
+              {data.is_sprint && (
+                <>
+                  <span style={{ textAlign: 'right', font: '400 14px/1 Archivo,sans-serif', color: MUTED }}>
+                    {row.sprint_position != null ? `P${row.sprint_position}` : '-'}
+                  </span>
+                  <span style={{ textAlign: 'right', font: '400 14px/1 Archivo,sans-serif', color: MUTED }}>{row.sprint_overtakes.toFixed(1)}</span>
+                  <span style={{ textAlign: 'right', font: '400 14px/1 Archivo,sans-serif', color: MUTED }}>{Math.round(row.sprint_prob_fl * 100)}%</span>
+                </>
+              )}
+              <span style={{
+                textAlign: 'right', font: `${row.selected ? 500 : 400} 14px/1 Archivo,sans-serif`, color: row.selected ? INK : MUTED,
+                ...(data.is_sprint ? { borderLeft: `1px solid ${LINE_SOFT}`, paddingLeft: 14 } : {}),
+              }}>
                 P{row.quali_position}
               </span>
               <span style={{ textAlign: 'right', font: `${row.selected ? 500 : 400} 14px/1 Archivo,sans-serif`, color: row.selected ? INK : MUTED }}>

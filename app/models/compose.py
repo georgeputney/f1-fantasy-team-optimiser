@@ -126,7 +126,8 @@ def compose_drivers(predictions, location=None, season=None, predict_overtakes=N
         + dotd_prob * DOTD_POINTS
     )
 
-    # add sprint points if sprint weekend
+    # add sprint points if sprint weekend - sprint_quali_position doubles as the sprint result proxy
+    # (no separate sprint finish model), so there's no sprint positions-gained term to report
     if "sprint_quali_position" in predictions.columns and predictions["sprint_quali_position"].notna().any():
         sprint_position = predictions["sprint_quali_position"].fillna(20).astype(int)
         sprint_finish_points = sprint_position.map(lambda p: DRIVER_SPRINT_POSITION_POINTS.get(p, 0))
@@ -134,6 +135,9 @@ def compose_drivers(predictions, location=None, season=None, predict_overtakes=N
         # expected sprint overtakes: 1/3 of predicted race overtakes (sprint is ~1/3 race length)
         sprint_expected_overtakes = expected_overtakes / 3
         sprint_points = sprint_finish_points + sprint_fl_prob * SPRINT_FASTEST_LAP_POINTS + sprint_expected_overtakes * SPRINT_OVERTAKE_MADE_POINTS
+        predictions["sprint_position"] = sprint_position
+        predictions["sprint_overtakes"] = sprint_expected_overtakes
+        predictions["sprint_prob_fl"] = sprint_fl_prob
         predictions["points_sprint"] = sprint_points
         predictions["expected_fantasy_points"] += sprint_points
 

@@ -171,6 +171,9 @@ export interface BreakdownRow {
   prob_fl: number
   prob_dotd: number
   dnf_prob: number
+  sprint_position: number | null
+  sprint_overtakes: number
+  sprint_prob_fl: number
   expected_points: number
 }
 
@@ -178,6 +181,7 @@ export interface BreakdownResponse {
   season: number
   round: number
   circuit: string
+  is_sprint: boolean
   available_rounds: number[]
   rows: BreakdownRow[]
 }

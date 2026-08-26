@@ -32,6 +32,22 @@ def _trigger_label(trigger, season, round_num):
     return TRIGGER_LABELS.get(trigger, "Latest")
 
 
+# a bare "01:15" reads as "earlier today" no matter how old it actually is - the pipeline only
+# updates a few times per race weekend, so a manager checking back midweek needs to see that gap,
+# not a clock time that looks fresh regardless of when it's viewed
+def _freshness(generated_at, now):
+    delta = now - generated_at
+    hours = delta.total_seconds() / 3600
+    if hours < 1:
+        return "just now"
+    if hours < 24:
+        return f"{int(hours)}h ago"
+    days = int(hours // 24)
+    if days < 14:
+        return f"{days}d ago"
+    return f"{generated_at:%b} {generated_at.day}"  # avoids %-d, not portable to Windows' strftime
+
+
 # one-off: some rounds have a stand-in chain (e.g. r12 - Hadjar out, Lawson covers his Red Bull
 # seat, Tsunoda covers Lawson's now-vacant Racing Bulls seat) that isn't a real seat change, just a
 # short-notice fill-in. The optimiser still sees these drivers completely normally - their real
@@ -105,7 +121,7 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
     price_delta, lam = pred["price_delta"], pred["price_lambda"]
     trigger_label = _trigger_label(pred["trigger"], season, rnd)
     generated_at = datetime.fromisoformat(pred["generated_at"])
-    status = f"{trigger_label}, {generated_at:%H:%M}"
+    status = f"{trigger_label}, {_freshness(generated_at, datetime.now())}"
 
     model_state = load_state(TEAM_STATE_FILE)
     default_budget = model_default_budget(model_state, prices_index)

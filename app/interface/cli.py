@@ -409,6 +409,9 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
                 "prob_fl": float(row.get("prob_fl", 0)),
                 "prob_dotd": float(row.get("prob_dotd", 0)),
                 "sprint": float(row.get("points_sprint", 0)),
+                "sprint_position": int(row["sprint_position"]) if pd.notna(row.get("sprint_position")) else None,
+                "sprint_overtakes": float(row.get("sprint_overtakes", 0)),
+                "sprint_prob_fl": float(row.get("sprint_prob_fl", 0)),
             },
             "mc": mc["drivers"].get(row["driver_id"]),
         }

@@ -5,6 +5,7 @@ import json
 
 from app.config import PREDICTIONS_DIR, TEAM_STATE_FILE
 from app.data.team_colors import TEAM_COLORS
+from app.models.predict import is_sprint_weekend
 from app.optimiser.state import load_state
 
 from api.common import surname, load_predictions, load_or_build_mc, model_default_budget, resolve_state, cached_optimiser
@@ -64,6 +65,7 @@ def build_breakdown(
 
     mc = load_or_build_mc(season, round_num, circuit)
     dnf_prob = {aid: q.get("dnf_prob", 0.0) for aid, q in mc["drivers"].items()}
+    sprint = is_sprint_weekend(season, round_num)
 
     rows = []
     for d in data["drivers"]:
@@ -82,6 +84,9 @@ def build_breakdown(
             "prob_fl": round(bd.get("prob_fl", 0.0), 3),
             "prob_dotd": round(bd.get("prob_dotd", 0.0), 3),
             "dnf_prob": round(dnf_prob.get(d["driver_id"], 0.0), 3),
+            "sprint_position": bd.get("sprint_position"),
+            "sprint_overtakes": round(bd.get("sprint_overtakes", 0.0), 1),
+            "sprint_prob_fl": round(bd.get("sprint_prob_fl", 0.0), 3),
             "expected_points": round(d["expected_points"], 1),
         })
     rows.sort(key=lambda r: -r["expected_points"])
@@ -90,6 +95,7 @@ def build_breakdown(
         "season": season,
         "round": round_num,
         "circuit": circuit,
+        "is_sprint": sprint,
         "available_rounds": available.get(season, [round_num]),
         "rows": rows,
     }

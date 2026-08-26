@@ -24,8 +24,11 @@ def surname(driver_id):
     return driver_id.split("_")[-1].title()
 
 
+_CONSTRUCTOR_NAME_OVERRIDES = {"mclaren": "McLaren"}  # .title() can't know about the internal capital
+
+
 def fullname(constructor_id):
-    return constructor_id.replace("_", " ").title()
+    return _CONSTRUCTOR_NAME_OVERRIDES.get(constructor_id, constructor_id.replace("_", " ").title())
 
 
 def latest_predictions_path():
