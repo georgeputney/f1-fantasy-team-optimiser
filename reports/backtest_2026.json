@@ -21,7 +21,7 @@
     "season": 2026,
     "round": 3,
     "location": "Suzuka",
-    "model": 259.0,
+    "model": 211.0,
     "oracle": 300.0,
     "lagged": 220.0,
     "mean": 194.0
@@ -30,7 +30,7 @@
     "season": 2026,
     "round": 4,
     "location": "Miami Gardens",
-    "model": 240.0,
+    "model": 229.0,
     "oracle": 349.0,
     "lagged": 184.0,
     "mean": 269.0
@@ -39,7 +39,7 @@
     "season": 2026,
     "round": 5,
     "location": "Montr\u00e9al",
-    "model": 259.0,
+    "model": 261.0,
     "oracle": 340.0,
     "lagged": -3.0,
     "mean": 303.0
@@ -48,7 +48,7 @@
     "season": 2026,
     "round": 6,
     "location": "Monte Carlo",
-    "model": 73.0,
+    "model": 37.0,
     "oracle": 289.0,
     "lagged": 183.0,
     "mean": 183.0
@@ -57,7 +57,7 @@
     "season": 2026,
     "round": 7,
     "location": "Barcelona",
-    "model": 145.0,
+    "model": 143.0,
     "oracle": 284.0,
     "lagged": 76.0,
     "mean": 125.0
@@ -66,7 +66,7 @@
     "season": 2026,
     "round": 8,
     "location": "Spielberg",
-    "model": 203.0,
+    "model": 204.0,
     "oracle": 258.0,
     "lagged": 150.0,
     "mean": 217.0
@@ -75,7 +75,7 @@
     "season": 2026,
     "round": 9,
     "location": "Silverstone",
-    "model": 284.0,
+    "model": 298.0,
     "oracle": 363.0,
     "lagged": 152.0,
     "mean": 304.0
@@ -84,7 +84,7 @@
     "season": 2026,
     "round": 10,
     "location": "Spa-Francorchamps",
-    "model": 193.0,
+    "model": 277.0,
     "oracle": 286.0,
     "lagged": 186.0,
     "mean": 188.0
@@ -93,7 +93,7 @@
     "season": 2026,
     "round": 11,
     "location": "Budapest",
-    "model": 209.0,
+    "model": 214.0,
     "oracle": 268.0,
     "lagged": 184.0,
     "mean": 197.0
@@ -102,7 +102,7 @@
     "season": 2026,
     "round": 12,
     "location": "Zandvoort",
-    "model": 272.0,
+    "model": 286.0,
     "oracle": 328.0,
     "lagged": 264.0,
     "mean": 237.0

@@ -3,10 +3,10 @@
   "round": 12,
   "drivers": [
     "lando_norris",
-    "pierre_gasly",
+    "charles_leclerc",
     "nico_hulkenberg",
-    "oliver_bearman",
-    "alexander_albon"
+    "lance_stroll",
+    "valtteri_bottas"
   ],
   "constructors": [
     "mclaren",
@@ -15,20 +15,20 @@
   "doubled_driver": "lando_norris",
   "prices": {
     "lando_norris": 26.1,
-    "pierre_gasly": 13.4,
+    "charles_leclerc": 23.9,
     "nico_hulkenberg": 3.0,
-    "oliver_bearman": 7.6,
-    "alexander_albon": 5.8,
+    "lance_stroll": 3.0,
+    "valtteri_bottas": 3.0,
     "mclaren": 31.0,
     "ferrari": 26.6
   },
-  "budget_remaining": 0.2,
+  "budget_remaining": 1.2,
   "free_transfers_carried": 0,
   "driver_teams": {
     "lando_norris": "mclaren",
-    "pierre_gasly": "alpine",
+    "charles_leclerc": "ferrari",
     "nico_hulkenberg": "audi",
-    "oliver_bearman": "haas",
-    "alexander_albon": "williams"
+    "lance_stroll": "aston_martin",
+    "valtteri_bottas": "cadillac"
   }
 }

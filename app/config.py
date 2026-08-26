@@ -72,7 +72,7 @@ ALL_SEASONS                         = TRAIN_SEASONS + VAL_SEASONS + TEST_SEASONS
 BUDGET_CAP                          = 100.0     # total budget (at the start of the season)
 DRIVER_ROSTER_SIZE                  = 5         # no. drivers to pick
 CONSTRUCTOR_ROSTER_SIZE             = 2         # no. constructors to pick
-PRICE_LAMBDA                        = 6.0       # weight on expected price rise in the optimiser (0 = points only); 6 chosen from 2024/2025 backtest sweep as the robust balanced value
+PRICE_LAMBDA                        = 14.0      # weight on expected price rise in the optimiser (0 = points only); 14 chosen from a 2024/2025/2026 backtest sweep (highest and most consistent improvement over lambda=0 across all three seasons) after the walk-forward overtake/DOTD leak fix changed the picture from the original lambda=6 sweep
 STARTING_PRICES_DIR                 = MANUAL_DIR / "starting_prices"  # round 1 prices per season
 PRICE_FLOOR                         = {2025: 4.5, 2026: 3.0}         # minimum asset price by season
 
