@@ -475,8 +475,21 @@ def backfill_predictions(from_season: int = typer.Option(2026), prod: bool = typ
         s, r = int(season_str), int(round_str)
 
         out_path = PREDICTIONS_DIR / f"predictions_{s}_{r:02d}.json"
+        mc_path = REPORTS_DIR / "predictions" / f"mc_{s}_{r:02d}.json"
+        budget_range_path = REPORTS_DIR / "predictions" / f"budget_range_{s}_{r:02d}.json"
         if out_path.exists() and not overwrite:
             skipped += 1
+            # predictions already exist, but earlier backfill runs (before MC/budget-range caching
+            # was added here) never built these - without a cache, the breakdown/ladder pages fall
+            # back to a live ~26-60s Monte Carlo solve on first request for that round, which reads
+            # as "broken" rather than just slow. Backfill the cache even when skipping regeneration.
+            if not mc_path.exists() or not budget_range_path.exists():
+                existing = json.loads(out_path.read_text())
+                circuit = existing["circuit"]
+                mc = simulate_round(s, r, circuit)
+                cache_mc_result(mc, mc_path)
+                cache_budget_range(s, r, budget_range_path)
+                typer.echo(f"  backfilled MC/budget-range cache for {s} R{r:02d} - {circuit}")
             continue
 
         # load season artifact once per season (run train-model --season S first)
@@ -535,6 +548,11 @@ def backfill_predictions(from_season: int = typer.Option(2026), prod: bool = typ
             }
             with open(out_path, "w") as f:
                 json.dump(output, f, indent=2)
+
+            mc = simulate_round(s, r, circuit)
+            cache_mc_result(mc, mc_path)
+            cache_budget_range(s, r, budget_range_path)
+
             saved += 1
         except Exception as e:
             typer.echo(f"  skipped ({e})")
