@@ -2,8 +2,8 @@
   "season": 2026,
   "round": 13,
   "circuit": "Monza",
-  "generated_at": "2026-08-24T01:15:01.421017",
-  "trigger": "post-race",
+  "generated_at": "2026-09-04T16:41:04.452143",
+  "trigger": "post-fp2",
   "drivers": [
     {
       "driver_id": "lando_norris",
@@ -19,7 +19,10 @@
         "overtakes": 2.76,
         "prob_fl": 0.24141448258730092,
         "prob_dotd": 0.12077907944380115,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -1.0,
@@ -44,7 +47,10 @@
         "overtakes": 4.99,
         "prob_fl": 0.18337171111609335,
         "prob_dotd": 0.14848022902954244,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -3.0,
@@ -69,7 +75,10 @@
         "overtakes": 4.48,
         "prob_fl": 0.10579627395757542,
         "prob_dotd": 0.07727407585097859,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -2.0,
@@ -94,7 +103,10 @@
         "overtakes": 5.58,
         "prob_fl": 0.13928403995184657,
         "prob_dotd": 0.0021189312183123006,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": 0.0,
@@ -119,7 +131,10 @@
         "overtakes": 6.47,
         "prob_fl": 0.08035990043924601,
         "prob_dotd": 0.06252528785464392,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -1.0,
@@ -144,7 +159,10 @@
         "overtakes": 6.15,
         "prob_fl": 0.06103914019878517,
         "prob_dotd": 0.10290211950999392,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -6.0,
@@ -169,7 +187,10 @@
         "overtakes": 5.48,
         "prob_fl": 0.04636362932061777,
         "prob_dotd": 0.12250768122716119,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -7.0,
@@ -194,7 +215,10 @@
         "overtakes": 6.79,
         "prob_fl": 0.035216520363477034,
         "prob_dotd": 0.006886526459514979,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -8.0,
@@ -219,7 +243,10 @@
         "overtakes": 10.98,
         "prob_fl": 0.0051372365618649555,
         "prob_dotd": 0.07324759961484113,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -8.0,
@@ -244,7 +271,10 @@
         "overtakes": 6.28,
         "prob_fl": 0.026749487145081595,
         "prob_dotd": 0.02106466917028111,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -7.0,
@@ -269,7 +299,10 @@
         "overtakes": 7.5,
         "prob_fl": 0.02031816474596863,
         "prob_dotd": 0.07860718007446366,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -9.0,
@@ -294,7 +327,10 @@
         "overtakes": 8.82,
         "prob_fl": 0.0029639276602476897,
         "prob_dotd": 0.010657719520677941,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": 0.0,
@@ -319,7 +355,10 @@
         "overtakes": 8.7,
         "prob_fl": 0.011722561297466086,
         "prob_dotd": 0.01336191701099921,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -11.0,
@@ -344,7 +383,10 @@
         "overtakes": 7.53,
         "prob_fl": 0.0039021016828047032,
         "prob_dotd": 0.047367642314124186,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -8.0,
@@ -369,7 +411,10 @@
         "overtakes": 8.62,
         "prob_fl": 0.008904130774351158,
         "prob_dotd": 0.026857453192108412,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": 1.0,
@@ -394,7 +439,10 @@
         "overtakes": 7.55,
         "prob_fl": 0.00225131682597955,
         "prob_dotd": 0.012263677256670508,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -13.0,
@@ -419,7 +467,10 @@
         "overtakes": 6.94,
         "prob_fl": 0.0012988968158553008,
         "prob_dotd": 0.028385926138000762,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -14.0,
@@ -444,7 +495,10 @@
         "overtakes": 7.06,
         "prob_fl": 0.015433111536130095,
         "prob_dotd": 0.0018847335573409412,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -1.0,
@@ -469,7 +523,10 @@
         "overtakes": 5.64,
         "prob_fl": 0.006763329517746692,
         "prob_dotd": 0.008138622179426793,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -1.0,
@@ -494,7 +551,10 @@
         "overtakes": 6.19,
         "prob_fl": 0.0017100375015613844,
         "prob_dotd": 0.030626920306790296,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -14.0,
@@ -519,7 +579,10 @@
         "overtakes": 3.88,
         "prob_fl": 0.0,
         "prob_dotd": 0.00190478391433393,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -17.0,
@@ -544,7 +607,10 @@
         "overtakes": 2.54,
         "prob_fl": 0.0,
         "prob_dotd": 0.0021572251559926437,
-        "sprint": 0.0
+        "sprint": 0.0,
+        "sprint_position": null,
+        "sprint_overtakes": 0.0,
+        "sprint_prob_fl": 0.0
       },
       "mc": {
         "p10": -19.0,
