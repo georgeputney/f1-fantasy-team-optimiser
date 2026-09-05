@@ -165,12 +165,17 @@ def clean_data(season: list[int] = typer.Option(ALL_SEASONS), round: list[int] =
 
             try:
                 clean_events(s, round_num)
-                clean_race_laps(s, round_num)
-                clean_race_results(s, round_num)
-                clean_qualifying_results(s, round_num)
             except FileNotFoundError:
                 typer.echo(f"  Skipping round {round_num:02d}: raw data not found (run ingest-data first)")
                 continue
+
+            # race laps/results/qualifying may not exist yet for the current round mid-weekend
+            # (race hasn't run) - don't let that block practice/pitstop/overtake cleaning below
+            for clean_fn in (clean_race_laps, clean_race_results, clean_qualifying_results):
+                try:
+                    clean_fn(s, round_num)
+                except FileNotFoundError:
+                    pass
 
             try:
                 clean_pitstops(s, round_num)
