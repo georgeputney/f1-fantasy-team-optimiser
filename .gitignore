@@ -52,6 +52,9 @@ scratchpad/
 # IDE
 .vscode/
 
+# macOS
+.DS_Store
+
 # personal planning/backlog notes, not part of the tracked project
 /BRIEF.txt
 /V2.md
