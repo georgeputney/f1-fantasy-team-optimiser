@@ -1,31 +1,31 @@
 {
   "season": 2026,
-  "round": 12,
+  "round": 13,
   "drivers": [
-    "lando_norris",
+    "andrea_kimi_antonelli",
     "charles_leclerc",
     "nico_hulkenberg",
     "lance_stroll",
     "valtteri_bottas"
   ],
   "constructors": [
-    "mclaren",
+    "mercedes",
     "ferrari"
   ],
-  "doubled_driver": "lando_norris",
+  "doubled_driver": "andrea_kimi_antonelli",
   "prices": {
-    "lando_norris": 26.1,
-    "charles_leclerc": 23.9,
-    "nico_hulkenberg": 3.0,
+    "andrea_kimi_antonelli": 26.0,
+    "charles_leclerc": 24.2,
+    "nico_hulkenberg": 3.6,
     "lance_stroll": 3.0,
     "valtteri_bottas": 3.0,
-    "mclaren": 31.0,
-    "ferrari": 26.6
+    "mercedes": 32.9,
+    "ferrari": 26.9
   },
-  "budget_remaining": 1.2,
+  "budget_remaining": 0.0,
   "free_transfers_carried": 0,
   "driver_teams": {
-    "lando_norris": "mclaren",
+    "andrea_kimi_antonelli": "mercedes",
     "charles_leclerc": "ferrari",
     "nico_hulkenberg": "audi",
     "lance_stroll": "aston_martin",
