@@ -111,9 +111,18 @@
     "season": 2026,
     "round": 13,
     "location": "Monza",
-    "model": 183.0,
-    "oracle": 274.0,
-    "lagged": 23.0,
-    "mean": 225.0
+    "model": 334.0,
+    "oracle": 459.0,
+    "lagged": 134.0,
+    "mean": 386.0
+  },
+  {
+    "season": 2026,
+    "round": 14,
+    "location": "Madrid",
+    "model": 150.0,
+    "oracle": 231.0,
+    "lagged": 182.0,
+    "mean": 145.0
   }
 ]
