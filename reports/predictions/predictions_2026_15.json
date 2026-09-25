@@ -2,8 +2,8 @@
   "season": 2026,
   "round": 15,
   "circuit": "Baku",
-  "generated_at": "2026-09-14T03:33:12.363436",
-  "trigger": "post-race",
+  "generated_at": "2026-09-25T03:36:06.087886",
+  "trigger": "post-fp2",
   "drivers": [
     {
       "driver_id": "andrea_kimi_antonelli",
