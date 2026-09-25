@@ -4,7 +4,10 @@ import numpy as np
 import pandas as pd
 import app.data.schemas as schemas
 
-from app.config import PROCESSED_HISTORIC_FEATURES_DIR, INTERIM_SPRINT_QUALIFYING_DIR
+from app.config import (
+    PROCESSED_HISTORIC_FEATURES_DIR, INTERIM_SPRINT_QUALIFYING_DIR,
+    INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR,
+)
 
 
 # sprint qualifying position for the current round - NaN on non-sprint weekends
@@ -182,24 +185,50 @@ def round_number(round_num):
     return {"round_number": round_num}
 
 
+# driver -> constructor entry list from this round's own practice running, or None if no session has
+# run yet. Prefers the latest session, since a team can field a stand-in in FP1 who isn't racing.
+def practice_roster(season, round_num):
+    for practice_dir in (INTERIM_FP3_DIR, INTERIM_FP2_DIR, INTERIM_FP1_DIR):
+        path = practice_dir / f"{season}_{round_num:02d}.parquet"
+        if not path.exists():
+            continue
+
+        laps = pd.read_parquet(path)
+        if laps.empty:
+            continue
+
+        return laps.drop_duplicates("driver_id").set_index("driver_id")["constructor_id"]
+
+    return None
+
+
 # builds the full feature row for a single race for all drivers, joins constructor features, validates, and writes to parquet
-# for upcoming races with no results yet, falls back to the most recent prior race for the driver/constructor roster
+# for upcoming races with no results yet, takes the roster from this round's practice running, or the most recent prior race
 def build_historic_features(race_results, quali_results, fantasy_targets, events, overtake_history, season, round_num):
     race_id = f"{season}_{round_num:02d}"
     race_results_round = race_results[race_results["race_id"] == race_id]
 
-    if race_results_round.empty:
-        # upcoming race: use last available race for the roster (may not reflect mid-season driver changes)
-        prior = race_results[
-            (race_results["season"] < season) |
-            ((race_results["season"] == season) & (race_results["round"] < round_num))
-        ].sort_values(["season", "round"])
-        if prior.empty:
-            return None
-        last = prior.iloc[-1][["season", "round"]]
-        race_results_round = prior[(prior["season"] == last["season"]) & (prior["round"] == last["round"])]
+    if not race_results_round.empty:
+        constructor_lookup = race_results_round.set_index("driver_id")["constructor_id"]
+    else:
+        # upcoming race: this round's practice entry list is the most current roster there is, and the
+        # only one that reflects a mid-season seat change (injury cover, a driver returning) before the
+        # race runs. With no practice yet, inherit the last completed race's roster - a week stale, so
+        # it will miss any such change until FP2 lands
+        constructor_lookup = practice_roster(season, round_num)
 
-    drivers = race_results_round["driver_id"].unique()
+        if constructor_lookup is None:
+            prior = race_results[
+                (race_results["season"] < season) |
+                ((race_results["season"] == season) & (race_results["round"] < round_num))
+            ].sort_values(["season", "round"])
+            if prior.empty:
+                return None
+            last = prior.iloc[-1][["season", "round"]]
+            last_round = prior[(prior["season"] == last["season"]) & (prior["round"] == last["round"])]
+            constructor_lookup = last_round.set_index("driver_id")["constructor_id"]
+
+    drivers = list(constructor_lookup.index)
 
     quali_results_round = quali_results[quali_results["race_id"] == race_id]  # exclude drivers with no qualifying row (DNS)
     if not quali_results_round.empty:
@@ -207,8 +236,6 @@ def build_historic_features(race_results, quali_results, fantasy_targets, events
 
     if len(drivers) == 0:
         return None
-
-    constructor_lookup = race_results_round.set_index("driver_id")["constructor_id"]
 
     rows = []
     for driver_id in drivers:
