@@ -71,14 +71,29 @@ MANUAL_PICK_EXCLUSIONS = {
 
 
 # derives suggested transfers (dropped -> added, paired by asset type) from the diff between the
-# prior state and the optimiser's picks - same pairing logic as dashboard.py's transfer_rows()
-def _transfer_rows(state, team, driver_pts, constructor_pts, selected_ids):
+# prior state and the optimiser's picks
+#
+# each row carries both halves of what the optimiser actually maximises: delta is the swap's
+# expected-points change, value_delta its expected price movement (in millions). the ILP weights the
+# latter by PRICE_LAMBDA, so a swap that loses points can still win the objective by picking up
+# buying power - without the value column that recommendation looks like a bug on the page. net_value
+# is None when the price model couldn't be built (price_lambda 0), which is what the UI gates on:
+# every value_delta is a meaningless 0.0 in that case, not a genuine "no movement either way"
+#
+# the optimiser doesn't make swaps, it picks a team - pairing each dropped asset with an added one is
+# a presentation choice this function invents, so it has to invent a stable and readable one. both
+# sides are sorted by price so the expensive sale lines up with the expensive buy, which is how a
+# manager reads their own transfers and (for one-dimensional matching) also minimises the total price
+# gap across the pairs. the previous version iterated `dropped` straight out of a set, making the
+# order depend on PYTHONHASHSEED: with two or more swaps of the same asset type the same squad could
+# produce completely different per-row numbers from one server process to the next
+def _transfer_rows(state, team, driver_pts, constructor_pts, selected_ids, prices_index, price_delta, price_lambda):
     if not state:
-        return [], 0.0
+        return [], 0.0, None
 
     prev = set(state["drivers"] + state["constructors"])
     added = [i for i in team["drivers"] + team["constructors"] if i not in prev]
-    dropped = [i for i in prev if i not in selected_ids]
+    dropped = [i for i in state["drivers"] + state["constructors"] if i not in selected_ids]
 
     def pts_of(i):
         if i in driver_pts.index:
@@ -87,26 +102,43 @@ def _transfer_rows(state, team, driver_pts, constructor_pts, selected_ids):
             return float(constructor_pts[i])
         return 0.0
 
+    # a held asset that went inactive mid-week has no current price at all, so it falls back to the
+    # price it was bought at rather than sorting as if it were free
+    def price_of(i):
+        if i in prices_index.index:
+            return float(prices_index[i])
+        return float(state["prices"].get(i, 0.0))
+
     def is_driver(i):
         return i in driver_pts.index or i in state.get("drivers", [])
 
-    add_d = [i for i in added if is_driver(i)]
-    add_c = [i for i in added if not is_driver(i)]
-    drop_d = [i for i in dropped if is_driver(i)]
-    drop_c = [i for i in dropped if not is_driver(i)]
+    def by_price(ids):
+        return sorted(ids, key=lambda i: (-price_of(i), i))
+
+    add_d = by_price([i for i in added if is_driver(i)])
+    add_c = by_price([i for i in added if not is_driver(i)])
+    drop_d = by_price([i for i in dropped if is_driver(i)])
+    drop_c = by_price([i for i in dropped if not is_driver(i)])
 
     rows = []
     for outs, ins, is_drv in ((drop_d, add_d, True), (drop_c, add_c, False)):
         for out_i, in_i in zip(outs, ins):
             label = surname if is_drv else fullname
             delta = pts_of(in_i) - pts_of(out_i)
+            value_delta = price_delta.get(in_i, 0.0) - price_delta.get(out_i, 0.0)
             rows.append({
                 "out_id": out_i, "out_name": label(out_i),
                 "in_id": in_i, "in_name": label(in_i),
                 "delta": round(delta, 1),
+                "value_delta": round(value_delta, 1),
             })
+    # deliberately sums the rounded per-row figures rather than the full-precision deltas: the totals
+    # sit directly under the column, and a footer that doesn't add up to the rows above it reads as
+    # broken, where a hidden 0.1 of rounding doesn't. this only stayed put once the pairing above
+    # became deterministic - a re-pairing used to reshuffle which deltas got rounded which way
     net = sum(r["delta"] for r in rows) - 10 * team["transfer_penalty"]
-    return rows, round(net, 1)
+    net_value = round(sum(r["value_delta"] for r in rows), 1) if price_lambda else None
+    return rows, round(net, 1), net_value
 
 
 def build_team(budget=None, squad_mode="model", drivers=None, constructors=None, free_transfers=2):
@@ -162,7 +194,7 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
     mc = load_or_build_mc(season, rnd, circuit)
     likely_range = team_distribution(mc, team["drivers"], captain, set(team["constructors"]))
 
-    transfer_rows, net = _transfer_rows(state, team, driver_pts, constructor_pts, selected_ids)
+    transfer_rows, net, net_value = _transfer_rows(state, team, driver_pts, constructor_pts, selected_ids, prices_index, price_delta, lam)
 
     added_set = set()
     if state:
@@ -279,6 +311,7 @@ def build_team(budget=None, squad_mode="model", drivers=None, constructors=None,
         "transfers": {
             "rows": transfer_rows,
             "net": net,
+            "net_value": net_value,
             "has_state": state is not None,
             "free": (2 + state["free_transfers_carried"]) if state else 0,
             "paid": team["transfer_penalty"] if state else 0,

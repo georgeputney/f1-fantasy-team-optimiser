@@ -130,11 +130,13 @@ export interface TransferRow {
   in_id: string
   in_name: string
   delta: number
+  value_delta: number
 }
 
 export interface Transfers {
   rows: TransferRow[]
   net: number
+  net_value: number | null  // null when the price model is unavailable - hide the value column
   has_state: boolean
   free: number
   paid: number
