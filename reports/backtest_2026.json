@@ -29,7 +29,7 @@
   {
     "season": 2026,
     "round": 4,
-    "location": "Miami Gardens",
+    "location": "Miami",
     "model": 229.0,
     "oracle": 349.0,
     "lagged": 184.0,
@@ -47,7 +47,7 @@
   {
     "season": 2026,
     "round": 6,
-    "location": "Monte Carlo",
+    "location": "Monaco",
     "model": 37.0,
     "oracle": 289.0,
     "lagged": 183.0,
@@ -104,7 +104,7 @@
     "location": "Zandvoort",
     "model": 286.0,
     "oracle": 328.0,
-    "lagged": 264.0,
+    "lagged": 144.0,
     "mean": 221.0
   },
   {
@@ -120,9 +120,18 @@
     "season": 2026,
     "round": 14,
     "location": "Madrid",
-    "model": 150.0,
-    "oracle": 231.0,
-    "lagged": 182.0,
-    "mean": 145.0
+    "model": 156.0,
+    "oracle": 244.0,
+    "lagged": 171.0,
+    "mean": 171.0
+  },
+  {
+    "season": 2026,
+    "round": 15,
+    "location": "Baku",
+    "model": 251.0,
+    "oracle": 296.0,
+    "lagged": 176.0,
+    "mean": 197.0
   }
 ]

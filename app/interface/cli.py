@@ -755,7 +755,10 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             else:
                 mean_points = None
 
-            results.append({"season": s, "round": round_num, "location": location, "model": model_points, "oracle": oracle_points, "lagged": lagged_points, "mean": mean_points})
+            # bt_location comes from the ingested events parquet, `location` from the live FastF1
+            # schedule - the schedule has been seen returning a Location and EventName from different
+            # events for the same round, so the parquet wins wherever it exists
+            results.append({"season": s, "round": round_num, "location": bt_location or location, "model": model_points, "oracle": oracle_points, "lagged": lagged_points, "mean": mean_points})
 
         df = pd.DataFrame(results)
 
