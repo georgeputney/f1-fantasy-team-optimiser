@@ -32,11 +32,6 @@ export function Hero({ hero }: Props) {
         <p style={{ margin: 0, font: '600 148px/.8 Archivo,sans-serif', letterSpacing: '-.05em', color: INK }}>
           {hero.projected_points}
         </p>
-        {/* the headline scores every driver as finishing - compose_drivers carries no DNF term, by
-            design (discounting it backtested worse both for selection and for display accuracy). The
-            simulation beside it does price retirement in, so its median always sits lower and the caret
-            rides high in the band. Saying so turns that gap from a glitch into the point */}
-        <p style={{ margin: '14px 0 0', font: '400 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>assumes a clean race</p>
       </div>
       <div style={{ paddingBottom: 14, display: 'grid', gridTemplateColumns: '1fr auto auto', columnGap: 52, alignItems: 'end' }}>
         <div>
