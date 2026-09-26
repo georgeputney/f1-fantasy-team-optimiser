@@ -21,14 +21,18 @@ from api.common import (
 # which point in the race weekend this snapshot's predictions were generated at, read straight from
 # the predictions file rather than hardcoded. "pre-race" covers both Post-FP3 and a sprint weekend's
 # Post-Sprint-Quali (check_race_weekend.py sets the same trigger value for both - it skips FP2/FP3
-# entirely on a sprint weekend), so that one needs the sprint flag to disambiguate; "post-fp2" and
-# "post-race" are unambiguous
-TRIGGER_LABELS = {"post-fp2": "Post-FP2", "post-race": "Post-race"}
+# entirely on a sprint weekend), so that one needs the sprint flag to disambiguate.
+# every label names a session from the weekend being predicted, so it reads as how much of this
+# weekend's running is in the numbers. the "post-race" trigger is the odd one out - it fires off the
+# *previous* round's race, so labelling it "Post-race" next to an upcoming round invites reading it
+# as that round's race already being run. it's named for the session it sits in front of instead:
+# FP1 opens every weekend format, sprint included, so "Pre-FP1" holds whatever the round runs
+TRIGGER_LABELS = {"post-fp2": "Post-FP2", "post-race": "Pre-FP1"}
 
 
 def _trigger_label(trigger, season, round_num):
     if trigger == "pre-race":
-        return "Post-Sprint Quali" if is_sprint_weekend(season, round_num) else "Post-FP3"
+        return "Post-SQ" if is_sprint_weekend(season, round_num) else "Post-FP3"
     return TRIGGER_LABELS.get(trigger, "Latest")
 
 
