@@ -37,15 +37,25 @@ HIGH_PRICE_STEPS = [-0.3, -0.1, 0.1, 0.3]   # price >= 20
 PRICE_BRACKET_CUTOFF = 18.5
 
 
-# the points one round contributes to an asset's rolling price window - 0 for a round the driver
+# the points one round contributes to an asset's rolling price window - None for a round the driver
 # spent out of the seat their current price belongs to, so a stint standing in elsewhere doesn't
-# reprice this seat, and 0 (not "skipped") for a round they have no result in at all
+# reprice this seat, and 0 (not "skipped") for a round they have no result in at all.
+# None drops out of the window entirely rather than scoring 0: the game prices a seat off only the
+# rounds its current driver has actually raced it, so a returning driver's first race is averaged
+# over one round, not padded to three with zeros. Padding drags the average down by a factor of
+# three and costs a returning driver a price rise the game gives them - see window_average
 def pricing_points(season, round_num, asset_id, points):
     away = SEAT_RETURNS.get(season, {}).get(asset_id)
     if away and away["away_from"] <= round_num < away["returns"]:
-        return 0.0
+        return None
 
     return 0.0 if points is None or pd.isna(points) else float(points)
+
+
+# mean of a rolling window, ignoring the rounds pricing_points marked as out-of-seat
+def window_average(window):
+    scored = [p for p in window if p is not None]
+    return sum(scored) / len(scored) if scored else 0.0
 
 
 # applies this round's seat changes to a freshly computed price table: a returning driver takes their
@@ -112,7 +122,7 @@ def compute_price_round(season, round_num):
     next_prices = {}
     for asset_id, price in current_prices.items():
         recent_pts = [pricing_points(season, r, asset_id, targets_by_round[r].get(asset_id, 0)) for r in recent_rounds]
-        avg_pts = sum(recent_pts) / len(recent_pts) if recent_pts else 0
+        avg_pts = window_average(recent_pts)
         next_prices[asset_id] = compute_price_change(avg_pts, price, floor)
 
     next_prices = apply_seat_changes(season, round_num, next_prices, asset_types)
@@ -154,7 +164,7 @@ def expected_price_delta(season, round_num, current_prices, predicted_points):
     for asset_id, price in dict(current_prices).items():
         window = [pricing_points(season, r, asset_id, history[r].get(asset_id, 0)) for r in prior_rounds]
         window.append(float(predicted_points.get(asset_id, 0)))
-        avg_pts = sum(window) / len(window)
+        avg_pts = window_average(window)
         delta[asset_id] = compute_price_change(avg_pts, float(price), floor) - float(price)
 
     return delta
@@ -207,7 +217,7 @@ def compute_prices(season):
 
         for asset_id, price in current_prices.items():
             recent = points_history[asset_id][-3:]
-            avg_pts = sum(recent) / len(recent)
+            avg_pts = window_average(recent)
             next_prices[asset_id] = compute_price_change(avg_pts, price, floor)
 
         current_prices = apply_seat_changes(season, next_rnd, next_prices, asset_types)
