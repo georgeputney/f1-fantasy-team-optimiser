@@ -1,5 +1,6 @@
 import { MobileSheet } from './MobileSheet'
 import { Select } from './Select'
+import { BudgetInput } from './BudgetInput'
 import { slotOptions, unaffordableIds, totalSpend, budgetStepCount, budgetToStep, stepToBudget } from './squadFilters'
 import { GREEN, INK, MUTED2, PANEL_MOBILE } from './theme'
 import type { AssetOption, Controls } from './api'
@@ -43,7 +44,7 @@ export function SquadControlsMobile({
       <MobileSheet title="Your squad" count={`£${budget.toFixed(1)}M budget`}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
           <span style={{ font: '400 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>Budget</span>
-          <span style={{ font: '500 15px/1 Archivo,sans-serif', color: INK }}>£{budget.toFixed(1)}M</span>
+          <BudgetInput value={budget} min={controls.budget_min} max={controls.budget_max} step={controls.budget_step} onChange={onBudgetChange} />
         </div>
         <input
           type="range" min={0} max={budgetStepCount(controls.budget_min, controls.budget_max, controls.budget_step)} step={1}
