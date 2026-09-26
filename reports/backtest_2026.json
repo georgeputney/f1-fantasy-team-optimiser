@@ -124,5 +124,14 @@
     "oracle": 244.0,
     "lagged": 190.0,
     "mean": 153.0
+  },
+  {
+    "season": 2026,
+    "round": 15,
+    "location": "Baku",
+    "model": 180.0,
+    "oracle": 261.0,
+    "lagged": 111.0,
+    "mean": 165.0
   }
 ]
