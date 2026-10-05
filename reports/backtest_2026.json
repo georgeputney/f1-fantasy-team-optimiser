@@ -133,5 +133,14 @@
     "oracle": 296.0,
     "lagged": 176.0,
     "mean": 197.0
+  },
+  {
+    "season": 2026,
+    "round": 16,
+    "location": "Kuala Lumpur",
+    "model": 157.0,
+    "oracle": 256.0,
+    "lagged": 22.0,
+    "mean": 150.0
   }
 ]
