@@ -2,31 +2,37 @@
 
 import pandas as pd
 
-from app.config import PROCESSED_TARGETS_DIR, PROCESSED_PRICES_DIR, STARTING_PRICES_DIR, PRICE_FLOOR
+from app.config import PROCESSED_TARGETS_DIR, PROCESSED_PRICES_DIR, STARTING_PRICES_DIR, PRICE_FLOOR, PRICE_CEILING
 
 # imported lazily inside the two offline-pipeline functions that validate against it below -
 # expected_price_delta (the only function the live API calls) never needs it, and pandera is
 # ~200ms of import time the API would otherwise pay at every cold start for no reason
 
 
-# mid-season seat changes, which the rolling PPM rule can't derive from points alone. A driver
-# coming back from an absence - injured, or away covering another team's seat - is hand-priced by
-# the game at the round they return rather than inheriting whatever their stand-in had drifted to,
-# so that price is set here. The rounds spent away score 0 in the rolling window as well: those
-# points either don't exist or were banked in a seat other than the one now being priced, so they
-# shouldn't move it. Drivers only - a constructor never changes seat. Keyed by season.
-SEAT_RETURNS = {
+# mid-season seat changes, which the rolling PPM rule can't derive from points alone. Each listed
+# driver races a sequence of seat stints (first round, last round or None for open-ended, entry
+# price); a driver not listed holds one seat all season. Outside every stint the driver is off the
+# grid and out of the price table. A stint after the first is hand-priced by the game at its first
+# round rather than inheriting the previous seat's price, and a price only moves on the points scored
+# in its own stint - see pricing_points. Drivers only - a constructor never changes seat. Keyed by season.
+SEAT_STINTS = {
     2026: {
-        "isack_hadjar": {"away_from": 12, "returns": 15, "price": 14.5},  # out injured from r12
-        "liam_lawson":  {"away_from": 12, "returns": 15, "price": 9.7},   # covered Hadjar's Red Bull seat r12-r14
+        "isack_hadjar": [(1, 11, None), (15, None, 14.5)],                 # out injured r12-r14
+        "liam_lawson":  [(1, 11, None), (12, 14, 14.5), (15, None, 9.7)],  # covered Hadjar's Red Bull seat r12-r14
+        "yuki_tsunoda": [(12, 14, 10.3)],                                  # filled Lawson's Racing Bulls seat r12-r14
     },
 }
 
-# the other half of a seat return: the stand-in leaves the grid, from the round the regular driver
-# is back. Prices carry forward round to round, so without this the stand-in stays in the table for
-# the rest of the season and the optimiser keeps offering a driver who isn't racing. Keyed by season.
-SEAT_EXITS = {
-    2026: {"yuki_tsunoda": 15},  # filled Lawson's Racing Bulls seat while Lawson was covering Hadjar's
+
+# prices the game set off-rule, as published, keyed by season then round. These are steps the rolling PPM
+# rule can't produce from the final points: at r9 the game moved Gasly +0.6 and Lawson +0.2 where their
+# r6-r8 points give -0.2 and +0.6. Both moves fit their pre-penalty r6 scores (Gasly 25, Lawson 13)
+# instead, so the game looks to have priced r9 off r6 as first scored, before Gasly's post-race
+# penalty - yet r7 was priced off the corrected scores. Every later round falls out of the rule unaided
+PRICE_ANCHORS = {
+    2026: {
+        9: {"pierre_gasly": 12.8, "liam_lawson": 8.9},
+    },
 }
 
 
@@ -37,16 +43,28 @@ HIGH_PRICE_STEPS = [-0.3, -0.1, 0.1, 0.3]   # price >= 20
 PRICE_BRACKET_CUTOFF = 18.5
 
 
-# the points one round contributes to an asset's rolling price window - None for a round the driver
-# spent out of the seat their current price belongs to, so a stint standing in elsewhere doesn't
-# reprice this seat, and 0 (not "skipped") for a round they have no result in at all.
+# index of the seat stint an asset is in at a round - 0 for an asset with no listed stints, None for
+# a round a listed driver spends off the grid
+def seat_stint(season, round_num, asset_id):
+    stints = SEAT_STINTS.get(season, {}).get(asset_id)
+    if stints is None:
+        return 0
+
+    for i, (first, last, _) in enumerate(stints):
+        if first <= round_num and (last is None or round_num <= last):
+            return i
+    return None
+
+
+# the points one round contributes to the rolling window that moves an asset's price at stint_round -
+# None for a round spent in a different stint (or off the grid), and 0 (not "skipped") for a round in
+# the same stint with no result at all.
 # None drops out of the window entirely rather than scoring 0: the game prices a seat off only the
-# rounds its current driver has actually raced it, so a returning driver's first race is averaged
-# over one round, not padded to three with zeros. Padding drags the average down by a factor of
-# three and costs a returning driver a price rise the game gives them - see window_average
-def pricing_points(season, round_num, asset_id, points):
-    away = SEAT_RETURNS.get(season, {}).get(asset_id)
-    if away and away["away_from"] <= round_num < away["returns"]:
+# rounds its current driver has actually raced it, so a driver's first race in a new seat is averaged
+# over one round, not padded to three with zeros or mixed with points banked in the old seat. Lawson's
+# r14 Red Bull price (14.3 -> 14.9) only comes out of the rule from his Red Bull rounds alone
+def pricing_points(season, round_num, asset_id, points, stint_round):
+    if seat_stint(season, round_num, asset_id) != seat_stint(season, stint_round, asset_id):
         return None
 
     return 0.0 if points is None or pd.isna(points) else float(points)
@@ -58,24 +76,30 @@ def window_average(window):
     return sum(scored) / len(scored) if scored else 0.0
 
 
-# applies this round's seat changes to a freshly computed price table: a returning driver takes their
-# hand-set price (and is added back, since the previous round's table dropped them while they were
-# out), and a stand-in whose seat has gone back to its regular driver is removed outright
-def apply_seat_changes(season, round_num, prices, asset_types):
-    for asset_id, ret in SEAT_RETURNS.get(season, {}).items():
-        if ret["returns"] == round_num:
-            prices[asset_id] = ret["price"]
+# applies this round's hand-set prices to a freshly computed price table: a driver starting a new stint
+# takes its hand-set price (and is added if the previous round's table didn't have them), a driver
+# off the grid this round is removed outright, so the optimiser never offers someone who isn't racing,
+# and any off-rule price the game published this round replaces the rule's (see PRICE_ANCHORS)
+def apply_hand_set_prices(season, round_num, prices, asset_types):
+    for asset_id, stints in SEAT_STINTS.get(season, {}).items():
+        stint = seat_stint(season, round_num, asset_id)
+        if stint is None:
+            prices.pop(asset_id, None)
+            continue
+
+        first, _, entry_price = stints[stint]
+        if first == round_num and entry_price is not None:
+            prices[asset_id] = entry_price
             asset_types.setdefault(asset_id, "driver")
 
-    for asset_id, exit_round in SEAT_EXITS.get(season, {}).items():
-        if round_num >= exit_round:
-            prices.pop(asset_id, None)
+    for asset_id, price in PRICE_ANCHORS.get(season, {}).get(round_num, {}).items():
+        prices[asset_id] = price
 
     return prices
 
 
 # compute the price change for an asset given its rolling avg points and current price
-def compute_price_change(avg_pts, price, floor):
+def compute_price_change(avg_pts, price, floor, ceiling=None):
     ppm = avg_pts / price
     steps = LOW_PRICE_STEPS if price < PRICE_BRACKET_CUTOFF else HIGH_PRICE_STEPS
 
@@ -91,6 +115,8 @@ def compute_price_change(avg_pts, price, floor):
     new_price = round(price + change, 1)
     if new_price < floor:
         new_price = floor
+    if ceiling is not None and new_price > ceiling:
+        new_price = ceiling
 
     return new_price
 
@@ -100,6 +126,7 @@ def compute_price_round(season, round_num):
     import app.data.schemas as schemas
 
     floor = PRICE_FLOOR.get(season, 3.5)
+    ceiling = PRICE_CEILING.get(season)
 
     # load previous round's prices as the base
     prev_path = PROCESSED_PRICES_DIR / f"{season}_{round_num - 1:02d}.parquet"
@@ -121,11 +148,11 @@ def compute_price_round(season, round_num):
 
     next_prices = {}
     for asset_id, price in current_prices.items():
-        recent_pts = [pricing_points(season, r, asset_id, targets_by_round[r].get(asset_id, 0)) for r in recent_rounds]
+        recent_pts = [pricing_points(season, r, asset_id, targets_by_round[r].get(asset_id, 0), round_num - 1) for r in recent_rounds]
         avg_pts = window_average(recent_pts)
-        next_prices[asset_id] = compute_price_change(avg_pts, price, floor)
+        next_prices[asset_id] = compute_price_change(avg_pts, price, floor, ceiling)
 
-    next_prices = apply_seat_changes(season, round_num, next_prices, asset_types)
+    next_prices = apply_hand_set_prices(season, round_num, next_prices, asset_types)
 
     price_df = pd.DataFrame({
         "race_id": f"{season}_{round_num:02d}",
@@ -147,6 +174,7 @@ def compute_price_round(season, round_num):
 # round in place of the not-yet-known actual, so it uses no look-ahead - safe for the optimiser
 def expected_price_delta(season, round_num, current_prices, predicted_points):
     floor = PRICE_FLOOR.get(season, 3.5)
+    ceiling = PRICE_CEILING.get(season)
 
     # prior actual points per round for rounds before this one
     history = {}
@@ -162,10 +190,10 @@ def expected_price_delta(season, round_num, current_prices, predicted_points):
 
     delta = {}
     for asset_id, price in dict(current_prices).items():
-        window = [pricing_points(season, r, asset_id, history[r].get(asset_id, 0)) for r in prior_rounds]
+        window = [pricing_points(season, r, asset_id, history[r].get(asset_id, 0), round_num) for r in prior_rounds]
         window.append(float(predicted_points.get(asset_id, 0)))
         avg_pts = window_average(window)
-        delta[asset_id] = compute_price_change(avg_pts, float(price), floor) - float(price)
+        delta[asset_id] = compute_price_change(avg_pts, float(price), floor, ceiling) - float(price)
 
     return delta
 
@@ -176,6 +204,7 @@ def compute_prices(season):
 
     starting_prices = pd.read_csv(STARTING_PRICES_DIR / f"{season}.csv")
     floor = PRICE_FLOOR.get(season, 3.5)
+    ceiling = PRICE_CEILING.get(season)
 
     # collect all available targets for this season
     target_files = sorted(PROCESSED_TARGETS_DIR.glob(f"{season}_*.parquet"))
@@ -191,7 +220,6 @@ def compute_prices(season):
     # initialise current prices from starting prices
     current_prices = starting_prices.set_index("asset_id")["price"].to_dict()
     asset_types = starting_prices.set_index("asset_id")["asset_type"].to_dict()
-    points_history = {asset_id: [] for asset_id in current_prices}
 
     all_price_frames = []
 
@@ -206,21 +234,18 @@ def compute_prices(season):
     all_price_frames.append(r1_df)
 
     for i, rnd in enumerate(rounds):
-        # record this round's points
-        pts = targets_by_round[rnd]
-        for asset_id in current_prices:
-            points_history.setdefault(asset_id, []).append(pricing_points(season, rnd, asset_id, pts.get(asset_id, 0)))
-
-        # compute next round's prices
+        # compute next round's prices off the last 3 rounds up to and including this one, indexed by
+        # round so a stint change can drop rounds out of the window (see pricing_points)
         next_rnd = rounds[i + 1] if i + 1 < len(rounds) else rnd + 1
+        recent_rounds = rounds[max(0, i - 2):i + 1]
         next_prices = {}
 
         for asset_id, price in current_prices.items():
-            recent = points_history[asset_id][-3:]
+            recent = [pricing_points(season, r, asset_id, targets_by_round[r].get(asset_id, 0), rnd) for r in recent_rounds]
             avg_pts = window_average(recent)
-            next_prices[asset_id] = compute_price_change(avg_pts, price, floor)
+            next_prices[asset_id] = compute_price_change(avg_pts, price, floor, ceiling)
 
-        current_prices = apply_seat_changes(season, next_rnd, next_prices, asset_types)
+        current_prices = apply_hand_set_prices(season, next_rnd, next_prices, asset_types)
 
         price_df = pd.DataFrame({
             "race_id": f"{season}_{next_rnd:02d}",

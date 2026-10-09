@@ -42,7 +42,7 @@ from app.optimiser.state import load_state, save_state
 from app.models.backtest import get_actual_team_points, oracle_baseline, lagged_baseline, mean_prior_baseline
 
 from app.config import (
-    ALL_SEASONS, VAL_SEASONS, BUDGET_CAP, PRICE_LAMBDA,
+    ALL_SEASONS, VAL_SEASONS, LIVE_SEASONS, BUDGET_CAP, PRICE_LAMBDA,
     INTERIM_EVENTS_DIR, INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR,
     INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR,
     INTERIM_RACE_LAPS_DIR, INTERIM_RACE_OVERTAKES_DIR,
@@ -245,9 +245,15 @@ def build_targets(season: list[int] = typer.Option(ALL_SEASONS), round: list[int
                 continue
 
 
-# compute fantasy prices from starting prices and targets using rolling PPM rule, write to data/processed/prices/
+# compute fantasy prices from starting prices and targets using rolling PPM rule, write to data/processed/prices/.
+# without --round, every round of the season is rebuilt from starting prices, so a correction that lands after a
+# round was first priced (late overtakes or DOTD, a post-race penalty) carries through to every later round instead
+# of the stale price propagating. defaults to the live season - older seasons' tracked prices predate later target
+# fixes and aren't meant to move
 @app.command()
-def build_prices(season: list[int] = typer.Option(ALL_SEASONS), round: int = typer.Option(None)):
+def build_prices(season: list[int] = typer.Option(LIVE_SEASONS), round: int = typer.Option(None)):
+    from app.config import STARTING_PRICES_DIR
+
     for s in season:
         if round is not None:
             typer.echo(f"Computing prices for season {s}, round {round:02d}...")
@@ -256,37 +262,25 @@ def build_prices(season: list[int] = typer.Option(ALL_SEASONS), round: int = typ
                 typer.echo(f"  Round {round:02d} computed")
             except FileNotFoundError as e:
                 typer.echo(f"  Skipping: {e}")
-        else:
-            from app.config import PROCESSED_TARGETS_DIR, PROCESSED_PRICES_DIR, STARTING_PRICES_DIR
-            target_rounds = sorted(int(f.stem.split("_")[1]) for f in PROCESSED_TARGETS_DIR.glob(f"{s}_*.parquet"))
-            if not target_rounds:
-                typer.echo(f"Season {s}: no targets found")
-                continue
-            next_rnd = target_rounds[-1] + 1
-            prev_path = PROCESSED_PRICES_DIR / f"{s}_{next_rnd - 1:02d}.parquet"
-            if not prev_path.exists():
-                starting_path = STARTING_PRICES_DIR / f"{s}.csv"
-                if not starting_path.exists():
-                    typer.echo(f"Season {s}: no starting prices found")
-                    continue
-                typer.echo(f"Bootstrapping round 1 prices from starting prices...")
-                starting = pd.read_csv(starting_path)
-                starting["race_id"] = f"{s}_01"
-                PROCESSED_PRICES_DIR.mkdir(parents=True, exist_ok=True)
-                starting.to_parquet(PROCESSED_PRICES_DIR / f"{s}_01.parquet", index=False)
-                if next_rnd == 1:
-                    typer.echo(f"  Round 01 written")
-                    continue
-            existing = PROCESSED_PRICES_DIR / f"{s}_{next_rnd:02d}.parquet"
-            if existing.exists():
-                typer.echo(f"Season {s}: prices up to date (round {next_rnd:02d} exists)")
-                continue
-            typer.echo(f"Computing prices for season {s}, round {next_rnd:02d}...")
-            try:
-                compute_price_round(s, next_rnd)
-                typer.echo(f"  Round {next_rnd:02d} computed")
-            except FileNotFoundError as e:
-                typer.echo(f"  Skipping: {e}")
+            continue
+
+        starting_path = STARTING_PRICES_DIR / f"{s}.csv"
+        if not starting_path.exists():
+            typer.echo(f"Season {s}: no starting prices found")
+            continue
+
+        typer.echo(f"Computing prices for season {s}...")
+        frames = compute_prices(s)
+        if frames:
+            typer.echo(f"  Rounds {frames[0]['race_id'].iloc[0]} to {frames[-1]['race_id'].iloc[-1]} computed")
+            continue
+
+        # no targets yet - round 1 is the starting prices
+        starting = pd.read_csv(starting_path)
+        starting["race_id"] = f"{s}_01"
+        PROCESSED_PRICES_DIR.mkdir(parents=True, exist_ok=True)
+        starting.to_parquet(PROCESSED_PRICES_DIR / f"{s}_01.parquet", index=False)
+        typer.echo(f"  Round 01 written from starting prices")
 
 
 # build historic rolling features and practice session features for the given seasons and write to data/processed/

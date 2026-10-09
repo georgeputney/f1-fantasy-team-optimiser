@@ -175,6 +175,13 @@ def clean_sprint_results(season, round_num):
         fastest_driver = sprint_laps.loc[sprint_laps["lap_time"].idxmin(), "driver_id"]
         results["fastest_lap_flag"] = results["driver_id"] == fastest_driver
 
+        # "lapped" drivers short of 90% of the leader's laps (rounded down, per FIA) are actually NC -> DNF.
+        # fastf1 reports a retirement as "lapped" when ClassifiedPosition is "R", e.g. hulkenberg 2026 R12, 7/24 laps.
+        # counts every lap row, timed or not - untimed laps would push a classified finisher under the line
+        lap_rows = sprint_laps.groupby("driver_id").size()
+        nc_mask = results["status"].eq("lapped") & results["driver_id"].map(lap_rows).lt(int(0.9 * lap_rows.max()))
+        results.loc[nc_mask, "dnf_flag"] = True
+
         # classified retirements: "retired" drivers who completed >=85% of sprint laps (pre-2026)
         if season < 2026:
             valid_laps = sprint_laps[sprint_laps["lap_time"].notna()]
