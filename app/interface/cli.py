@@ -31,6 +31,7 @@ from app.models.configs import FINISH_POSITION_MODEL, QUALI_POSITION_MODEL
 from app.models.train import main as train_main, load as load_model, load_data_upto, train_walk_forward, save_season
 from app.models.predict import load_season_model, predict as run_predict
 from app.models.compose import compose_drivers, compose_constructor, expected_pitstop_points
+from app.data.grid_penalties import load_grid_penalties, historical_grid_penalties, recovery_overtake_rate, front_runner_finish_shift
 from app.models.monte_carlo import simulate_round, cache_mc_result
 from app.optimiser.budget_range import cache_budget_range
 from app.data.overtakes import build_overtake_predictor
@@ -384,7 +385,7 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
     predict_overtakes = build_overtake_predictor()
     predict_dotd = build_dotd_predictor()
     predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
-    driver_pts = compose_drivers(predictions, location=circuit, season=season, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
+    driver_pts = compose_drivers(predictions, location=circuit, season=season, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd, **_grid_penalty_kwargs(season, round))
     constructor_pts = compose_constructor(driver_pts, pitstop_pts=expected_pitstop_points(season, round))
 
     # Monte Carlo distributions for the breakdown display only - the ranked expected_points above stays
@@ -400,6 +401,7 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
             "price": float(prices_index.get(row["driver_id"], 0)),
             "predicted_quali_position": int(row["predicted_quali_position"]),
             "predicted_finish_position": int(row["predicted_finish_position"]),
+            "grid_position": int(row["grid_position"]),
             "points_breakdown": {
                 "quali": float(row.get("points_quali", 0)),
                 "finish": float(row.get("points_finish", 0)),
@@ -508,7 +510,7 @@ def backfill_predictions(from_season: int = typer.Option(2026), prod: bool = typ
             prices_index = prices.set_index("asset_id")["price"]
 
             predictions = run_predict(walk_quali, QUALI_POSITION_MODEL, walk_finish, FINISH_POSITION_MODEL, s, r)
-            driver_pts = compose_drivers(predictions, location=circuit, season=s, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
+            driver_pts = compose_drivers(predictions, location=circuit, season=s, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd, **_grid_penalty_kwargs(s, r, before=(s, r)))
             constructor_pts = compose_constructor(driver_pts, pitstop_pts=expected_pitstop_points(s, r))
 
             drivers_out = [
@@ -519,6 +521,7 @@ def backfill_predictions(from_season: int = typer.Option(2026), prod: bool = typ
                     "price": float(prices_index.get(row["driver_id"], 0)),
                     "predicted_quali_position": int(row["predicted_quali_position"]),
                     "predicted_finish_position": int(row["predicted_finish_position"]),
+                    "grid_position": int(row["grid_position"]),
                     "points_breakdown": {
                         "quali": float(row.get("points_quali", 0)),
                         "finish": float(row.get("points_finish", 0)),
@@ -572,7 +575,7 @@ def predict_race(season: int = typer.Option(...), round: int = typer.Option(...)
     predict_dotd = build_dotd_predictor()
     predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
 
-    driver_points = compose_drivers(predictions, location=location, season=season, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
+    driver_points = compose_drivers(predictions, location=location, season=season, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd, **_grid_penalty_kwargs(season, round))
     constructor_points = compose_constructor(driver_points, pitstop_pts=expected_pitstop_points(season, round))
 
     typer.echo(f"Predicting season {season}, round {round:02d} - {location}...")
@@ -603,7 +606,7 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
     predict_dotd = build_dotd_predictor()
     predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, season, round)
 
-    driver_points = compose_drivers(predictions, location=location, season=season, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
+    driver_points = compose_drivers(predictions, location=location, season=season, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd, **_grid_penalty_kwargs(season, round))
     constructor_points = compose_constructor(driver_points, pitstop_pts=expected_pitstop_points(season, round))
 
     # expected next-round price change per asset, used to trade current points for future buying power
@@ -673,7 +676,7 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 # runs walk-forward backtest comparing model, oracle, and baseline strategies over historical seasons, prints per-round results and saves a cumulative points plot
 # model and oracle are transfer-constrained with state carried forward each round
 @app.command()
-def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP), save_state_file: bool = typer.Option(False, "--save-state"), price_lambda: float = typer.Option(PRICE_LAMBDA)):
+def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP), save_state_file: bool = typer.Option(False, "--save-state"), price_lambda: float = typer.Option(PRICE_LAMBDA), grid_penalties: bool = typer.Option(False, "--grid-penalties")):
     for s in season:
         results = []
 
@@ -719,7 +722,12 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
 
             predictions = run_predict(quali_model, QUALI_POSITION_MODEL, finish_model, FINISH_POSITION_MODEL, s, round_num)
 
-            driver_points = compose_drivers(predictions, location=bt_location, season=s, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd)
+            # --grid-penalties replays each race's actual grid drops as if they'd been entered by hand
+            penalties = historical_grid_penalties(s, round_num) if grid_penalties else None
+            driver_points = compose_drivers(
+                predictions, location=bt_location, season=s, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd,
+                **_penalty_model_kwargs(penalties, s, round_num, before=(s, round_num)),
+            )
             constructor_points = compose_constructor(driver_points, pitstop_pts=expected_pitstop_points(s, round_num))
             driver_team_map = dict(zip(driver_points["driver_id"], driver_points["constructor_id"]))
 
@@ -789,6 +797,23 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             typer.echo(f"Saved model team state to {TEAM_STATE_FILE} (season {s}, round {last_round}).")
 
         typer.echo(f"\nPlot saved to reports/\n")
+
+
+# hand-entered grid penalties for a round (data/manual/grid_penalties/), as compose_drivers kwargs. the
+# recovery overtake rate is fitted on races strictly before `before` when given, so a backfilled round
+# doesn't see its own result
+def _grid_penalty_kwargs(season, round_num, before=None):
+    return _penalty_model_kwargs(load_grid_penalties(season, round_num), season, round_num, before)
+
+
+def _penalty_model_kwargs(penalties, season, round_num, before=None):
+    if not penalties:
+        return {}
+    return {
+        "grid_penalties": penalties,
+        "recovery_overtake_rate": recovery_overtake_rate(before),
+        "front_runner_shift": front_runner_finish_shift(before),
+    }
 
 
 # builds in-memory team state after each backtest round - mirrors save_state but without file I/O

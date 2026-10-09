@@ -13,6 +13,7 @@ from app.models.configs import QUALI_POSITION_MODEL, FINISH_POSITION_MODEL
 from app.models.predict import load_season_model, predict_with_raw
 from app.data.overtakes import build_overtake_predictor
 from app.data.dotd import build_dotd_predictor
+from app.data.grid_penalties import BACK_OF_GRID, front_runner_finish_shift, front_runner_mask, load_grid_penalties, recovery_overtake_rate
 from app.data.scoring_rules import (
     DRIVER_RACE_POSITION_POINTS, DRIVER_QUALI_POSITION_POINTS, CONSTRUCTOR_QUALI_BONUS,
     FASTEST_LAP_POINTS, DOTD_POINTS, POSITION_GAINED_POINTS, RACE_PENALTY, OVERTAKE_MADE_POINTS,
@@ -61,6 +62,18 @@ def _pos_tier(positions):
 # dense competition-free ranks 1..n along axis=1 (argsort of argsort)
 def _ranks(x):
     return np.argsort(np.argsort(x, axis=1), axis=1) + 1
+
+
+# per-sim race grid from per-sim qualifying positions - the vectorised form of apply_grid_penalties
+def _penalised_grid(quali_pos, driver_ids, penalties):
+    n = quali_pos.shape[1]
+    keys = quali_pos.astype(float)
+    for i, did in enumerate(driver_ids):
+        pen = penalties.get(did)
+        if pen is None:
+            continue
+        keys[:, i] = n + 1 + quali_pos[:, i] / 100 if pen == BACK_OF_GRID else np.minimum(quali_pos[:, i] + pen, n) + 0.5
+    return _ranks(keys)
 
 
 # calibration - walks CALIBRATION_SEASONS once, saves residual pools / DNF curve / frailty to disk.
@@ -170,7 +183,10 @@ def load_calibration():
 # driver on the current grid). returns (totals, driver_ids, quali_pos, dnf): totals is the
 # (n_sims, n_drivers) fantasy-points matrix, quali_pos the sampled qualifying positions and dnf the
 # boolean retirement mask (both n_sims x n_drivers, used by callers for constructor bonus and DNF risk)
-def run_race_mc(race, calibration, n_sims=1000, rng=None, dnf_rate=None):
+# grid_penalties ({driver_id: places or "back"}) moves each sim's grid behind its sampled qualifying order,
+# scoring positions gained from the grid and adding recovery_overtake_rate overtakes per extra place to
+# recover - mirrors compose_drivers. the sprint is untouched, since grid penalties don't apply to it
+def run_race_mc(race, calibration, n_sims=1000, rng=None, dnf_rate=None, grid_penalties=None, recovery_overtake_rate=0.0, front_runner_shift=0.0):
     rng = rng or np.random.default_rng()
     finish_pools = calibration["finish_pools"]
     quali_pools = calibration["quali_pools"]
@@ -186,6 +202,9 @@ def run_race_mc(race, calibration, n_sims=1000, rng=None, dnf_rate=None):
     # actual-minus-ranked residuals - see build_calibration for why raw scores are not used
     ranked_f = race["ranked_finish"].values.astype(float)
     ranked_q = race["ranked_quali"].values.astype(float)
+    # a penalised front-runner's finish centre moves back front_runner_shift places (mirrors compose_drivers)
+    if grid_penalties and front_runner_shift:
+        ranked_f = ranked_f + front_runner_mask(race["driver_id"].values, race["ranked_quali"].values, grid_penalties) * front_runner_shift
     # per-driver DNF probability - a caller (simulate_round) may pass a blended driver-specific rate;
     # otherwise fall back to the position-tier prior
     if dnf_rate is None:
@@ -216,7 +235,8 @@ def run_race_mc(race, calibration, n_sims=1000, rng=None, dnf_rate=None):
     BIG = 1e6
     finish_pos = _ranks(latent_f + BIG * dnf)
     quali_pos = _ranks(latent_q)
-    positions_gained = quali_pos - finish_pos
+    grid_pos = _penalised_grid(quali_pos, race["driver_id"].values, grid_penalties) if grid_penalties else quali_pos
+    positions_gained = grid_pos - finish_pos
 
     # fastest lap: weighted single winner among survivors, weighted by QUALIFYING position
     # (matches compose_drivers, which derives fastest-lap probability from quali position)
@@ -241,7 +261,11 @@ def run_race_mc(race, calibration, n_sims=1000, rng=None, dnf_rate=None):
         for i in range(n)
     ])
     exp_ot = np.clip(np.nan_to_num(exp_ot, nan=0.0), 0, None)
-    overtakes = rng.poisson(exp_ot[None, :] * np.ones((n_sims, 1)))
+    ot_mean = exp_ot[None, :] * np.ones((n_sims, 1))
+    if grid_penalties:
+        to_recover = np.clip(grid_pos - finish_pos, 0, None) - np.clip(quali_pos - finish_pos, 0, None)
+        ot_mean = np.clip(ot_mean + recovery_overtake_rate * to_recover, 0, None)
+    overtakes = rng.poisson(ot_mean)
 
     race_base = np.where(dnf, RACE_PENALTY, RACE_PTS[finish_pos] + positions_gained * POSITION_GAINED_POINTS)
     race_total = (race_base + fl_flag * FASTEST_LAP_POINTS + dotd_flag * DOTD_POINTS
@@ -337,7 +361,12 @@ def simulate_round(season, round_num, location, n_sims=10000, seed=42):
     race["location"] = location
 
     dnf_rate = _blended_dnf(race, calibration, season, round_num)
-    totals, driver_ids, quali_pos, dnf = run_race_mc(race, calibration, n_sims=n_sims, rng=rng, dnf_rate=dnf_rate)
+    penalties = load_grid_penalties(season, round_num)
+    totals, driver_ids, quali_pos, dnf = run_race_mc(
+        race, calibration, n_sims=n_sims, rng=rng, dnf_rate=dnf_rate,
+        grid_penalties=penalties, recovery_overtake_rate=recovery_overtake_rate() if penalties else 0.0,
+        front_runner_shift=front_runner_finish_shift() if penalties else 0.0,
+    )
 
     dnf_prob = dnf.mean(axis=0)
     driver_dist = {

@@ -29,6 +29,7 @@ FANTASY_PRICES_DIR                  = MANUAL_DIR / "fantasy_prices"
 FANTASY_POINTS_DIR                  = MANUAL_DIR / "fantasy_points"
 RACE_OVERTAKES_DIR                  = MANUAL_DIR / "race_overtakes"
 SPRINT_OVERTAKES_DIR                = MANUAL_DIR / "sprint_overtakes"
+GRID_PENALTIES_DIR                  = MANUAL_DIR / "grid_penalties"  # hand-entered grid penalties per season (round, driver_id, penalty)
 
 INTERIM_DIR                         = DATA_DIR / "interim"      # cleaned tables, before feature engineering
 INTERIM_EVENTS_DIR                  = INTERIM_DIR / "events"

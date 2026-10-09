@@ -72,6 +72,9 @@ def build_breakdown(
         bd = d.get("points_breakdown", {})
         quali_pos = d["predicted_quali_position"]
         finish_pos = d["predicted_finish_position"]
+        # grid differs from qualifying only for a driver with a grid penalty (or one moved up behind it);
+        # predictions files written before grid penalties existed have no grid_position at all
+        grid_pos = d.get("grid_position", quali_pos)
         rows.append({
             "id": d["driver_id"],
             "name": surname(d["driver_id"]),
@@ -79,7 +82,8 @@ def build_breakdown(
             "selected": d["driver_id"] in selected_ids,
             "quali_position": quali_pos,
             "finish_position": finish_pos,
-            "positions_gained": quali_pos - finish_pos,
+            "grid_position": grid_pos,
+            "positions_gained": grid_pos - finish_pos,
             "overtakes": round(bd.get("overtakes", 0.0), 1),
             "prob_fl": round(bd.get("prob_fl", 0.0), 3),
             "prob_dotd": round(bd.get("prob_dotd", 0.0), 3),

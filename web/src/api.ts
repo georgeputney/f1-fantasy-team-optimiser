@@ -167,6 +167,7 @@ export interface BreakdownRow {
   color: string
   selected: boolean
   quali_position: number
+  grid_position?: number
   finish_position: number
   positions_gained: number
   overtakes: number

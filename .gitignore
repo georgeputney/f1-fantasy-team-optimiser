@@ -18,6 +18,7 @@ data/artifacts/quali_position.joblib
 data/artifacts/dnf_model.joblib
 data/manual/*
 !data/manual/starting_prices/
+!data/manual/grid_penalties/
 data/processed/prices/2025_*
 data/processed/targets/2018_*
 data/processed/targets/2019_*

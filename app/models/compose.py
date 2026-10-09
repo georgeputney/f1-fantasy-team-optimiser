@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from app.config import INTERIM_PITSTOPS_DIR
+from app.data.grid_penalties import apply_grid_penalties, front_runner_mask
 from app.data.scoring_rules import (
     CONSTRUCTOR_QUALI_BONUS, DRIVER_QUALI_POSITION_POINTS, DRIVER_RACE_POSITION_POINTS,
     FASTEST_LAP_POINTS, DOTD_POINTS, RACE_PENALTY, POSITION_GAINED_POINTS, OVERTAKE_MADE_POINTS,
@@ -74,13 +75,37 @@ def expected_pitstop_points(season, round_num):
 # DOTD probabilities are used instead of a flat prior. probabilities sum to 1.0 across the field.
 # optionally accepts a dnf_prob series for exploration - when provided, race points are weighted by P(finish)
 # and a DNF penalty is applied. production code omits dnf_prob (no compose-level DNF adjustment).
-def compose_drivers(predictions, location=None, season=None, predict_overtakes=None, predict_dotd=None, dnf_prob=None, fastest_lap_prob=None):
+# grid_penalties is an optional {driver_id: places or "back"} (see app/data/grid_penalties.py) - when
+# given, positions gained are scored from the penalised grid rather than the qualifying order, and each
+# driver's expected overtakes move by recovery_overtake_rate per extra place they have to recover.
+# a penalised front-runner (see front_runner_mask) also finishes front_runner_shift places further back.
+# qualifying points are unchanged either way
+def compose_drivers(predictions, location=None, season=None, predict_overtakes=None, predict_dotd=None, dnf_prob=None, fastest_lap_prob=None, grid_penalties=None, recovery_overtake_rate=0.0, front_runner_shift=0.0):
     quali_position = predictions["predicted_quali_position"].astype(int)
     finish_position = predictions["predicted_finish_position"].astype(int)
-
+    grid_position = (
+        apply_grid_penalties(predictions["driver_id"], quali_position, grid_penalties)
+        if grid_penalties else quali_position
+    )
     quali_points = quali_position.map(lambda p: DRIVER_QUALI_POSITION_POINTS.get(p, 0))
     finish_points = finish_position.map(lambda p: DRIVER_RACE_POSITION_POINTS.get(p, 0))
-    positions_gained = quali_position - finish_position
+    positions_gained = grid_position - finish_position
+    race_finish = finish_position.astype(float)  # fractional for a shifted front-runner, below
+
+    # the shift isn't a whole number of places, so rather than re-ranking the field a shifted car's finish
+    # becomes fractional: points interpolated between the slots either side, positions gained counted to it.
+    # the rest of the field keeps its ranks
+    if grid_penalties and front_runner_shift:
+        shifted = pd.Series(front_runner_mask(predictions["driver_id"], quali_position, grid_penalties), index=predictions.index)
+        if shifted.any():
+            finish_frac = race_finish + shifted * front_runner_shift
+            race_finish = finish_frac
+            slots = np.arange(1, len(predictions) + 2)
+            slot_points = [DRIVER_RACE_POSITION_POINTS.get(int(p), 0) for p in slots]
+            finish_points = finish_points.where(~shifted, np.interp(finish_frac, slots, slot_points))
+            positions_gained = positions_gained.where(~shifted, grid_position - finish_frac)
+            predictions["predicted_finish_position"] = finish_frac.round().astype(int)
+
     positions_gained_points = positions_gained * POSITION_GAINED_POINTS
 
     if dnf_prob is not None:
@@ -104,12 +129,22 @@ def compose_drivers(predictions, location=None, season=None, predict_overtakes=N
     else:
         expected_overtakes = pd.Series(0.0, index=predictions.index)
 
+    # grid penalties don't apply to the sprint, so sprint overtakes are derived from the unadjusted figure
+    unpenalised_overtakes = expected_overtakes
+
+    # the overtake predictor is calibrated on starting where you qualified, so a grid change only adds
+    # (or, for a car moved up, removes) the overtakes for the difference in places left to recover
+    if grid_penalties:
+        to_recover = (grid_position - race_finish).clip(lower=0) - (quali_position - race_finish).clip(lower=0)
+        expected_overtakes = (expected_overtakes + recovery_overtake_rate * to_recover).clip(lower=0)
+
     dotd_prob = (
         predict_dotd(predictions["driver_id"]).values
         if predict_dotd is not None
         else pd.Series(_DOTD_FALLBACK, index=predictions.index)
     )
 
+    predictions["grid_position"] = grid_position
     predictions["points_quali"] = quali_points
     predictions["points_finish"] = finish_points
     predictions["points_positions_gained"] = positions_gained_points
@@ -133,7 +168,7 @@ def compose_drivers(predictions, location=None, season=None, predict_overtakes=N
         sprint_finish_points = sprint_position.map(lambda p: DRIVER_SPRINT_POSITION_POINTS.get(p, 0))
         sprint_fl_prob = sprint_position.map(FASTEST_LAP_PROB).fillna(0)
         # expected sprint overtakes: 1/3 of predicted race overtakes (sprint is ~1/3 race length)
-        sprint_expected_overtakes = expected_overtakes / 3
+        sprint_expected_overtakes = unpenalised_overtakes / 3
         sprint_points = sprint_finish_points + sprint_fl_prob * SPRINT_FASTEST_LAP_POINTS + sprint_expected_overtakes * SPRINT_OVERTAKE_MADE_POINTS
         predictions["sprint_position"] = sprint_position
         predictions["sprint_overtakes"] = sprint_expected_overtakes

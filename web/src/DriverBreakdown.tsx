@@ -67,7 +67,8 @@ export function DriverBreakdown({ data, onRoundChange }: Props) {
           </h3>
           <p style={{ margin: 0, font: '400 14.5px/1.6 Archivo,sans-serif', color: MUTED, maxWidth: '60em' }}>
             Where each expected-points total comes from. Quali and finish are the model's median predicted
-            positions, so positions gained is the difference between them; overtakes, fastest lap and driver
+            positions, so positions gained is the difference between them (from the grid slot instead, for a driver
+            with a grid penalty, shown as P2→22); overtakes, fastest lap and driver
             of the day are per-race averages, and DNF risk is the share of simulations in which the car fails
             to finish{data.is_sprint ? '; sprint columns are that session\'s own predicted position, overtakes and fastest-lap chance' : ''}.
           </p>
@@ -135,8 +136,15 @@ export function DriverBreakdown({ data, onRoundChange }: Props) {
               <span style={{
                 textAlign: 'right', font: `${row.selected ? 500 : 400} 14px/1 Archivo,sans-serif`, color: row.selected ? INK : MUTED,
                 ...(data.is_sprint ? { borderLeft: `1px solid ${LINE_SOFT}`, paddingLeft: 14 } : {}),
+                whiteSpace: 'nowrap',
               }}>
                 P{row.quali_position}
+                {/* a grid penalty: positions gained are scored from where they start, not where they qualified */}
+                {typeof row.grid_position === 'number' && row.grid_position > row.quali_position && (
+                  <span title={`Grid penalty: starts P${row.grid_position}`} style={{ font: '400 12px/1 Archivo,sans-serif', color: '#a8412a' }}>
+                    {' '}→{row.grid_position}
+                  </span>
+                )}
               </span>
               <span style={{ textAlign: 'right', font: `${row.selected ? 500 : 400} 14px/1 Archivo,sans-serif`, color: row.selected ? INK : MUTED }}>
                 P{row.finish_position}
