@@ -272,3 +272,28 @@ export async function fetchTrackRecord(): Promise<TrackRecordResponse> {
   if (!res.ok) throw new Error(`track record request failed: ${res.status}`)
   return res.json()
 }
+
+export interface TrackTrait {
+  key: 'overtakes' | 'pole_to_win' | 'top3_to_podium' | 'fp3_to_quali' | 'safety_car' | 'dnf'
+  value: number | null
+  calendar_avg: number | null
+}
+
+export interface TrackTraitsResponse {
+  available: boolean
+  season: number
+  round: number
+  circuit: string
+  event_name: string | null
+  is_street_circuit: boolean | null
+  is_sprint: boolean | null
+  n_seasons: number
+  traits: TrackTrait[]
+}
+
+// circuit-level stats for the upcoming race - independent of the current squad selection, so no team params
+export async function fetchTrackTraits(): Promise<TrackTraitsResponse> {
+  const res = await fetch('/api/track-traits')
+  if (!res.ok) throw new Error(`track traits request failed: ${res.status}`)
+  return res.json()
+}

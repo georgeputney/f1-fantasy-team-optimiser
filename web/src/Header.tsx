@@ -12,6 +12,7 @@ const NAV_ITEMS: [string, string][] = [
   ['breakdown', 'Breakdown'],
   ['value', 'Value'],
   ['record', 'Record'],
+  ['track', 'Track'],
 ]
 
 // sticky so the nav stays reachable on a long page - anchors scroll to each section's own id,

@@ -14,6 +14,7 @@ import { DriverBreakdown } from './DriverBreakdown'
 import { ValueBuyingPower } from './ValueBuyingPower'
 import { ValueBuyingPowerMobile } from './ValueBuyingPowerMobile'
 import { TrackRecord } from './TrackRecord'
+import { TrackTraits } from './TrackTraits'
 import { Header } from './Header'
 import { Footer } from './Footer'
 import { CARD, GREEN, INK, LINE, MUTED2 } from './theme'
@@ -33,7 +34,7 @@ function useIsMobile() {
 export default function App() {
   const isMobile = useIsMobile()
   const {
-    team, ladder, breakdown, value, trackRecord, error, loading, dirty, budget, squadDrivers, squadConstructors, freeTransfers,
+    team, ladder, breakdown, value, trackRecord, trackTraits, error, loading, dirty, budget, squadDrivers, squadConstructors, freeTransfers,
     setBudget, setDriver, setConstructor, setFreeTransfers, recalculate, setBreakdownRound,
   } = useTeam()
 
@@ -79,8 +80,12 @@ export default function App() {
           }}
         >
           <span style={{ font: '600 14px/1 Archivo,sans-serif', color: INK }}>Pitwall</span>
-          <span style={{ font: '400 13px/1 Archivo,sans-serif', color: MUTED2 }}>
-            Round {team.round} · {team.circuit}
+          {/* weekend stage rather than the circuit - mirrors the desktop header's status pill */}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN }} />
+            <span style={{ font: '400 13px/1 Archivo,sans-serif', color: MUTED2 }}>
+              Round {team.round} · {team.status}
+            </span>
           </span>
         </div>
       ) : (
@@ -121,6 +126,7 @@ export default function App() {
           {breakdown && <DriverBreakdown data={breakdown} onRoundChange={setBreakdownRound} />}
           {value && <ValueBuyingPower data={value} />}
           {trackRecord && <TrackRecord data={trackRecord} />}
+          {trackTraits && <TrackTraits data={trackTraits} />}
           <Footer />
         </>
       )}

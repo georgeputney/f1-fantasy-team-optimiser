@@ -17,6 +17,7 @@ from api.team import build_team
 from api.breakdown import build_breakdown
 from api.value import build_value
 from api.track_record import build_track_record
+from api.track_traits import build_track_traits
 
 app = FastAPI(title="Pitwall API")
 
@@ -104,6 +105,11 @@ def value(
 @app.get("/api/track-record")
 def track_record():
     return build_track_record()
+
+
+@app.get("/api/track-traits")
+def track_traits():
+    return build_track_traits()
 
 
 # production: FastAPI serves the built React app directly, so Render only needs one web service

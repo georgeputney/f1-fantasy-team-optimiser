@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  fetchTeam, fetchLadder, fetchBreakdown, fetchValue, fetchTrackRecord,
-  type TeamResponse, type LadderResponse, type BreakdownResponse, type ValueResponse, type TrackRecordResponse,
+  fetchTeam, fetchLadder, fetchBreakdown, fetchValue, fetchTrackRecord, fetchTrackTraits,
+  type TeamResponse, type LadderResponse, type BreakdownResponse, type ValueResponse, type TrackRecordResponse, type TrackTraitsResponse,
 } from './api'
 
 // drives /api/team, /api/ladder and /api/breakdown from the same squad-controls state, so the
@@ -18,6 +18,7 @@ export function useTeam() {
   const [breakdown, setBreakdown] = useState<BreakdownResponse | null>(null)
   const [value, setValue] = useState<ValueResponse | null>(null)
   const [trackRecord, setTrackRecord] = useState<TrackRecordResponse | null>(null)
+  const [trackTraits, setTrackTraits] = useState<TrackTraitsResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -58,14 +59,16 @@ export function useTeam() {
       fetchBreakdown(undefined, breakdownRound.current, requestParams),
       fetchValue(requestParams),
       fetchTrackRecord(),
+      fetchTrackTraits(),
     ])
-      .then(([teamRes, ladderRes, breakdownRes, valueRes, trackRecordRes]) => {
+      .then(([teamRes, ladderRes, breakdownRes, valueRes, trackRecordRes, trackTraitsRes]) => {
         if (seq !== requestSeq.current) return // a newer request has since been issued - drop this one
         setTeam(teamRes)
         setLadder(ladderRes)
         setBreakdown(breakdownRes)
         setValue(valueRes)
         setTrackRecord(trackRecordRes)
+        setTrackTraits(trackTraitsRes)
         breakdownRound.current = breakdownRes.round
         setDirty(false)
         if (!initialised.current) {
@@ -132,7 +135,7 @@ export function useTeam() {
   }, [load])
 
   return {
-    team, ladder, breakdown, value, trackRecord, error, loading, dirty, budget, squadDrivers, squadConstructors, freeTransfers,
+    team, ladder, breakdown, value, trackRecord, trackTraits, error, loading, dirty, budget, squadDrivers, squadConstructors, freeTransfers,
     setBudget, setDriver, setConstructor, setFreeTransfers, recalculate, setBreakdownRound,
   }
 }
