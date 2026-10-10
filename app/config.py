@@ -74,6 +74,8 @@ BUDGET_CAP                          = 100.0     # total budget (at the start of 
 DRIVER_ROSTER_SIZE                  = 5         # no. drivers to pick
 CONSTRUCTOR_ROSTER_SIZE             = 2         # no. constructors to pick
 PRICE_LAMBDA                        = 14.0      # weight on expected price rise in the optimiser (0 = points only); 14 chosen from a 2024/2025/2026 backtest sweep (highest and most consistent improvement over lambda=0 across all three seasons) after the walk-forward overtake/DOTD leak fix changed the picture from the original lambda=6 sweep
+PRICE_LAMBDA_HORIZON                = 9         # races left at which the price weight starts tapering to 0 at the final round (None = no taper); linear from 9 out was positive at every budget tested (95/100/105, 2024-2025 backtests) and at every horizon tried, where a step taper swung from -163 to +206 between neighbouring horizons
+PRICE_LAMBDA_TAPER                  = "linear"  # taper shape - see tapered_price_lambda
 STARTING_PRICES_DIR                 = MANUAL_DIR / "starting_prices"  # round 1 prices per season
 PRICE_FLOOR                         = {2025: 4.5, 2026: 3.0}         # minimum asset price by season
 PRICE_CEILING                       = {2026: 34.0}                   # maximum asset price by season (none where unknown)

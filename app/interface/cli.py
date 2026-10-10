@@ -37,13 +37,13 @@ from app.optimiser.budget_range import cache_budget_range
 from app.data.overtakes import build_overtake_predictor
 from app.data.dotd import build_dotd_predictor
 
-from app.optimiser.optimiser import optimiser
+from app.optimiser.optimiser import optimiser, tapered_price_lambda
 from app.optimiser.state import load_state, save_state
 
 from app.models.backtest import get_actual_team_points, oracle_baseline, lagged_baseline, mean_prior_baseline
 
 from app.config import (
-    ALL_SEASONS, VAL_SEASONS, LIVE_SEASONS, BUDGET_CAP, PRICE_LAMBDA,
+    ALL_SEASONS, VAL_SEASONS, LIVE_SEASONS, BUDGET_CAP, PRICE_LAMBDA, PRICE_LAMBDA_HORIZON, PRICE_LAMBDA_TAPER,
     INTERIM_EVENTS_DIR, INTERIM_FP1_DIR, INTERIM_FP2_DIR, INTERIM_FP3_DIR,
     INTERIM_SPRINT_QUALIFYING_DIR, INTERIM_SPRINT_DIR, INTERIM_QUALI_DIR, INTERIM_RACES_DIR,
     INTERIM_RACE_LAPS_DIR, INTERIM_RACE_OVERTAKES_DIR,
@@ -435,6 +435,7 @@ def generate_reports(season: int = typer.Option(...), round: int = typer.Option(
         "circuit": str(circuit),
         "generated_at": datetime.now().isoformat(),
         "trigger": trigger or None,
+        "season_rounds": _season_rounds(season),
         "drivers": sorted(drivers_out, key=lambda x: -x["expected_points"]),
         "constructors": sorted(constructors_out, key=lambda x: -x["expected_points"]),
     }
@@ -545,6 +546,7 @@ def backfill_predictions(from_season: int = typer.Option(2026), prod: bool = typ
             output = {
                 "season": s, "round": r, "circuit": str(circuit),
                 "generated_at": datetime.now().isoformat(),
+                "season_rounds": _season_rounds(s),
                 "drivers": sorted(drivers_out, key=lambda x: -x["expected_points"]),
                 "constructors": sorted(constructors_out, key=lambda x: -x["expected_points"]),
             }
@@ -609,7 +611,9 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
     driver_points = compose_drivers(predictions, location=location, season=season, predict_overtakes=predict_overtakes, predict_dotd=predict_dotd, **_grid_penalty_kwargs(season, round))
     constructor_points = compose_constructor(driver_points, pitstop_pts=expected_pitstop_points(season, round))
 
-    # expected next-round price change per asset, used to trade current points for future buying power
+    # expected next-round price change per asset, used to trade current points for future buying power -
+    # weighted less as the season runs out (tapered_price_lambda)
+    price_lambda = tapered_price_lambda(price_lambda, round, _season_rounds(season))
     price_delta = None
     if price_lambda:
         predicted_points = pd.concat([
@@ -676,7 +680,7 @@ def optimise_team(season: int = typer.Option(...), round: int = typer.Option(...
 # runs walk-forward backtest comparing model, oracle, and baseline strategies over historical seasons, prints per-round results and saves a cumulative points plot
 # model and oracle are transfer-constrained with state carried forward each round
 @app.command()
-def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP), save_state_file: bool = typer.Option(False, "--save-state"), price_lambda: float = typer.Option(PRICE_LAMBDA), grid_penalties: bool = typer.Option(False, "--grid-penalties")):
+def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = typer.Option(BUDGET_CAP), save_state_file: bool = typer.Option(False, "--save-state"), price_lambda: float = typer.Option(PRICE_LAMBDA), grid_penalties: bool = typer.Option(False, "--grid-penalties"), lambda_horizon: int = typer.Option(PRICE_LAMBDA_HORIZON), lambda_taper: str = typer.Option(PRICE_LAMBDA_TAPER)):
     for s in season:
         results = []
 
@@ -733,13 +737,14 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
 
             # greedy model (single-round)
             price_delta = None
-            if price_lambda:
+            round_lambda = tapered_price_lambda(price_lambda, round_num, len(schedule), lambda_horizon, lambda_taper)
+            if round_lambda:
                 predicted_points = pd.concat([
                     driver_points.set_index("driver_id")["expected_fantasy_points"],
                     constructor_points.set_index("constructor_id")["expected_fantasy_points"],
                 ])
                 price_delta = expected_price_delta(s, round_num, asset_prices_index, predicted_points)
-            model_team = optimiser(driver_points, constructor_points, prices, budget, model_state, price_delta=price_delta, price_lambda=price_lambda)
+            model_team = optimiser(driver_points, constructor_points, prices, budget, model_state, price_delta=price_delta, price_lambda=round_lambda)
             model_points = get_actual_team_points(model_team, s, round_num, model_team["transfer_penalty"])
             model_state = _build_state(model_team, model_state, asset_prices_index, budget, driver_team_map)
 
@@ -797,6 +802,16 @@ def backtest(season: list[int] = typer.Option(VAL_SEASONS), budget: float = type
             typer.echo(f"Saved model team state to {TEAM_STATE_FILE} (season {s}, round {last_round}).")
 
         typer.echo(f"\nPlot saved to reports/\n")
+
+
+# number of rounds in a season, from the FastF1 schedule - the price weight tapers off toward the final one.
+# None if the schedule can't be fetched, which leaves the weight untapered
+def _season_rounds(season):
+    try:
+        schedule = fastf1.get_event_schedule(season)
+        return int((schedule["RoundNumber"] > 0).sum())
+    except Exception:
+        return None
 
 
 # hand-entered grid penalties for a round (data/manual/grid_penalties/), as compose_drivers kwargs. the

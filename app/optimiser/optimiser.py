@@ -2,7 +2,7 @@
 
 import pulp
 
-from app.config import BUDGET_CAP, DRIVER_ROSTER_SIZE, CONSTRUCTOR_ROSTER_SIZE
+from app.config import BUDGET_CAP, DRIVER_ROSTER_SIZE, CONSTRUCTOR_ROSTER_SIZE, PRICE_LAMBDA_HORIZON, PRICE_LAMBDA_TAPER
 
 
 # selects the optimal fantasy team using ILP, returns selected drivers, constructors, and the doubled driver
@@ -165,3 +165,19 @@ def enumerate_teams(driver_points, constructor_points, prices, budget=BUDGET_CAP
         excluded_solutions.append(selected_drivers + selected_constructors)
 
     return teams
+
+
+# the price weight for a given round. a price rise is only worth what it buys in the rounds still to come,
+# so once `horizon` or fewer races are left after this one the weight tapers to 0 at the final round, where
+# team value is worth nothing. shape sets how it falls with x = races left / horizon: "linear" (x), "step"
+# (full weight, then 0 inside the horizon), "fast" (x^2, drops early), "slow" (sqrt x, holds then drops late).
+# horizon None leaves it flat all season
+def tapered_price_lambda(price_lambda, round_num, season_rounds, horizon=PRICE_LAMBDA_HORIZON, shape=PRICE_LAMBDA_TAPER):
+    if not price_lambda or horizon is None or not season_rounds:
+        return price_lambda
+    remaining = max(season_rounds - round_num, 0)
+    if remaining >= horizon:
+        return price_lambda
+    x = remaining / horizon
+    factor = {"linear": x, "step": 0.0, "fast": x ** 2, "slow": x ** 0.5}[shape]
+    return price_lambda * factor

@@ -2,8 +2,9 @@
   "season": 2026,
   "round": 17,
   "circuit": "Marina Bay",
-  "generated_at": "2026-10-09T22:45:39.159051",
+  "generated_at": "2026-10-09T23:18:34.007496",
   "trigger": "pre-race",
+  "season_rounds": 23,
   "drivers": [
     {
       "driver_id": "george_russell",

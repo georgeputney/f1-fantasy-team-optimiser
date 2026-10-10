@@ -2,12 +2,13 @@ import {
   FAINT, GREEN, GREEN_TINT, INK, LINE_MED, MONO, MUTED2, RED_BORDER, RED_TINT,
 } from './theme'
 import type { AlternativeTeam } from './api'
+import { deltaTone, signedPoints, signedValue } from './format'
 
 interface Props {
   teams: AlternativeTeam[]
 }
 
-const GRID = '26px 1fr 210px 64px 66px'
+const GRID = '26px 1fr 210px 64px 64px 66px'
 
 function Chip({ code, color, differs, tag }: { code: string; color: string; differs: boolean; tag?: string }) {
   return (
@@ -33,8 +34,10 @@ export function AlternativeTeams({ teams }: Props) {
     <div>
       <p style={{ margin: '0 0 6px', font: '500 12.5px/1 Archivo,sans-serif', color: MUTED2 }}>Alternative teams</p>
       <p style={{ margin: '0 0 16px', font: '400 13px/1.55 Archivo,sans-serif', color: MUTED2 }}>
-        Every lineup the optimiser ranked next, by expected points. Row 1 is the recommended team; the
-        bar on each chip is the constructor colour,{' '}
+        The optimiser's best lineups in order, row 1 being the recommended team. Each is ranked on points this
+        round plus expected price rises (Value, the team's expected change in worth by next round), so a row
+        lower down can score more points (a + under its total) but grow your budget less. The bar on each chip
+        is the constructor colour,{' '}
         <span style={{ color: '#a8412a' }}>red-outlined chips</span> are picks that differ from row 1,
         and ×2 marks the captain.
       </p>
@@ -48,6 +51,7 @@ export function AlternativeTeams({ teams }: Props) {
         <span style={{ font: '400 11.5px/1 Archivo,sans-serif', color: FAINT }}>Drivers</span>
         <span style={{ font: '400 11.5px/1 Archivo,sans-serif', color: FAINT }}>Constructors</span>
         <span style={{ textAlign: 'right', font: '400 11.5px/1 Archivo,sans-serif', color: FAINT, paddingRight: 6 }}>Pts</span>
+        <span style={{ textAlign: 'right', font: '400 11.5px/1 Archivo,sans-serif', color: FAINT, paddingRight: 6 }}>Value</span>
         <span style={{ textAlign: 'right', font: '400 11.5px/1 Archivo,sans-serif', color: FAINT, paddingRight: 6 }}>Spend</span>
       </div>
 
@@ -82,9 +86,15 @@ export function AlternativeTeams({ teams }: Props) {
             <div style={{ font: '500 14px/1 Archivo,sans-serif', color: INK }}>{t.total_points.toFixed(1)}</div>
             {t.rank !== 1 && (
               <div style={{ font: `400 10.5px/1 ${MONO}`, color: FAINT, marginTop: 3 }}>
-                −{Math.abs(t.gap_to_best).toFixed(1)}
+                {signedPoints(t.gap_to_best)}
               </div>
             )}
+          </span>
+          <span
+            title="Expected change in this team's value by next round"
+            style={{ textAlign: 'right', font: '400 13px/1 Archivo,sans-serif', paddingRight: 6, color: typeof t.value_change === 'number' ? deltaTone(t.value_change) : FAINT }}
+          >
+            {typeof t.value_change === 'number' ? `${signedValue(t.value_change)}M` : '-'}
           </span>
           <span style={{ textAlign: 'right', font: '400 13px/1 Archivo,sans-serif', color: MUTED2, paddingRight: 6 }}>
             £{t.spend.toFixed(1)}M

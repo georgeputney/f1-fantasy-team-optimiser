@@ -10,7 +10,7 @@ import pandas as pd
 from app.config import PREDICTIONS_DIR, REPORTS_DIR, PRICE_LAMBDA, BUDGET_CAP
 from app.models.monte_carlo import simulate_round, cache_mc_result
 from app.optimiser.budget_range import cache_budget_range
-from app.optimiser.optimiser import optimiser, enumerate_teams
+from app.optimiser.optimiser import optimiser, enumerate_teams, tapered_price_lambda
 
 try:
     from app.data.prices import expected_price_delta
@@ -98,7 +98,9 @@ def _load_predictions(path):
             have_delta = True
         except Exception:
             price_delta, have_delta = {}, False
-    lam = PRICE_LAMBDA if have_delta else 0.0
+    # the price weight tapers toward the final round (see tapered_price_lambda); a predictions file
+    # written before season_rounds was recorded gets the flat weight
+    lam = tapered_price_lambda(PRICE_LAMBDA, rnd, data.get("season_rounds")) if have_delta else 0.0
 
     return {
         "season": season, "round": rnd, "circuit": circuit,

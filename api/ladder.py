@@ -34,17 +34,14 @@ def build_ladder(budget=None, squad_mode="model", drivers=None, constructors=Non
     selected_ids = set(team["drivers"] + team["constructors"])
     captain = team["doubled_driver"]
 
-    # enumerate_teams solves in order of the TRUE objective (points + price_lambda * price_delta -
-    # transfer penalty), so raw points alone can be non-monotonic across solves. The ladder displays
-    # and labels rows by raw points ("ranked next, by expected points"), so re-sort for display -
-    # the recommended team (index 0) is pinned first since it must match the highlighted selection
-    # above, even in the rare case something later has marginally higher raw points
+    # enumerate_teams solves in order of the optimiser's objective (points + price_lambda x expected
+    # value change - transfer penalty), and the rows stay in that order: row 1 is the recommendation and
+    # each row below is the next-best by the same measure, so a row can carry more raw points than one
+    # above it when it grows the team's value less - the Value column shows that trade
     alt_teams = cached_enumerate_teams(
         season, rnd, driver_df, constructor_df, prices_df, resolved_budget, state,
         price_delta, lam, N_ALTERNATIVES,
     )
-    if alt_teams:
-        alt_teams = [alt_teams[0]] + sorted(alt_teams[1:], key=lambda t: -t["total_points"])
 
     mc = load_or_build_mc(season, rnd, circuit)
     mc_drivers = mc["drivers"]
@@ -89,6 +86,10 @@ def build_ladder(budget=None, squad_mode="model", drivers=None, constructors=Non
             "rank": rank,
             "total_points": round(t["total_points"], 1),
             "gap_to_best": round(t["total_points"] - best_points, 1),
+            # the other half of what the optimiser maximises (points + lam x this): the team's expected
+            # price movement by next round, £M. None when there's no price model, so lam is 0 and it
+            # played no part in the ranking
+            "value_change": round(sum(price_delta.get(i, 0.0) for i in t["drivers"] + t["constructors"]), 1) if lam else None,
             "spend": round(spend, 1),
             "captain_driver_id": t["doubled_driver"],
             "drivers": [

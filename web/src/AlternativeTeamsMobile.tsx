@@ -1,5 +1,6 @@
 import { FAINT, GREEN, GREEN_TINT, INK, LINE_MED, MONO, MUTED, MUTED2, RED_BORDER, RED_TINT } from './theme'
 import type { AlternativeTeam } from './api'
+import { deltaTone, signedPoints, signedValue } from './format'
 
 interface Props {
   teams: AlternativeTeam[]
@@ -60,8 +61,12 @@ export function AlternativeTeamsMobile({ teams }: Props) {
               </div>
               <p style={{ margin: '7px 0 0', textAlign: 'right', font: `400 11px/1 ${MONO}`, color: MUTED2 }}>
                 <span style={{ color: INK, fontWeight: 500 }}>{t.total_points.toFixed(1)}</span>
-                {t.rank !== 1 && <span style={{ color: FAINT }}> ({t.gap_to_best.toFixed(1)})</span>}
-                {' '}pts · £{t.spend.toFixed(1)}M
+                {t.rank !== 1 && <span style={{ color: FAINT }}> ({signedPoints(t.gap_to_best)})</span>}
+                {' '}pts
+                {typeof t.value_change === 'number' && (
+                  <span style={{ color: deltaTone(t.value_change) }}> · {signedValue(t.value_change)}M value</span>
+                )}
+                {' '}· £{t.spend.toFixed(1)}M
               </p>
             </div>
           </div>

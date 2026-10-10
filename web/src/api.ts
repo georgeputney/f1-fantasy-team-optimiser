@@ -38,6 +38,7 @@ export interface AlternativeTeam {
   rank: number
   total_points: number
   gap_to_best: number
+  value_change: number | null
   spend: number
   captain_driver_id: string
   drivers: AltDriver[]
