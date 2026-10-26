@@ -147,9 +147,18 @@
     "season": 2026,
     "round": 17,
     "location": "Marina Bay",
-    "model": 169.0,
-    "oracle": 284.0,
-    "lagged": 144.0,
-    "mean": 183.0
+    "model": 135.0,
+    "oracle": 276.0,
+    "lagged": 141.0,
+    "mean": 193.0
+  },
+  {
+    "season": 2026,
+    "round": 18,
+    "location": "Austin",
+    "model": 159.0,
+    "oracle": 219.0,
+    "lagged": 114.0,
+    "mean": 169.0
   }
 ]

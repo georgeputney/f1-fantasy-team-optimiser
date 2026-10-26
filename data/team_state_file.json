@@ -1,34 +1,34 @@
 {
   "season": 2026,
-  "round": 17,
+  "round": 18,
   "drivers": [
-    "george_russell",
-    "charles_leclerc",
-    "sergio_perez",
-    "nico_hulkenberg",
+    "max_verstappen",
+    "isack_hadjar",
+    "esteban_ocon",
+    "oliver_bearman",
     "lance_stroll"
   ],
   "constructors": [
-    "mercedes",
+    "red_bull",
     "ferrari"
   ],
-  "doubled_driver": "george_russell",
+  "doubled_driver": "max_verstappen",
   "prices": {
-    "george_russell": 28.0,
-    "charles_leclerc": 23.8,
-    "sergio_perez": 3.0,
-    "nico_hulkenberg": 6.0,
+    "max_verstappen": 28.2,
+    "isack_hadjar": 15.9,
+    "esteban_ocon": 9.5,
+    "oliver_bearman": 6.4,
     "lance_stroll": 3.0,
-    "mercedes": 34.0,
-    "ferrari": 27.9
+    "red_bull": 32.7,
+    "ferrari": 28.2
   },
-  "budget_remaining": 0.2,
+  "budget_remaining": 3.0,
   "free_transfers_carried": 0,
   "driver_teams": {
-    "george_russell": "mercedes",
-    "charles_leclerc": "ferrari",
-    "sergio_perez": "cadillac",
-    "nico_hulkenberg": "audi",
+    "max_verstappen": "red_bull",
+    "isack_hadjar": "red_bull",
+    "esteban_ocon": "haas",
+    "oliver_bearman": "haas",
     "lance_stroll": "aston_martin"
   }
 }
