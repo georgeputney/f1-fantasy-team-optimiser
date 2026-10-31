@@ -177,9 +177,8 @@ def _save_overtakes(
         round_num = int(rcol[1:])
         out_path = out_dir / f"{season}_{round_num:02d}.csv"
 
-        if out_path.exists() and not force:
-            continue
-
+        # always rewrite - the site backfills counts after a race, so a file
+        # scraped early would otherwise stay stale forever
         # skip future rounds with no data
         values = [row.get(rcol, "").strip() for row in data]
         if all(v == "" for v in values):
@@ -207,6 +206,8 @@ def _save_overtakes(
 
         if rows:
             df = pd.DataFrame(rows)
+            if out_path.exists() and pd.read_csv(out_path).equals(df):
+                continue
             df.to_csv(out_path, index=False)
             print(f"    wrote {out_path.name}")
             written += 1
@@ -220,12 +221,13 @@ def _save_dotd(
     abbrev_map: dict[str, str],
     force: bool,
 ) -> int:
-    """save DOTD winners from the checkmark table to a single per-season CSV. returns rounds written."""
+    """save DOTD winners from the checkmark table to a single per-season CSV. returns rounds written.
+
+    Merges into the existing file (scraped rounds win) so new rounds land and a partial
+    scrape can't drop rounds already saved. force replaces the file outright.
+    """
     RAW_DOTD_DIR.mkdir(parents=True, exist_ok=True)
     out_path = RAW_DOTD_DIR / f"{season}.csv"
-
-    if out_path.exists() and not force:
-        return 0
 
     if not data:
         return 0
@@ -254,12 +256,19 @@ def _save_dotd(
                     "driver_id": driver_id,
                 })
 
-    if rows:
-        df = pd.DataFrame(rows)
-        df.to_csv(out_path, index=False)
-        print(f"    wrote {out_path.name} ({len(rows)} rounds)")
+    if not rows:
+        return 0
 
-    return len(rows)
+    df = pd.DataFrame(rows)
+    existing = pd.read_csv(out_path) if out_path.exists() and not force else None
+    if existing is not None:
+        df = pd.concat([existing[~existing["race_id"].isin(df["race_id"])], df]).sort_values("race_id").reset_index(drop=True)
+        if df.equals(existing.sort_values("race_id").reset_index(drop=True)):
+            return 0
+
+    df.to_csv(out_path, index=False)
+    print(f"    wrote {out_path.name} ({len(df)} rounds)")
+    return len(df)
 
 
 def scrape_season(season: int, force: bool = False) -> dict[str, int]:
@@ -321,7 +330,7 @@ def scrape_season(season: int, force: bool = False) -> dict[str, int]:
 def main():
     parser = argparse.ArgumentParser(description="Scrape overtakes from f1fantasytools.com")
     parser.add_argument("--season", type=int, default=2026, help="season to scrape (default: 2026)")
-    parser.add_argument("--force", action="store_true", help="overwrite existing files")
+    parser.add_argument("--force", action="store_true", help="replace the DOTD file instead of merging into it")
     args = parser.parse_args()
 
     counts = scrape_season(args.season, force=args.force)

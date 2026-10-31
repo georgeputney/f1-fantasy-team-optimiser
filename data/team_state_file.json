@@ -5,30 +5,30 @@
     "max_verstappen",
     "charles_leclerc",
     "nico_hulkenberg",
-    "sergio_perez",
-    "lance_stroll"
+    "lance_stroll",
+    "sergio_perez"
   ],
   "constructors": [
-    "red_bull",
-    "ferrari"
+    "ferrari",
+    "red_bull"
   ],
   "doubled_driver": "max_verstappen",
   "prices": {
     "max_verstappen": 28.2,
     "charles_leclerc": 24.1,
     "nico_hulkenberg": 6.6,
-    "sergio_perez": 3.2,
     "lance_stroll": 3.0,
-    "red_bull": 32.7,
-    "ferrari": 28.2
+    "sergio_perez": 3.6,
+    "ferrari": 28.2,
+    "red_bull": 32.7
   },
-  "budget_remaining": 1.0,
+  "budget_remaining": 1.2,
   "free_transfers_carried": 0,
   "driver_teams": {
     "max_verstappen": "red_bull",
     "charles_leclerc": "ferrari",
     "nico_hulkenberg": "audi",
-    "sergio_perez": "cadillac",
-    "lance_stroll": "aston_martin"
+    "lance_stroll": "aston_martin",
+    "sergio_perez": "cadillac"
   }
 }

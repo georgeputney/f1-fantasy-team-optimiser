@@ -43,6 +43,13 @@ _TEAM_DISPLAY_TO_ID = {
 }
 
 
+# fastf1 >= 3.9 returns placeholder results (e.g. 32 rows with bogus positions) for sessions
+# that haven't run yet, so refuse to load anything before the session start time
+def _require_started(session):
+    if session.date is not None and session.date > pd.Timestamp.now(tz="UTC").tz_localize(None):
+        raise ValueError(f"{session.name} has not started yet ({session.date} UTC)")
+
+
 # fetch event metadata for a single round from FastF1 and write to data/raw/events/
 # returns the raw DataFrame
 # circuit name, is_sprint, and is_street_circuit are derived in clean.py
@@ -62,6 +69,7 @@ def get_event_metadata(season, round_num):
 # raises if the session doesn't exist (e.g. sprint weekends) - callers should handle this.
 def get_practice_results(season, round_num, session_name):
     session = fastf1.get_session(season, round_num, session_name)
+    _require_started(session)
     session.load(laps=True, telemetry=False, weather=False, messages=False)
 
     cols = PRACTICE_COLUMNS[session_name] + ["Team"]
@@ -96,6 +104,7 @@ def get_sprint_qualifying_results(season, round_num):
     for identifier in ["SQ", "SS"]:
         try:
             session = fastf1.get_session(season, round_num, identifier)
+            _require_started(session)
             session.load(telemetry=False, weather=False, messages=True)
 
             results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "Position", "Q1", "Q2", "Q3"]].copy()
@@ -118,6 +127,7 @@ def get_sprint_qualifying_results(season, round_num):
 # fetch sprint race results for a sprint weekend from FastF1 and write to data/raw/sprint/
 def get_sprint_results(season, round_num):
     session = fastf1.get_session(season, round_num, 'S')
+    _require_started(session)
     session.load(telemetry=False, weather=False, messages=False)
 
     results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "GridPosition", "Position", "Status"]].copy()
@@ -133,6 +143,7 @@ def get_sprint_results(season, round_num):
 # used to derive fastest_lap_flag in clean_sprint_results
 def get_sprint_laps(season, round_num):
     session = fastf1.get_session(season, round_num, 'S')
+    _require_started(session)
     session.load(laps=True, telemetry=False, weather=False, messages=False)
 
     laps = session.laps[["Driver", "LapTime"]].copy()
@@ -152,6 +163,7 @@ def get_sprint_laps(season, round_num):
 # returns the raw DataFrame
 def get_qualifying_results(season, round_num):
     session = fastf1.get_session(season, round_num, 'Q')
+    _require_started(session)
     session.load(telemetry=False, weather=False, messages=False)
 
     results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "Position", "Q1", "Q2", "Q3"]].copy()
@@ -167,6 +179,7 @@ def get_qualifying_results(season, round_num):
 # returns the raw DataFrame
 def get_race_results(season, round_num):
     session = fastf1.get_session(season, round_num, 'R')
+    _require_started(session)
     session.load(telemetry=False, weather=False, messages=False)
 
     results = session.results[["DriverId", "FirstName", "LastName", "TeamId", "GridPosition", "Position", "Status", "Points"]].copy()
@@ -183,6 +196,7 @@ def get_race_results(season, round_num):
 # IsPersonalBest identifies the fastest lap setter; LapTime used for pitstop duration calculation
 def get_race_laps(season, round_num):
     session = fastf1.get_session(season, round_num, 'R')
+    _require_started(session)
     session.load(laps=True, telemetry=False, weather=False, messages=False)
 
     laps = session.laps[["Driver", "LapTime", "LapNumber", "IsPersonalBest", "PitInTime", "PitOutTime", "TrackStatus"]].copy()

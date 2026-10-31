@@ -27,7 +27,7 @@ api = [
 ]
 # data ingestion, model training, and report rendering
 pipeline = [
-    "fastf1>=3.3",
+    "fastf1>=3.9",
     "scikit-learn>=1.3",
     "scipy>=1.11",
     "joblib>=1.3",

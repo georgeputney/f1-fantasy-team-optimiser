@@ -35,6 +35,10 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
+    env:
+      # FastF1 needs an F1 account sign-in for live timing data (practice laps etc.)
+      F1_USERNAME: ${{ secrets.F1_USERNAME }}
+      F1_PASSWORD: ${{ secrets.F1_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v5

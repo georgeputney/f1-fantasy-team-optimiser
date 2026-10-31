@@ -185,21 +185,35 @@ def round_number(round_num):
     return {"round_number": round_num}
 
 
+SEATS_PER_TEAM = 2
+
 # driver -> constructor entry list from this round's own practice running, or None if no session has
-# run yet. Prefers the latest session, since a team can field a stand-in in FP1 who isn't racing.
-def practice_roster(season, round_num):
+# run yet. Prefers the latest session, since a team can field a stand-in in FP1 who isn't racing, then
+# fills any seat still empty from earlier sessions and finally the fallback roster - a driver who sets
+# no time in FP3 (e.g. Bortoleto and Pérez at 2026 round 19) is still racing
+def practice_roster(season, round_num, fallback=None):
+    sessions = []
     for practice_dir in (INTERIM_FP3_DIR, INTERIM_FP2_DIR, INTERIM_FP1_DIR):
         path = practice_dir / f"{season}_{round_num:02d}.parquet"
-        if not path.exists():
-            continue
+        if path.exists():
+            laps = pd.read_parquet(path)
+            if not laps.empty:
+                sessions.append(laps.drop_duplicates("driver_id").set_index("driver_id")["constructor_id"])
 
-        laps = pd.read_parquet(path)
-        if laps.empty:
-            continue
+    if not sessions:
+        return None
 
-        return laps.drop_duplicates("driver_id").set_index("driver_id")["constructor_id"]
+    if fallback is not None:
+        sessions.append(fallback)
 
-    return None
+    roster = {}
+    for session in sessions:
+        for driver_id, constructor_id in session.items():
+            seats_taken = sum(c == constructor_id for c in roster.values())
+            if driver_id not in roster and seats_taken < SEATS_PER_TEAM:
+                roster[driver_id] = constructor_id
+
+    return pd.Series(roster, name="constructor_id").rename_axis("driver_id")
 
 
 # builds the full feature row for a single race for all drivers, joins constructor features, validates, and writes to parquet
@@ -215,18 +229,21 @@ def build_historic_features(race_results, quali_results, fantasy_targets, events
         # only one that reflects a mid-season seat change (injury cover, a driver returning) before the
         # race runs. With no practice yet, inherit the last completed race's roster - a week stale, so
         # it will miss any such change until FP2 lands
-        constructor_lookup = practice_roster(season, round_num)
-
-        if constructor_lookup is None:
-            prior = race_results[
-                (race_results["season"] < season) |
-                ((race_results["season"] == season) & (race_results["round"] < round_num))
-            ].sort_values(["season", "round"])
-            if prior.empty:
-                return None
+        prior = race_results[
+            (race_results["season"] < season) |
+            ((race_results["season"] == season) & (race_results["round"] < round_num))
+        ].sort_values(["season", "round"])
+        last_roster = None
+        if not prior.empty:
             last = prior.iloc[-1][["season", "round"]]
             last_round = prior[(prior["season"] == last["season"]) & (prior["round"] == last["round"])]
-            constructor_lookup = last_round.set_index("driver_id")["constructor_id"]
+            last_roster = last_round.set_index("driver_id")["constructor_id"]
+
+        constructor_lookup = practice_roster(season, round_num, fallback=last_roster)
+        if constructor_lookup is None:
+            constructor_lookup = last_roster
+        if constructor_lookup is None:
+            return None
 
     drivers = list(constructor_lookup.index)
 
