@@ -3,9 +3,9 @@
   "round": 18,
   "drivers": [
     "max_verstappen",
-    "isack_hadjar",
-    "esteban_ocon",
-    "oliver_bearman",
+    "charles_leclerc",
+    "nico_hulkenberg",
+    "sergio_perez",
     "lance_stroll"
   ],
   "constructors": [
@@ -15,20 +15,20 @@
   "doubled_driver": "max_verstappen",
   "prices": {
     "max_verstappen": 28.2,
-    "isack_hadjar": 15.9,
-    "esteban_ocon": 9.5,
-    "oliver_bearman": 6.4,
+    "charles_leclerc": 24.1,
+    "nico_hulkenberg": 6.6,
+    "sergio_perez": 3.2,
     "lance_stroll": 3.0,
     "red_bull": 32.7,
     "ferrari": 28.2
   },
-  "budget_remaining": 3.0,
+  "budget_remaining": 1.0,
   "free_transfers_carried": 0,
   "driver_teams": {
     "max_verstappen": "red_bull",
-    "isack_hadjar": "red_bull",
-    "esteban_ocon": "haas",
-    "oliver_bearman": "haas",
+    "charles_leclerc": "ferrari",
+    "nico_hulkenberg": "audi",
+    "sergio_perez": "cadillac",
     "lance_stroll": "aston_martin"
   }
 }

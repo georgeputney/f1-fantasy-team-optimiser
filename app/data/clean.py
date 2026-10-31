@@ -1,5 +1,7 @@
 """Reads raw parquet files from data/raw/, normalises and transforms them into clean internal tables, validates against pandera schemas, and writes to data/interim/."""
 
+import unicodedata
+
 import pandas as pd
 import app.data.schemas as schemas
 
@@ -35,6 +37,19 @@ LOCATION_NORMALISATION = {
 DRIVER_ID_NORMALISATION = {
     "kimi_antonelli": "andrea_kimi_antonelli",
 }
+
+
+
+# strip accents so ids stay stable when the source switches spellings (e.g. "Hülkenberg" from 2026 round 17)
+def strip_accents(text):
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
+
+# build snake_case driver ids ("nico_hulkenberg") from FirstName/LastName columns
+def make_driver_id(df):
+    driver_id = (df["FirstName"] + "_" + df["LastName"]).str.lower().str.replace(" ", "_").map(strip_accents)
+    return driver_id.replace(DRIVER_ID_NORMALISATION)
+
 
 CONSTRUCTOR_ID_NORMALISATION = {
     "alfa": "alfa_romeo",       # Alfa Romeo (2023 and prior)
@@ -77,8 +92,7 @@ def clean_events(season, round_num):
 def clean_practice_results(season, round_num, session_name):
     laps = pd.read_parquet(RAW_PRACTICE_DIRS[session_name] / f"{season}_{round_num:02d}.parquet")
 
-    laps["driver_id"] = laps["FirstName"].str.lower().str.replace(" ", "_") + "_" + laps["LastName"].str.lower().str.replace(" ", "_")
-    laps["driver_id"] = laps["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    laps["driver_id"] = make_driver_id(laps)
     laps["constructor_id"] = laps["TeamId"].replace(CONSTRUCTOR_ID_NORMALISATION)
     laps = laps.drop(columns=["FirstName", "LastName", "TeamId"])
 
@@ -127,8 +141,7 @@ def clean_sprint_qualifying_results(season, round_num):
 
     results["season"] = season
     results["round"] = round_num
-    results["driver_id"] = results["FirstName"].str.lower().str.replace(" ", "_") + "_" + results["LastName"].str.lower().str.replace(" ", "_")
-    results["driver_id"] = results["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    results["driver_id"] = make_driver_id(results)
     results["constructor_id"] = results["constructor_id"].replace(CONSTRUCTOR_ID_NORMALISATION)
     results = results.drop(columns={"DriverId", "FirstName", "LastName"})
     results["race_id"] = f"{season}_{round_num:02d}"
@@ -153,8 +166,7 @@ def clean_sprint_results(season, round_num):
 
     results["season"] = season
     results["round"] = round_num
-    results["driver_id"] = results["FirstName"].str.lower().str.replace(" ", "_") + "_" + results["LastName"].str.lower().str.replace(" ", "_")
-    results["driver_id"] = results["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    results["driver_id"] = make_driver_id(results)
     results["constructor_id"] = results["constructor_id"].replace(CONSTRUCTOR_ID_NORMALISATION)
 
     results["status"] = results["status"].str.lower()
@@ -206,8 +218,7 @@ def clean_sprint_laps(season, round_num):
     laps = pd.read_parquet(RAW_SPRINT_LAPS_DIR / f"{season}_{round_num:02d}.parquet")
 
     laps["lap_time"] = laps["LapTime"].dt.total_seconds()
-    laps["driver_id"] = laps["FirstName"].str.lower().str.replace(" ", "_") + "_" + laps["LastName"].str.lower().str.replace(" ", "_")
-    laps["driver_id"] = laps["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    laps["driver_id"] = make_driver_id(laps)
 
     laps = laps.drop(columns=["LapTime", "FirstName", "LastName"])
     laps["season"] = season
@@ -239,8 +250,7 @@ def clean_qualifying_results(season, round_num):
     results["season"] = season
     results["round"] = round_num
     # replace spaces to handle multi-part names
-    results["driver_id"] = results["FirstName"].str.lower().str.replace(" ", "_") + "_" + results["LastName"].str.lower().str.replace(" ", "_")
-    results["driver_id"] = results["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    results["driver_id"] = make_driver_id(results)
     results["constructor_id"] = results["constructor_id"].replace(CONSTRUCTOR_ID_NORMALISATION)
 
     results = results.drop(columns={
@@ -281,8 +291,7 @@ def clean_race_laps(season, round_num):
     laps["season"] = season
     laps["round"] = round_num
     # replace spaces to handle multi-part names
-    laps["driver_id"] = laps["FirstName"].str.lower().str.replace(" ", "_") + "_" + laps["LastName"].str.lower().str.replace(" ", "_")
-    laps["driver_id"] = laps["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    laps["driver_id"] = make_driver_id(laps)
     laps["constructor_id"] = laps["constructor_id"].replace(CONSTRUCTOR_ID_NORMALISATION)
 
     fastest_index = laps["lap_time"].idxmin()
@@ -316,8 +325,7 @@ def clean_race_results(season, round_num):
     results["season"] = season
     results["round"] = round_num
     # replace spaces to handle multi-part names
-    results["driver_id"] = results["FirstName"].str.lower().str.replace(" ", "_") + "_" + results["LastName"].str.lower().str.replace(" ", "_")
-    results["driver_id"] = results["driver_id"].replace(DRIVER_ID_NORMALISATION)
+    results["driver_id"] = make_driver_id(results)
     results["constructor_id"] = results["constructor_id"].replace(CONSTRUCTOR_ID_NORMALISATION)
 
     results["status"] = results["status"].str.lower()

@@ -22,6 +22,7 @@ import fastf1
 import pandas as pd
 from playwright.sync_api import sync_playwright
 
+from app.data.clean import strip_accents
 from app.config import (
     FASTF1_CACHE_DIR, RAW_RACE_OVERTAKES_DIR, RAW_SPRINT_OVERTAKES_DIR, RAW_DOTD_DIR,
 )
@@ -82,7 +83,7 @@ def _build_abbrev_map(season: int) -> dict[str, str]:
                 continue
             first = row["FirstName"].lower().replace(" ", "_")
             last = row["LastName"].lower().replace(" ", "_")
-            driver_id = f"{first}_{last}"
+            driver_id = strip_accents(f"{first}_{last}")
             driver_id = DRIVER_ID_NORMALISATION.get(driver_id, driver_id)
             mapping[abbrev] = driver_id
 
