@@ -23,6 +23,7 @@ import pandas as pd
 from playwright.sync_api import sync_playwright
 
 from app.data.clean import strip_accents
+from app.data.ingest import _require_started
 from app.config import (
     FASTF1_CACHE_DIR, RAW_RACE_OVERTAKES_DIR, RAW_SPRINT_OVERTAKES_DIR, RAW_DOTD_DIR,
 )
@@ -48,6 +49,7 @@ ABBREV_FALLBACK = {
     "DOO": "jack_doohan",
     "LIN": "arvid_lindblad",
     "BEA": "oliver_bearman",
+    "HIR": "ryo_hirakawa",
 }
 
 
@@ -71,6 +73,7 @@ def _build_abbrev_map(season: int) -> dict[str, str]:
     for round_num in rounds_to_check:
         try:
             session = fastf1.get_session(season, round_num, "R")
+            _require_started(session)
             session.load(telemetry=False, weather=False, messages=False)
             if session.results.empty:
                 continue
