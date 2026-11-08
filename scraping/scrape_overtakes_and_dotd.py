@@ -50,6 +50,7 @@ ABBREV_FALLBACK = {
     "LIN": "arvid_lindblad",
     "BEA": "oliver_bearman",
     "HIR": "ryo_hirakawa",
+    "CAM": "rafael_camara",
 }
 
 

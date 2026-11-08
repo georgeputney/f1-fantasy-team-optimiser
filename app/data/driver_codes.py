@@ -21,6 +21,7 @@ FIA_CODES = {
     "oliver_bearman": "BEA",
     "oscar_piastri": "PIA",
     "pierre_gasly": "GAS",
+    "rafael_camara": "CAM",
     "ryo_hirakawa": "HIR",
     "sergio_perez": "PER",
     "valtteri_bottas": "BOT",

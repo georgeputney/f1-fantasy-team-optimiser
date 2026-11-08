@@ -21,7 +21,8 @@ SEAT_STINTS = {
         "liam_lawson":  [(1, 11, None), (12, 14, 14.5), (15, None, 9.7)],  # covered Hadjar's Red Bull seat r12-r14
         "yuki_tsunoda": [(12, 14, 10.3)],                                  # filled Lawson's Racing Bulls seat r12-r14
         "esteban_ocon": [(1, 18, None)],                                   # dropped by Haas from r19 FP3
-        "ryo_hirakawa": [(19, None, 6.0)],                                 # took Ocon's Haas seat from r19
+        "ryo_hirakawa": [(19, 19, 6.0)],                                   # took Ocon's Haas seat for r19 only
+        "rafael_camara": [(20, None, 6.0)],                                # took Hirakawa's Haas seat from r20
     },
 }
 
