@@ -1,34 +1,34 @@
 {
   "season": 2026,
-  "round": 19,
+  "round": 20,
   "drivers": [
+    "max_verstappen",
     "andrea_kimi_antonelli",
-    "charles_leclerc",
-    "nico_hulkenberg",
     "sergio_perez",
+    "alexander_albon",
     "lance_stroll"
   ],
   "constructors": [
     "mercedes",
     "ferrari"
   ],
-  "doubled_driver": "andrea_kimi_antonelli",
+  "doubled_driver": "max_verstappen",
   "prices": {
-    "andrea_kimi_antonelli": 27.4,
-    "charles_leclerc": 24.4,
-    "nico_hulkenberg": 7.2,
+    "max_verstappen": 28.8,
+    "andrea_kimi_antonelli": 27.5,
     "sergio_perez": 3.0,
+    "alexander_albon": 3.8,
     "lance_stroll": 3.0,
     "mercedes": 34.0,
-    "ferrari": 28.5
+    "ferrari": 28.8
   },
-  "budget_remaining": 1.3,
+  "budget_remaining": 1.2,
   "free_transfers_carried": 0,
   "driver_teams": {
+    "max_verstappen": "red_bull",
     "andrea_kimi_antonelli": "mercedes",
-    "charles_leclerc": "ferrari",
-    "nico_hulkenberg": "audi",
     "sergio_perez": "cadillac",
+    "alexander_albon": "williams",
     "lance_stroll": "aston_martin"
   }
 }
